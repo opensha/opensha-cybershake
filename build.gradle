@@ -13,7 +13,8 @@ dependencies {
     // jars. TODO move to repo?
     compile files('lib/EventWebService.jar')
     
-    compileAndResource project(':opensha-apps')
+    compileOnly project(path: ':opensha-apps', configuration: 'compileOnly')
+    compileAndResource project(path: ':opensha-apps')
 
     // Use JUnit test framework
     testCompile 'junit:junit:4.12'

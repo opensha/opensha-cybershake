@@ -27,8 +27,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import scratch.aftershockStatistics.ComcatAccessor;
-
 public class MCEr_USGS_ComparisonFetcher {
 	
 	public static DiscretizedFunc getMCEr(Site site, DiscretizedFunc xValsFunc)
@@ -392,7 +390,7 @@ public class MCEr_USGS_ComparisonFetcher {
 			Object o = parser.parse(new InputStreamReader(is));
 			Preconditions.checkState(o instanceof JSONObject);
 			JSONObject j = (JSONObject)o;
-			ComcatAccessor.printJSON(j);
+//			ComcatAccessor.printJSON(j);
 			//			JSONObject output = (JSONObject)j.get("output");
 			//			System.out.println(output);
 			//			Preconditions.checkNotNull(output);

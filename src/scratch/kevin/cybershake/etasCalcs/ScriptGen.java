@@ -26,8 +26,6 @@ import scratch.UCERF3.erf.ETAS.ETAS_CatalogIO;
 import scratch.UCERF3.erf.ETAS.ETAS_Params.U3ETAS_ProbabilityModelOptions;
 import scratch.UCERF3.utils.FaultSystemIO;
 import scratch.UCERF3.erf.ETAS.ETAS_Simulator.TestScenario;
-import scratch.kevin.ucerf3.etas.ETAS_BinaryCatalogFilterByMag;
-import scratch.kevin.ucerf3.etas.ETAS_BinaryCatalogFilterDependents;
 import scratch.kevin.ucerf3.etas.MPJ_ETAS_Simulator;
 
 import com.google.common.base.Preconditions;
@@ -363,47 +361,47 @@ private static final String args_continue_newline = " \\\n\t";
 					List<String> script = mpjWrite.buildScript(MPJ_ETAS_Simulator.class.getName(), argz);
 					
 					List<String> consolidationLines = null;
-					if (writeConsolidate) {
-						consolidationLines = Lists.newArrayList();
-//						consolidationLines.add("# M4 consolidation");
-						File resultsDir = new File(remoteJobDir, "results");
-						File m4File = new File(remoteJobDir, "results_m4_preserve.bin");
-//						consolidationLines.add(mpjWrite.buildCommand(ETAS_CatalogIO.class.getName(),
-//								resultsDir.getAbsolutePath()+" "+m4File.getAbsolutePath()+" 4"));
-//						consolidationLines.add("");
-						File resultsFile = new File(remoteJobDir, "results.bin");
-						if (scenario == null) {
-							if (!binary) {
-								// build binary results.bin file
-								consolidationLines.add("# create results.bin binary file");
-								consolidationLines.add(mpjWrite.buildCommand(ETAS_CatalogIO.class.getName(),
-										resultsDir.getAbsolutePath()+" "+resultsFile.getAbsolutePath()));
-							}
-						} else {
-							// descendents file
-							consolidationLines.add("# create descendents binary file");
-							File descendentsFile = new File(remoteJobDir, "results_descendents.bin");
-							consolidationLines.add(mpjWrite.buildCommand(ETAS_BinaryCatalogFilterDependents.class.getName(),
-									resultsFile.getAbsolutePath()+" "+descendentsFile.getAbsolutePath()+" 0"));
-						}
-						// build m4 file, preserving descendents
-						consolidationLines.add("# create results_m4_preserve.bin binary file");
-						consolidationLines.add(mpjWrite.buildCommand(ETAS_BinaryCatalogFilterByMag.class.getName(),
-								resultsFile.getAbsolutePath()+" "+m4File.getAbsolutePath()+" 4 true"));
-						
-						if (bundleConsolidate) {
-							String lastLine = script.get(script.size()-1);
-							if (lastLine.startsWith("exit")) {
-								script.remove(script.size()-1);
-								script.addAll(consolidationLines);
-								script.add("");
-								script.add(lastLine);
-							} else {
-								script.add("");
-								script.addAll(consolidationLines);
-							}
-						}
-					}
+//					if (writeConsolidate) {
+//						consolidationLines = Lists.newArrayList();
+////						consolidationLines.add("# M4 consolidation");
+//						File resultsDir = new File(remoteJobDir, "results");
+//						File m4File = new File(remoteJobDir, "results_m4_preserve.bin");
+////						consolidationLines.add(mpjWrite.buildCommand(ETAS_CatalogIO.class.getName(),
+////								resultsDir.getAbsolutePath()+" "+m4File.getAbsolutePath()+" 4"));
+////						consolidationLines.add("");
+//						File resultsFile = new File(remoteJobDir, "results.bin");
+//						if (scenario == null) {
+//							if (!binary) {
+//								// build binary results.bin file
+//								consolidationLines.add("# create results.bin binary file");
+//								consolidationLines.add(mpjWrite.buildCommand(ETAS_CatalogIO.class.getName(),
+//										resultsDir.getAbsolutePath()+" "+resultsFile.getAbsolutePath()));
+//							}
+//						} else {
+//							// descendents file
+//							consolidationLines.add("# create descendents binary file");
+//							File descendentsFile = new File(remoteJobDir, "results_descendents.bin");
+//							consolidationLines.add(mpjWrite.buildCommand(ETAS_BinaryCatalogFilterDependents.class.getName(),
+//									resultsFile.getAbsolutePath()+" "+descendentsFile.getAbsolutePath()+" 0"));
+//						}
+//						// build m4 file, preserving descendents
+//						consolidationLines.add("# create results_m4_preserve.bin binary file");
+//						consolidationLines.add(mpjWrite.buildCommand(ETAS_BinaryCatalogFilterByMag.class.getName(),
+//								resultsFile.getAbsolutePath()+" "+m4File.getAbsolutePath()+" 4 true"));
+//						
+//						if (bundleConsolidate) {
+//							String lastLine = script.get(script.size()-1);
+//							if (lastLine.startsWith("exit")) {
+//								script.remove(script.size()-1);
+//								script.addAll(consolidationLines);
+//								script.add("");
+//								script.add(lastLine);
+//							} else {
+//								script.add("");
+//								script.addAll(consolidationLines);
+//							}
+//						}
+//					}
 					
 					script = pbsWrite.buildScript(script, mins, nodes, ppn, queue);
 					pbsWrite.writeScript(pbsFile, script);

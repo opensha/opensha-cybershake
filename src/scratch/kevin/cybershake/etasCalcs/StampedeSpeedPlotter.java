@@ -19,10 +19,11 @@ import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.gui.plot.PlotSymbol;
-import org.opensha.commons.hpc.mpj.taskDispatch.MPJTaskCalculator;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+
+import net.kevinmilner.mpj.taskDispatch.MPJTaskCalculator;
 
 public class StampedeSpeedPlotter {
 

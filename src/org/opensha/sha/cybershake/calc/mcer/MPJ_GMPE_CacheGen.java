@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import mpi.MPI;
+import net.kevinmilner.mpj.taskDispatch.MPJTaskCalculator;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -18,7 +19,6 @@ import org.dom4j.DocumentException;
 import org.dom4j.Element;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.DiscretizedFunc;
-import org.opensha.commons.hpc.mpj.taskDispatch.MPJTaskCalculator;
 import org.opensha.commons.param.ParameterList;
 import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.XMLUtils;

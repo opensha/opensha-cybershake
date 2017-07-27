@@ -23,7 +23,7 @@ import org.opensha.commons.gui.plot.PlotSymbol;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import net.kevinmilner.mpj.taskDispatch.MPJTaskCalculator;
+import edu.usc.kmilner.mpj.taskDispatch.MPJTaskCalculator;
 
 public class StampedeSpeedPlotter {
 

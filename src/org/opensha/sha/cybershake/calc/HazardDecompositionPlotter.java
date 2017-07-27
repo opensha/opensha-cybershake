@@ -48,7 +48,7 @@ import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.ERF;
-import org.opensha.sha.earthquake.ERFTestSubset;
+import org.opensha.sha.earthquake.ERFSubset;
 import org.opensha.sha.earthquake.EqkRupture;
 import org.opensha.sha.earthquake.ProbEqkSource;
 import org.opensha.sha.gui.infoTools.IMT_Info;
@@ -191,7 +191,7 @@ public class HazardDecompositionPlotter {
 				continue;
 			
 //			System.out.println("Source "+sourceID);
-			ERFTestSubset subset = new ERFTestSubset(erf);
+			ERFSubset subset = new ERFSubset(erf);
 			for (int sourceID : withinIDs)
 				subset.includeSource(sourceID);
 			subset.updateForecast();
@@ -203,7 +203,7 @@ public class HazardDecompositionPlotter {
 			sourceFuncs.add(srcHazard);
 			
 			// now all sources except this one for disagg
-			subset = new ERFTestSubset(erf);
+			subset = new ERFSubset(erf);
 			for (int sourceID=0; sourceID<erf.getNumSources(); sourceID++)
 				if (!withinIDs.contains(sourceID))
 					subset.includeSource(sourceID);

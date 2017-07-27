@@ -18,7 +18,7 @@ import org.opensha.sha.calc.hazardMap.HazardCurveSetCalculator;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
 import org.opensha.sha.earthquake.AbstractERF;
-import org.opensha.sha.earthquake.ERFTestSubset;
+import org.opensha.sha.earthquake.ERFSubset;
 import org.opensha.sha.earthquake.ProbEqkSource;
 import org.opensha.sha.gui.infoTools.IMT_Info;
 import org.opensha.sha.imr.AttenRelRef;
@@ -78,7 +78,7 @@ public class HazardDecompositionTest {
 			}
 			
 			System.out.println("Source "+sourceID);
-			ERFTestSubset subset = new ERFTestSubset(erf);
+			ERFSubset subset = new ERFSubset(erf);
 			subset.includeSource(sourceID);
 			subset.updateForecast();
 			Preconditions.checkState(subset.getNumSources() == 1);
@@ -88,7 +88,7 @@ public class HazardDecompositionTest {
 			sourceFuncs.add(srcHazard);
 			
 			// now all sources except this one for disagg
-			subset = new ERFTestSubset(erf);
+			subset = new ERFSubset(erf);
 			subset.includeAllExcept(sourceID);
 			subset.updateForecast();
 			Preconditions.checkState(subset.getNumSources() == erf.getNumSources()-1);

@@ -281,9 +281,9 @@ public class UGMS_WebToolCalc {
 			csSiteEl.addAttribute("siteID", csRun.getCS_Site().id+"");
 			csSiteEl.addAttribute("siteShortName", csRun.getCS_Site().short_name);
 			csSiteEl.addAttribute("siteName", csRun.getCS_Site().name);
-			csSiteEl.addAttribute("distFromUserLoc", minDist+"");
-			csSiteEl.addAttribute("latitude", csRun.getLocation().getLatitude()+"");
-			csSiteEl.addAttribute("longitude", csRun.getLocation().getLongitude()+"");
+			csSiteEl.addAttribute("distFromUserLoc", valDF.format(minDist));
+			csSiteEl.addAttribute("latitude", latLonDF.format(csRun.getLocation().getLatitude()));
+			csSiteEl.addAttribute("longitude", latLonDF.format(csRun.getLocation().getLongitude()));
 			
 			File csCacheDir = new File(cmd.getOptionValue("cs-dir"));
 			Preconditions.checkState(csCacheDir.exists(), "CS cache dir doesn't exist: %s", csCacheDir.getAbsolutePath());
@@ -301,8 +301,8 @@ public class UGMS_WebToolCalc {
 			csProbCalc = new CyberShakeMCErProbabilisticCalc(db, component);
 		}
 		
-		metadataEl.addAttribute("latitude", loc.getLatitude()+"");
-		metadataEl.addAttribute("longitude", loc.getLongitude()+"");
+		metadataEl.addAttribute("latitude", latLonDF.format(loc.getLatitude()));
+		metadataEl.addAttribute("longitude", latLonDF.format(loc.getLongitude()));
 		
 		System.out.println("Loc: "+loc);
 		tl = ASCEDetLowerLimitCalc.getTl(loc);
@@ -428,9 +428,9 @@ public class UGMS_WebToolCalc {
 			throw ExceptionUtils.asRuntimeException(e);
 		}
 		
-		metadataEl.addAttribute("vs30", userVs30+"");
-		metadataEl.addAttribute("z1p0", z1p0+"");
-		metadataEl.addAttribute("z2p5", z2p5+"");
+		metadataEl.addAttribute("vs30", vs30DF.format(userVs30));
+		metadataEl.addAttribute("z1p0", zDF.format(z1p0));
+		metadataEl.addAttribute("z2p5", zDF.format(z2p5));
 		if (siteClassNames != null) {
 			if (siteClassNames.size() == 1) {
 				metadataEl.addAttribute("siteClass", siteClassNames.get(0));
@@ -497,13 +497,13 @@ public class UGMS_WebToolCalc {
 			csMCER = MCERDataProductsCalc.calcMCER(csDetSpectrum, csProbSpectrum, asceDeterm);
 			csMCER.setName("CyberShake MCER");
 			
-			csDetSpectrum.toXMLMetadata(csSiteEl, "deterministic");
-			csProbSpectrum.toXMLMetadata(csSiteEl, "probabilistic");
-			asceDeterm.toXMLMetadata(csSiteEl, "detLowerLimit");
-			csMCER.toXMLMetadata(csSiteEl, "mcer");
+			csDetSpectrum.toXMLMetadata(csSiteEl, "deterministic", valDF);
+			csProbSpectrum.toXMLMetadata(csSiteEl, "probabilistic", valDF);
+			asceDeterm.toXMLMetadata(csSiteEl, "detLowerLimit", valDF);
+			csMCER.toXMLMetadata(csSiteEl, "mcer", valDF);
 		}
 		
-		csMCER.toXMLMetadata(resultsEl, "CyberShakeMCER");
+		csMCER.toXMLMetadata(resultsEl, "CyberShakeMCER", valDF);
 	}
 	
 	public void calcGMPE() throws Exception {
@@ -541,14 +541,18 @@ public class UGMS_WebToolCalc {
 			
 			Location closestLoc = interp.getClosestGridLoc(loc);
 			
+			int numInterpPoints;
 			try {
 				spectrum.add(interp.getInterpolated(loc));
+				numInterpPoints = 4;
 			} catch (IllegalStateException e) {
 				System.out.println("Interpolation failed, falling back to closest defined point."
 						+ " This happens if one of the surrounding points is in the ocean.");
 				closestLoc = interp.getClosestDefinedGridLoc(loc);
 				spectrum.add(interp.getClosest(closestLoc));
+				numInterpPoints = 1;
 			}
+			gmpeSiteEl.addAttribute("numInterpPoints", numInterpPoints+"");
 			
 			double minDist = LocationUtils.horzDistanceFast(closestLoc, loc);
 			System.out.println("Distance to closest point in GMPE data file: "+minDist+" km");
@@ -556,9 +560,9 @@ public class UGMS_WebToolCalc {
 			Preconditions.checkState(minDist <= GMPE_MAX_DIST,
 					"Closest location in GMPE data file too far from user location: %s > %s", minDist, GMPE_MAX_DIST);
 			
-			gmpeSiteEl.addAttribute("distFromUserLoc", minDist+"");
-			gmpeSiteEl.addAttribute("latitude", closestLoc.getLatitude()+"");
-			gmpeSiteEl.addAttribute("longitude", closestLoc.getLongitude()+"");
+			gmpeSiteEl.addAttribute("distFromUserLoc", valDF.format(minDist));
+			gmpeSiteEl.addAttribute("latitude", latLonDF.format(closestLoc.getLatitude()));
+			gmpeSiteEl.addAttribute("longitude", latLonDF.format(closestLoc.getLongitude()));
 			
 			// now PGA
 			String pgaDataFileName = pgaDataFileNames.get(i);
@@ -617,11 +621,11 @@ public class UGMS_WebToolCalc {
 			Preconditions.checkState(x2 > x1);
 			Preconditions.checkState(x2 >= userVs30 && userVs30 >= x1,
 					"User supplied Vs30 (%s) not in range [%s %s]", userVs30, x1, x2); 
-			interpEl.addAttribute("vs30lower", x1+"");
-			interpEl.addAttribute("vs30upper", x2+"");
-			interpEl.addAttribute("userVs30", userVs30+"");
-			s1.toXMLMetadata(interpEl, "LowerSpectrum");
-			s2.toXMLMetadata(interpEl, "UpperSpectrum");
+			interpEl.addAttribute("vs30lower", vs30DF.format(x1));
+			interpEl.addAttribute("vs30upper", vs30DF.format(x2));
+			interpEl.addAttribute("userVs30", vs30DF.format(userVs30));
+			s1.toXMLMetadata(interpEl, "LowerSpectrum", valDF);
+			s2.toXMLMetadata(interpEl, "UpperSpectrum", valDF);
 			
 			double[] xs = {x1, x2};
 			gmpeMCER = new ArbitrarilyDiscretizedFunc();
@@ -648,7 +652,7 @@ public class UGMS_WebToolCalc {
 		}
 		gmpeMCER.setName("GMPE MCER");
 		
-		gmpeMCER.toXMLMetadata(resultsEl, "GMPE_MCER");
+		gmpeMCER.toXMLMetadata(resultsEl, "GMPE_MCER", valDF);
 	}
 	
 	private GriddedSpectrumInterpolator getInterpolator(File dataFile, double spacing) throws Exception {
@@ -709,7 +713,7 @@ public class UGMS_WebToolCalc {
 		Preconditions.checkNotNull(csMCER, "CS MCER has not been computed!");
 		Preconditions.checkNotNull(gmpeMCER, "GMPE MCER has not been computed!");
 		finalMCER = MCERDataProductsCalc.calcFinalMCER(csMCER, gmpeMCER);
-		finalMCER.toXMLMetadata(resultsEl, "FinalMCER");
+		finalMCER.toXMLMetadata(resultsEl, "FinalMCER", valDF);
 		finalMCER.setName("Final MCER");
 		
 		// calc SDS and SD1
@@ -753,24 +757,24 @@ public class UGMS_WebToolCalc {
 		sms = 1.5*sds;
 		sm1 = 1.5*sd1;
 		
-		resultsEl.addAttribute("SDS", sds+"");
-		resultsEl.addAttribute("SD1", sd1+"");
-		resultsEl.addAttribute("SMS", sms+"");
-		resultsEl.addAttribute("SM1", sm1+"");
-		resultsEl.addAttribute("TL", tl+"");
+		resultsEl.addAttribute("SDS", valDF.format(sds));
+		resultsEl.addAttribute("SD1", valDF.format(sd1));
+		resultsEl.addAttribute("SMS", valDF.format(sms));
+		resultsEl.addAttribute("SM1", valDF.format(sm1));
+		resultsEl.addAttribute("TL", valDF.format(tl));
 		double ts = sd1/sds;
 		double t0 = 0.2*ts;
-		resultsEl.addAttribute("TS", ts+"");
-		resultsEl.addAttribute("T0", t0+"");
-		resultsEl.addAttribute("PGAM", gmpePGA+"");
+		resultsEl.addAttribute("TS", valDF.format(ts));
+		resultsEl.addAttribute("T0", valDF.format(t0));
+		resultsEl.addAttribute("PGAM", valDF.format(gmpePGA));
 		
 		standardSpectrum = DesignSpectrumCalc.calcSpectrum(sms, sm1, tl);
 		standardSpectrum.setName("Standard MCER Spectrum");
-		standardSpectrum.toXMLMetadata(resultsEl, "StandardMCERSpectrum");
+		standardSpectrum.toXMLMetadata(resultsEl, "StandardMCERSpectrum", valDF);
 		
 		designSpectrum = DesignSpectrumCalc.calcSpectrum(sds, sd1, tl);
 		designSpectrum.setName("Design Response Spectrum");
-		designSpectrum.toXMLMetadata(resultsEl, "DesignResponseSpectrum");
+		designSpectrum.toXMLMetadata(resultsEl, "DesignResponseSpectrum", valDF);
 	}
 	
 	public void plot() throws IOException {
@@ -781,7 +785,10 @@ public class UGMS_WebToolCalc {
 		plot(false, false, false, false, true);
 	}
 	
-	private static final DecimalFormat csvSaDF = new DecimalFormat("0.000");
+	private static final DecimalFormat valDF = new DecimalFormat("0.00");
+	private static final DecimalFormat latLonDF = new DecimalFormat("0.0000");
+	private static final DecimalFormat vs30DF = new DecimalFormat("0");
+	private static final DecimalFormat zDF = new DecimalFormat("0.00");
 	
 	public void plot(boolean psv, boolean ingredients, boolean finalSpectrum, boolean smSpectrum, boolean sdSpectrum) throws IOException {
 		boolean xLog = psv;
@@ -901,9 +908,9 @@ public class UGMS_WebToolCalc {
 			
 			for (double period : periods) {
 				List<String> line = Lists.newArrayList((float)period+"");
-				line.add(MCERDataProductsCalc.getValIfPresent(gmpeMCER, period, csvSaDF));
-				line.add(MCERDataProductsCalc.getValIfPresent(csMCER, period, csvSaDF));
-				line.add(MCERDataProductsCalc.getValIfPresent(finalMCER, period, csvSaDF));
+				line.add(MCERDataProductsCalc.getValIfPresent(gmpeMCER, period, valDF));
+				line.add(MCERDataProductsCalc.getValIfPresent(csMCER, period, valDF));
+				line.add(MCERDataProductsCalc.getValIfPresent(finalMCER, period, valDF));
 				
 				csv.addLine(line);
 			}
@@ -1075,7 +1082,8 @@ public class UGMS_WebToolCalc {
 //			argStr += " --dataset-id 57";
 //			argStr += " --gmpe-dir /home/kevin/CyberShake/MCER/gmpe_cache_gen/mcer_binary_results_2016_09_30";
 //			argStr += " --gmpe-dir /home/kevin/CyberShake/MCER/gmpe_cache_gen/mcer_binary_results_2017_01_20";
-			argStr += " --gmpe-dir /home/kevin/CyberShake/MCER/gmpe_cache_gen/mcer_binary_results_2017_05_19";
+//			argStr += " --gmpe-dir /home/kevin/CyberShake/MCER/gmpe_cache_gen/mcer_binary_results_2017_05_19";
+			argStr += " --gmpe-dir /home/kevin/CyberShake/MCER/gmpe_cache_gen/mcer_binary_results_2017_07_27";
 			argStr += " --gmpe-spacing 0.02";
 //			argStr += " --cs-dir /home/kevin/CyberShake/MCER/.amps_cache";
 //			argStr += " --cs-data-file /home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/interp_tests/mcer_spectrum_0.001.bin";
@@ -1085,12 +1093,12 @@ public class UGMS_WebToolCalc {
 			argStr += " --cs-data-file /home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/interp_tests/mcer_spectrum_0.002.bin";
 			argStr += " --cs-spacing 0.002";
 			argStr += " --vel-model-id 5";
-			argStr += " --z10-file /home/kevin/workspace/OpenSHA/src/resources/data/site/CVM4i26/depth_1.0.bin";
-			argStr += " --z25-file /home/kevin/workspace/OpenSHA/src/resources/data/site/CVM4i26/depth_2.5.bin";
+			argStr += " --z10-file /home/kevin/workspace/opensha-commons/src/resources/data/site/CVM4i26/depth_1.0.bin";
+			argStr += " --z25-file /home/kevin/workspace/opensha-commons/src/resources/data/site/CVM4i26/depth_2.5.bin";
 			argStr += " --output-dir /tmp/ugms_web_tool";
 //			argStr += " --vs30 380";
 //			argStr += " --class AorB";
-//			argStr += " --class D_default";
+			argStr += " --class D_default";
 			argStr += " --gmpe-erf UCERF3";
 			argStr += " --wills-file /data/kevin/opensha/wills2015.flt";
 			

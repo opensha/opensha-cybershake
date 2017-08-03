@@ -39,7 +39,8 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 		File mainDir = new File("/home/kevin/CyberShake/MCER/gmpe_cache_gen");
 //		String prefix = "2016_09_30-ucerf3_downsampled_ngaw2_binary_0.02_";
 //		String prefix = "2017_01_20-ucerf3_downsampled_ngaw2_binary_0.02_";
-		String prefix = "2017_05_19-ucerf3_downsampled_ngaw2_binary_0.02_";
+//		String prefix = "2017_05_19-ucerf3_downsampled_ngaw2_binary_0.02_";
+		String prefix = "2017_07_27-ucerf3_downsampled_ngaw2_binary_0.02_";
 		String dataFileName = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD100_mcer.bin";
 		String pgaFileName = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD100_pga.bin";
 		File outputDir = new File(mainDir, prefix+"results");

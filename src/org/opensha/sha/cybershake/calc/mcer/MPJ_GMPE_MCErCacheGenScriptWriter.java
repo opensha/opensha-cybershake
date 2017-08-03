@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -53,7 +54,8 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 		
 		boolean fmpj = false;
 		
-		Map<String, Double> vs30Map = UGMS_WebToolCalc.vs30Map;
+		Map<String, Double> vs30Map = new HashMap<>(UGMS_WebToolCalc.vs30Map);
+		vs30Map.remove("D_default"); // calculated after the fact
 		
 		double spacing = 0.02;
 		
@@ -90,7 +92,7 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 			// now set Vs30
 			List<Site> mySites;
 			Double vs30 = vs30Map.get(vsModel);
-			if (vs30 == null) {
+			if (vs30 == null || vs30 < 0) {
 				mySites = sites;
 				jobName += "_"+vsModel;
 			} else {
@@ -131,7 +133,7 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 			
 			List<File> classpath = new ArrayList<File>();
 			classpath.add(new File(remoteDir, "commons-cli-1.2.jar"));
-			classpath.add(new File(remoteDir, "OpenSHA_complete.jar"));
+			classpath.add(new File(remoteDir, "opensha-cybershake-all.jar"));
 			
 			JavaShellScriptWriter mpjWrite;
 			if (fmpj) {

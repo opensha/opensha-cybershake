@@ -156,14 +156,11 @@ public class CyberShakeBaseMapGen {
 		CalculationSettings calcSettings = new CalculationSettings(xValues, maxSourceDistance);
 		
 		File javaBin = USC_HPCC_ScriptWriter.JAVA_BIN;
-		File svnDir = new File(hazMapsDir, "svn");
-		File distDir = new File(svnDir, "dist");
-		File libDir = new File(svnDir, "lib");
-		File jarFile = new File(distDir, "OpenSHA_complete.jar");
+		File buildDir = new File(hazMapsDir, "git/opensha-cybershake/build/libs/");
+		File jarFile = new File(buildDir, "opensha-cybershake-all.jar");
 		
 		ArrayList<File> classpath = new ArrayList<File>();
 		classpath.add(jarFile);
-		classpath.add(new File(libDir, "commons-cli-1.2.jar"));
 		
 		MPJExpressShellScriptWriter mpj = new MPJExpressShellScriptWriter(javaBin, 60000, classpath,
 				USC_HPCC_ScriptWriter.MPJ_HOME);

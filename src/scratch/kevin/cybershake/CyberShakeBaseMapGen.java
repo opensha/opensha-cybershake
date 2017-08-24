@@ -81,7 +81,7 @@ public class CyberShakeBaseMapGen {
 			String regName = args[9].toLowerCase();
 			if (regName.equals("la"))
 				region = new CaliforniaRegions.CYBERSHAKE_MAP_GRIDDED(spacing);
-			else if (regName.equals("ccs"))
+			else if (regName.equals("cca"))
 				region = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_GRIDDED(spacing);
 			else if (regName.equals("ca"))
 				region = new CaliforniaRegions.RELM_TESTING_GRIDDED(spacing);

@@ -1,21 +1,16 @@
 /*
- * Taks/definitions specific to opensha-cybershake
+ * opensha-cybershake dependencies
  */
 
 apply from: '../opensha-commons/build-common.gradle'
 
 dependencies {
-	/*
-	 *	"Runtime" dependencies are exported downstream to users
-	 */
-	// repository based dependencies
-	 
-    // jars. TODO move to repo?
+
+    /* no remote repo */
     compile files('lib/EventWebService.jar')
-    
+
     compileOnly project(path: ':opensha-apps', configuration: 'compileOnly')
     compileAndResource project(path: ':opensha-apps')
 
-    // Use JUnit test framework
     testCompile 'junit:junit:4.12'
 }

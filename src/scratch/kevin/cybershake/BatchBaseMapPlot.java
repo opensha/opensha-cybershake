@@ -63,27 +63,30 @@ public class BatchBaseMapPlot {
 //		File dir = new File("/home/kevin/CyberShake/baseMaps/2015_06_12-cvm4i26-cs-nga-10sec");
 //		File dir = new File("/home/kevin/CyberShake/baseMaps/2016_08_31-ccai6-cs-nga2avg-3sec");
 //		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_04_10-ccai6-cs-nga2-2sec");
-		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_04_11-cca-nobasin-cs-nga2-2sec");
+//		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_04_11-cca-nobasin-cs-nga2-2sec");
+//		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_09_10-cvm4i26-cs-nga2-individual-5sec");
+		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_09_10-cca-cs-nga2-individual-5sec");
 		
 		boolean ratios = false;
 		
 		List<SiteData<Double>> siteDatas = Lists.newArrayList();
 		siteDatas.add(new WillsMap2015());
-//		siteDatas.add(new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0));
-//		siteDatas.add(new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5));
-		siteDatas.add(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0));
-		siteDatas.add(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5));
 		
 //		Region region = new CaliforniaRegions.CYBERSHAKE_MAP_REGION();
+//		siteDatas.add(new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0));
+//		siteDatas.add(new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5));
+		
 		Region region = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION();
+		siteDatas.add(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0));
+		siteDatas.add(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5));
 		
 //		String imtFileLabel = "1sec";
 //		String label = "1sec SA";
 //		Double customMax = 3d; // for 1 sec
 		
-		String imtFileLabel = "2sec";
-		String label = "2sec SA";
-		Double customMax = 1.0; // for 2 sec
+//		String imtFileLabel = "2sec";
+//		String label = "2sec SA";
+//		Double customMax = 1.0; // for 2 sec
 		
 //		String imtFileLabel = "pga";
 //		String label = "PGA";
@@ -93,9 +96,9 @@ public class BatchBaseMapPlot {
 //		String label = "3sec SA";
 //		Double customMax = 1.4; // for 3 sec
 		
-//		String imtFileLabel = "5sec";
-//		String label = "5sec SA";
-//		Double customMax = 1d; // for 5 sec
+		String imtFileLabel = "5sec";
+		String label = "5sec SA";
+		Double customMax = 1d; // for 5 sec
 		
 //		String imtFileLabel = "10sec";
 //		String label = "10sec SA";

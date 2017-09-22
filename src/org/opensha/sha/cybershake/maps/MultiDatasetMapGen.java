@@ -42,8 +42,8 @@ public class MultiDatasetMapGen {
 	public static void main(String[] args) throws Exception {
 		HardCodedInterpDiffMapCreator.LOCAL_MAPGEN = true;
 		
-//		File outputDir = new File("/home/kevin/CyberShake/maps/combined_17_3_and_15_4");
-		File outputDir = new File("/home/kevin/CyberShake/maps/combined_17_3_and_15_4_nobasemap");
+		File outputDir = new File("/home/kevin/CyberShake/maps/combined_17_3_and_15_4");
+//		File outputDir = new File("/home/kevin/CyberShake/maps/combined_17_3_and_15_4_nobasemap");
 		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
 		
 		int studyID1 = 81;
@@ -66,30 +66,30 @@ public class MultiDatasetMapGen {
 //		int imTypeID = 167; // 2 sec SA, RotD50
 //		String imtLabel = "2sec SA";
 //		Double customMax = 1.0;
-////		File baseMapFile = new File("/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-2sec/"
-////				+ "NGAWest_2014_NoIdr/curves/imrs1.bin");
-//		File baseMapFile = null;
+//		File baseMapFile = new File("/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-2sec/"
+//				+ "NGAWest_2014_NoIdr/curves/imrs1.bin");
+////		File baseMapFile = null;
 		
 //		int imTypeID = 162; // 3 sec SA, RotD50
 //		String imtLabel = "3sec SA";
 //		Double customMax = 1.0;
-////		File baseMapFile = new File("/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-3sec/"
-////				+ "NGAWest_2014_NoIdr/curves/imrs1.bin");
-//		File baseMapFile = null;
+//		File baseMapFile = new File("/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-3sec/"
+//				+ "NGAWest_2014_NoIdr/curves/imrs1.bin");
+////		File baseMapFile = null;
 		
 //		int imTypeID = 158; // 5 sec SA, RotD50
 //		String imtLabel = "5sec SA";
 //		Double customMax = 0.6;
-////		File baseMapFile = new File("/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-5sec/"
-////				+ "NGAWest_2014_NoIdr/curves/imrs1.bin");
-//		File baseMapFile = null;
+//		File baseMapFile = new File("/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-5sec/"
+//				+ "NGAWest_2014_NoIdr/curves/imrs1.bin");
+////		File baseMapFile = null;
 		
 		int imTypeID = 152; // 10 sec SA, RotD50
 		String imtLabel = "10sec SA";
 		Double customMax = 0.4;
-//		File baseMapFile = new File("/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-10sec/"
-//				+ "NGAWest_2014_NoIdr/curves/imrs1.bin");
-		File baseMapFile = null;
+		File baseMapFile = new File("/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-10sec/"
+				+ "NGAWest_2014_NoIdr/curves/imrs1.bin");
+//		File baseMapFile = null;
 		
 //		int imTypeID = 21; // 3 sec SA, GEOM
 //		String imtLabel = "3sec SA GEOM";

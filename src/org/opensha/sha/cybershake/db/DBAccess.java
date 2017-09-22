@@ -621,6 +621,7 @@ public class DBAccess implements Runnable{
 
 		Date now = new Date();
 
+		// no longer need to force load of the driver
 		try {
 			Class.forName (dbDriver);
 

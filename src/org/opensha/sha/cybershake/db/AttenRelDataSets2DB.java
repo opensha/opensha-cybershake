@@ -32,6 +32,7 @@ public class AttenRelDataSets2DB {
 			sql += " AND Time_Span_Start_Date IS NULL";
 		else
 			sql += " AND Time_Span_Start_Date='"+DBAccess.SQL_DATE_FORMAT.format(date)+"'";
+		System.out.println(sql);
 		
 		return DB_Utils.getSingleInt(db, sql);
 	}

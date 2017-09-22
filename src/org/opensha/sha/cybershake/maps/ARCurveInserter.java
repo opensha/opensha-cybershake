@@ -115,7 +115,13 @@ public class ARCurveInserter {
 //		String dir = "/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-2sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 //		String dir = "/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 //		String dir = "/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
-		String dir = "/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2017_08_24-ccai6-cs-nga2-2sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2017_08_24-ccai6-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2017_08_24-ccai6-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2017_08_24-ccai6-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2017_09_05-cvm4i26-ca-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+		String dir = "/home/kevin/CyberShake/baseMaps/2017_09_10-cvm4i26-cs-nga2-individual-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 		// UPDATE IM TYPE AND DATE BELOW!!!!!!!!!!!!!!!!!!!!!!!
 		boolean deleteOld = false;
 		ScalarIMR imr = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
@@ -128,11 +134,11 @@ public class ARCurveInserter {
 		int erfID = 36;
 //		int velModelID = 1;
 //		int velModelID = 8; // BBP 1D
-//		int velModelID = 5; // CVMS-4i26
+		int velModelID = 5; // CVMS-4i26
 //		int velModelID = 7; // CVM-H 11.9 no gtl
 //		int velModelID = 10; // CCAi6
 //		int velModelID = 9; // CCA-1D
-		int velModelID = -1; // Vs30 only
+//		int velModelID = -1; // Vs30 only
 		int probModelID = 1;
 		int timeSpanID = 1;
 		// GEOMETRIC MEAN
@@ -146,10 +152,10 @@ public class ARCurveInserter {
 		// RotD50
 //		int imTypeID = 167; // 2sec
 //		int imTypeID = 162; // 3sec
-//		int imTypeID = 158; // 5sec
-		int imTypeID = 152; // 10sec
+		int imTypeID = 158; // 5sec
+//		int imTypeID = 152; // 10sec
 		Calendar cal = GregorianCalendar.getInstance();
-		cal.set(2017, 3, 12); // month is 0-based, 3=April
+		cal.set(2017, 8, 10); // month is 0-based, 3=April
 		String dbHostName = Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME;
 		Date calcDate = cal.getTime();
 		Date timeSpanDate = null;
@@ -169,7 +175,7 @@ public class ARCurveInserter {
 		// for bulk deletion
 //		for (int typeID : new int[] {152,158,162,167})
 //			try {
-//				arCurves2DB.deleteAllCurvesFromDataset(32, typeID);
+//				arCurves2DB.deleteAllCurvesFromDataset(33, typeID);
 //			} catch (SQLException e1) {
 //				// TODO Auto-generated catch block
 //				e1.printStackTrace();

@@ -330,23 +330,24 @@ public class HardCodedInterpDiffMapCreator {
 	public static void main(String[] args){
 		try {
 			LOCAL_MAPGEN = false;
-			cs_db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
-//			cs_db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME);
-			gmpe_db = cs_db;
+//			cs_db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
+			cs_db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME);
+//			gmpe_db = cs_db;
+			gmpe_db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
 			
 			boolean logPlot = false;
 			
-			int imTypeID = 167; // 2 sec SA, RotD50
-			String imtLabel = "2sec SA";
-			Double customMax = 1.0;
+//			int imTypeID = 167; // 2 sec SA, RotD50
+//			String imtLabel = "2sec SA";
+//			Double customMax = 1.0;
 			
 //			int imTypeID = 162; // 3 sec SA, RotD50
 //			String imtLabel = "3sec SA";
 //			Double customMax = 1.0;
 			
-//			int imTypeID = 158; // 5 sec SA, RotD50
-//			String imtLabel = "5sec SA";
-//			Double customMax = 0.6;
+			int imTypeID = 158; // 5 sec SA, RotD50
+			String imtLabel = "5sec SA";
+			Double customMax = 0.6;
 			
 //			int imTypeID = 152; // 10 sec SA, RotD50
 //			String imtLabel = "10sec SA";
@@ -384,10 +385,11 @@ public class HardCodedInterpDiffMapCreator {
 //			String imtLabel = "10sec SA";
 //			Double customMax = 0.4;
 			
-			String prefix = "study_17_3_3d_nobasemap";
+//			String prefix = "study_17_3_3d_nobasemap";
+//			String prefix = "study_17_3_3d";
 //			String prefix = "study_17_3_1d";
 //			String prefix = "study_15_12";
-//			String prefix = "study_15_4";
+			String prefix = "study_15_4";
 //			String prefix = "study_14_2";
 //			String prefix = "study_14_2_cvm_s426";
 //			String prefix = "study_14_2_cvm_s426";
@@ -411,13 +413,13 @@ public class HardCodedInterpDiffMapCreator {
 			/* the main dataset(s) that we're plotting */
 			
 			// CCAi6 (Study 17.3)
-//			int velModelID = 10;
-			int velModelID = 9; // use 1D basemap
-//			int velModelID = -1; // use Vs30 only basemap
-			List<Integer> datasetIDs = Lists.newArrayList(81);
-			Region region = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION();
+//			int velModelID = 10; // use 3D basemap
+////			int velModelID = 9; // use 1D basemap
+////			int velModelID = -1; // use Vs30 only basemap
+//			List<Integer> datasetIDs = Lists.newArrayList(81);
+//			Region region = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION();
 			
-//			// CCA-1D (Study 17.3)
+			// CCA-1D (Study 17.3)
 //			int velModelID = 9;
 //			List<Integer> datasetIDs = Lists.newArrayList(80);
 //			Region region = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION();
@@ -427,10 +429,10 @@ public class HardCodedInterpDiffMapCreator {
 //			List<Integer> datasetIDs = Lists.newArrayList(61);
 //			Region region = new CaliforniaRegions.CYBERSHAKE_MAP_REGION();
 			
-//			// CVM-S4i26, AWP GPU, 1 Hz (Study 15.4)
-//			int velModelID = 5;
-//			List<Integer> datasetIDs = Lists.newArrayList(57);
-//			Region region = new CaliforniaRegions.CYBERSHAKE_MAP_REGION();
+			// CVM-S4i26, AWP GPU, 1 Hz (Study 15.4)
+			int velModelID = 5;
+			List<Integer> datasetIDs = Lists.newArrayList(57);
+			Region region = new CaliforniaRegions.CYBERSHAKE_MAP_REGION();
 			
 //			// CVM-S4i26, AWP CPU
 //			int velModelID = 5;
@@ -509,14 +511,14 @@ public class HardCodedInterpDiffMapCreator {
 //			ScalarIMR baseMapIMR = AttenRelRef.CB_2008.instance(null);
 //			ScalarIMR baseMapIMR = AttenRelRef.CY_2008.instance(null);
 //			ScalarIMR baseMapIMR = AttenRelRef.BA_2008.instance(null);
-			ScalarIMR baseMapIMR = null;
+//			ScalarIMR baseMapIMR = null;
 //			ScalarIMR baseMapIMR = AttenRelRef.AS_2008.instance(null);
 //			ScalarIMR baseMapIMR = AttenRelRef.ASK_2014.instance(null);
 //			ScalarIMR baseMapIMR = AttenRelRef.BSSA_2014.instance(null);
 //			ScalarIMR baseMapIMR = AttenRelRef.CB_2014.instance(null);
 //			ScalarIMR baseMapIMR = AttenRelRef.CY_2014.instance(null);
 //			ScalarIMR baseMapIMR = AttenRelRef.IDRISS_2014.instance(null);
-//			ScalarIMR baseMapIMR = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+			ScalarIMR baseMapIMR = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
 			boolean downloadBasemap = true;
 			// GMPE params
 			if (baseMapIMR != null) {

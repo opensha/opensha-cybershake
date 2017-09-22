@@ -1,17 +1,29 @@
 package org.opensha.sha.calc.mcer;
 
+import java.awt.Color;
+import java.io.File;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
 import org.opensha.commons.data.CSVFile;
+import org.opensha.commons.data.region.CaliforniaRegions;
+import org.opensha.commons.data.xyz.GriddedGeoDataSet;
+import org.opensha.commons.exceptions.GMT_MapException;
 import org.opensha.commons.geo.BorderType;
+import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationList;
 import org.opensha.commons.geo.Region;
+import org.opensha.commons.mapping.gmt.GMT_Map;
+import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
+import org.opensha.commons.util.cpt.CPT;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+
+import scratch.UCERF3.analysis.FaultBasedMapGen;
 
 public class TLDataLoader {
 	
@@ -78,26 +90,35 @@ public class TLDataLoader {
 		return Double.NaN;
 	}
 
-//	public static void main(String[] args) throws IOException {
-////		TLDataLoader tl = new TLDataLoader(
-////				CSVFile.readFile(new File("/tmp/temp-nodes.csv"), true),
-////				CSVFile.readFile(new File("/tmp/temp-attributes.csv"), true));
+	public static void main(String[] args) throws IOException, GMT_MapException {
 //		TLDataLoader tl = new TLDataLoader(
-//				CSVFile.readStream(TLDataLoader.class.getResourceAsStream("/resources/data/site/USGS_TL/tl-nodes.csv"), true),
-//				CSVFile.readStream(TLDataLoader.class.getResourceAsStream("/resources/data/site/USGS_TL/tl-attributes.csv"), true));
-//		
-//		CybershakeSiteInfo2DB sites2db = new CybershakeSiteInfo2DB(Cybershake_OpenSHA_DBApplication.getDB());
-//		int numWith = 0;
-//		int total = 0;
-//		for (CybershakeSite site : sites2db.getAllSitesFromDB()) {
-//			if (!Double.isNaN(tl.getValue(site.createLocation())))
-//				numWith++;
-//			else
-//				System.out.println(site.name+" doesn't: "+site.createLocation());
-//			total++;
-//		}
-//		System.out.println(numWith+"/"+total+" have TsubL data!");
-//		System.exit(0);
-//	}
+//				CSVFile.readFile(new File("/tmp/temp-nodes.csv"), true),
+//				CSVFile.readFile(new File("/tmp/temp-attributes.csv"), true));
+		TLDataLoader tl = new TLDataLoader(
+				CSVFile.readStream(TLDataLoader.class.getResourceAsStream("/resources/data/site/USGS_TL/tl-nodes.csv"), true),
+				CSVFile.readStream(TLDataLoader.class.getResourceAsStream("/resources/data/site/USGS_TL/tl-attributes.csv"), true));
+		
+		double spacing = 0.01;
+		GriddedRegion gridReg = new GriddedRegion(new CaliforniaRegions.CYBERSHAKE_MAP_REGION(), spacing, null);
+		GriddedGeoDataSet data = new GriddedGeoDataSet(gridReg, false);
+		int numWith = 0;
+		int total = data.size();
+		for (int i=0; i<data.size(); i++) {
+			double z = tl.getValue(data.getLocation(i));
+			if (!Double.isNaN(z))
+				numWith++;
+			data.set(i, z);
+		}
+		
+		System.out.println(numWith+"/"+total+" have TsubL data!");
+		
+		CPT cpt = GMT_CPT_Files.MAX_SPECTRUM.instance().rescale(8, 12d);
+		cpt.setNanColor(Color.GRAY);
+		GMT_Map map = FaultBasedMapGen.buildMap(cpt, null, null, data, spacing, gridReg, false, "TL Data");
+//		FaultBasedMapGen.plotMap(new File("/tmp"), "tl_data", false, map);
+		FaultBasedMapGen.plotMap(new File("/tmp"), "tl_data_no_buf", false, map);
+		
+		System.exit(0);
+	}
 
 }

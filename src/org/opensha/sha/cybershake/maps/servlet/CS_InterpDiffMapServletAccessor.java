@@ -36,7 +36,7 @@ public class CS_InterpDiffMapServletAccessor {
 		
 		checkLog(map);
 
-		System.out.println("Initializing connection");
+//		System.out.println("Initializing connection");
 		URLConnection servletConnection = gmtMapServlet.openConnection();
 		
 		// inform the connection that we will send output and accept input
@@ -49,39 +49,39 @@ public class CS_InterpDiffMapServletAccessor {
 		// Specify the content type that we will send binary data
 		servletConnection.setRequestProperty ("Content-Type","application/octet-stream");
 
-		System.out.println("Initializing output to servlet");
+//		System.out.println("Initializing output to servlet");
 		ObjectOutputStream outputToServlet = new
 		ObjectOutputStream(servletConnection.getOutputStream());
 
 		//sending the directory name to the servlet
-		System.out.println("Writing dir name");
+//		System.out.println("Writing dir name");
 		outputToServlet.writeObject(dirName);
 
 		//sending the map specification
-		System.out.println("Writing map");
+//		System.out.println("Writing map");
 		outputToServlet.writeObject(map);
 
 		//sending the contents of the Metadata file to the server.
-		System.out.println("Writing metadata");
+//		System.out.println("Writing metadata");
 		outputToServlet.writeObject(metadata);
 
 		//sending the name of the MetadataFile to the server.
-		System.out.println("Writing metadata file name");
+//		System.out.println("Writing metadata file name");
 		outputToServlet.writeObject(DEFAULT_METADATA_FILE_NAME);
 
-		System.out.println("Flushing/Closing");
+//		System.out.println("Flushing/Closing");
 		outputToServlet.flush();
 		outputToServlet.close();
 
 		// Receive the "actual webaddress of all the gmt related files"
 		// from the servlet after it has received all the data
-		System.out.println("Initializing input from servlet");
+//		System.out.println("Initializing input from servlet");
 		ObjectInputStream inputToServlet = new
 		ObjectInputStream(servletConnection.getInputStream());
 
-		System.out.println("Receiving message");
+//		System.out.println("Receiving message");
 		Object messageFromServlet = inputToServlet.readObject();
-		System.out.println("Closing and returning");
+//		System.out.println("Closing and returning");
 		inputToServlet.close();
 		if (messageFromServlet instanceof RuntimeException)
 			throw (RuntimeException)messageFromServlet;

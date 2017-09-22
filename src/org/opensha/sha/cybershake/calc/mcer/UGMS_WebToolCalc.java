@@ -1075,8 +1075,11 @@ public class UGMS_WebToolCalc {
 //			String argStr = "--latitude 34.557 --longitude -118.125"; // LAPD
 //			String argStr = "--run-id 3870"; // doesn't require dataset ID if run ID
 //			String argStr = "--longitude -118.272049427032 --latitude 34.0407116420786";
-			String argStr = "--longitude -118.069 --latitude 33.745";
+//			String argStr = "--longitude -118.069 --latitude 33.745";
 //			String argStr = "--longitude -119.26000 --latitude 34.27110"; // this is an interpolation fail site
+//			String argStr = "--longitude -118.4761 --latitude 33.9743"; // offshore, still shows 4 interp points
+//			String argStr = "--longitude -118.91 --latitude 33.969";
+			String argStr = "--longitude -117.5888 --latitude 33.2976";
 //			String argStr = "--site-name LADT";
 //			String argStr = "--site-id 20";
 //			argStr += " --dataset-id 57";
@@ -1098,7 +1101,7 @@ public class UGMS_WebToolCalc {
 			argStr += " --output-dir /tmp/ugms_web_tool";
 //			argStr += " --vs30 380";
 //			argStr += " --class AorB";
-			argStr += " --class D_default";
+//			argStr += " --class D_default";
 			argStr += " --gmpe-erf UCERF3";
 			argStr += " --wills-file /data/kevin/opensha/wills2015.flt";
 			

@@ -12,7 +12,9 @@ import java.util.concurrent.Future;
 import org.jfree.data.Range;
 import org.opensha.commons.data.function.DefaultXY_DataSet;
 import org.opensha.commons.data.function.XY_DataSet;
+import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
+import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.data.xyz.GriddedGeoDataSet;
 import org.opensha.commons.exceptions.GMT_MapException;
@@ -43,37 +45,51 @@ public class BasinDepthCompare {
 	public static void main(String[] args) throws IOException, GMT_MapException {
 		File outputDir = new File("/home/kevin/CyberShake/basin");
 		
-		boolean generateKML = true;
+		boolean generateKML = false;
 		
 //		String type = CVM4i26BasinDepth.TYPE_DEPTH_TO_2_5;
-//		File dataDir = new File("/home/kevin/CyberShake/basin");
-//		String outFilePrefix = "cvm426_z25";
-//		String mapLabelPrefix = "CVM-S4.26 Z2.5";
-//		File newFile = new File(dataDir, "cvms426_z25_map_full.bin");
+////		File dataDir = new File("/home/kevin/CyberShake/basin");
+////		String outFilePrefix = "cvm426_z25";
+////		String mapLabelPrefix = "CVM-S4.26 Z2.5";
+////		File newFile = new File(dataDir, "cvms426_z25_map_full.bin");
 ////		String outFilePrefix = "cvm426m01_z25";
 ////		String mapLabelPrefix = "CVM-S4.26-01 Z2.5";
 ////		File newFile = new File(dataDir, "cvms426m01_z25_map_full.bin");
-//		File oldFile = new File(dataDir, "depth_2.5.bin");
+//		File dataDir = new File("/home/kevin/CyberShake/basin");
+//		String outFilePrefix = "cca06_z25";
+//		String mapLabelPrefix = "CCA-06 Z2.5";
+//		File newFile = new File(dataDir, "cca06_z25_map_full.bin");
+//		File oldFile = new File(dataDir, "cca_depth_2.5.bin");
 //		double dataMin = 0d;
 //		double dataMax = 10d;
 		
-		File dataDir = new File("/home/kevin/CyberShake/basin");
 		String type = CVM4i26BasinDepth.TYPE_DEPTH_TO_1_0;
-		String outFilePrefix = "cvm426_z10";
-		String mapLabelPrefix = "CVM-S4.26 Z1.0";
-		File newFile = new File(dataDir, "cvms426_z10_map_full.bin");
+//		File dataDir = new File("/home/kevin/CyberShake/basin");
+//		String outFilePrefix = "cvm426_z10";
+//		String mapLabelPrefix = "CVM-S4.26 Z1.0";
+//		File newFile = new File(dataDir, "cvms426_z10_map_full.bin");
 //		String outFilePrefix = "cvm426m01_z10";
 //		String mapLabelPrefix = "CVM-S4.26-01 Z1.0";
 //		File newFile = new File(dataDir, "cvms426m01_z10_map_full.bin");
-		File oldFile = new File(dataDir, "depth_1.0.bin");
+//		File oldFile = new File(dataDir, "depth_1.0.bin");
+		File dataDir = new File("/home/kevin/CyberShake/basin");
+		String outFilePrefix = "cca06_z10";
+		String mapLabelPrefix = "CCA-06 Z1.0";
+		File newFile = new File(dataDir, "cca06_z10_map_full.bin");
+		File oldFile = new File(dataDir, "cca_depth_1.0.bin");
 		double dataMin = 0d;
 		double dataMax = 2d;
 		
 		double fullDiscr = 0.01;
 		double zoomDiscr = 0.001;
 		
-		CVM4i26BasinDepth oldFetch = new CVM4i26BasinDepth(type, oldFile);
-		CVM4i26BasinDepth newFetch = new CVM4i26BasinDepth(type, newFile);
+//		String willsPrefix = "wills2015_vs30";
+//		SiteData<Double> oldFetch = new CVM4i26BasinDepth(type, oldFile);
+//		SiteData<Double> newFetch = new CVM4i26BasinDepth(type, newFile);
+		
+		String willsPrefix = "wills2015_vs30_cca";
+		SiteData<Double> oldFetch = new CVM_CCAi6BasinDepth(type, oldFile);
+		SiteData<Double> newFetch = new CVM_CCAi6BasinDepth(type, newFile);
 		
 		WillsMap2015 vs30Fetch = new WillsMap2015();
 		
@@ -83,21 +99,30 @@ public class BasinDepthCompare {
 		Region fullReg = oldFetch.getApplicableRegion();
 		GriddedRegion fullGridReg = new GriddedRegion(fullReg, fullDiscr, null);
 		
-		Region zoomReg = new Region(new Location(34.3, -117.5), new Location(33.9, -116.9));
-		GriddedRegion zoomGridReg = new GriddedRegion(zoomReg, zoomDiscr, null);
+		Region zoomReg = null;
+		GriddedRegion zoomGridReg = null;
+		if (oldFetch instanceof CVM4i26BasinDepth)
+			zoomReg = new Region(new Location(34.3, -117.5), new Location(33.9, -116.9));
+		else if (oldFetch instanceof CVM_CCAi6BasinDepth)
+			zoomReg = new Region(new Location(34.8, -118.4), new Location(33.8, -121));
+		if (zoomReg != null)
+			zoomGridReg = new GriddedRegion(zoomReg, zoomDiscr, null);
 		
 		System.out.println("Fetching full, old");
 		GriddedGeoDataSet oldFullData = getGeo(fullGridReg, oldFetch.getValues(fullGridReg.getNodeList()));
 		System.out.println("Fetching full, new");
 		GriddedGeoDataSet newFullData = getGeo(fullGridReg, newFetch.getValues(fullGridReg.getNodeList()));
-		System.out.println("Fetching zoom, old");
-		GriddedGeoDataSet oldZoomData = getGeo(zoomGridReg, oldFetch.getValues(zoomGridReg.getNodeList()));
-		System.out.println("Fetching zoom, new");
-		GriddedGeoDataSet newZoomData = getGeo(zoomGridReg, newFetch.getValues(zoomGridReg.getNodeList()));
 		System.out.println("Fetching Vs30 full");
 		GriddedGeoDataSet vs30FullData = getGeo(fullGridReg, vs30Fetch.getValues(fullGridReg.getNodeList()));
-		System.out.println("Fetching Vs30 zoom");
-		GriddedGeoDataSet vs30ZoomData = getGeo(zoomGridReg, vs30Fetch.getValues(zoomGridReg.getNodeList()));
+		GriddedGeoDataSet oldZoomData = null, newZoomData = null, vs30ZoomData = null;
+		if (zoomReg != null) {
+			System.out.println("Fetching zoom, old");
+			oldZoomData = getGeo(zoomGridReg, oldFetch.getValues(zoomGridReg.getNodeList()));
+			System.out.println("Fetching zoom, new");
+			newZoomData = getGeo(zoomGridReg, newFetch.getValues(zoomGridReg.getNodeList()));
+			System.out.println("Fetching Vs30 zoom");
+			vs30ZoomData = getGeo(zoomGridReg, vs30Fetch.getValues(zoomGridReg.getNodeList()));
+		}
 		
 		CPT dataCPT = GMT_CPT_Files.MAX_SPECTRUM.instance().rescale(dataMin, dataMax);
 		dataCPT.setBelowMinColor(dataCPT.getMinColor());
@@ -108,19 +133,21 @@ public class BasinDepthCompare {
 		System.out.println("Mapping full, new");
 		plotMaps(outputDir, outFilePrefix+"_new_full", newFullData, fullReg, dataMin, dataMax,
 				mapLabelPrefix+", New", dataCPT, false, generateKML);
-		System.out.println("Mapping zoom, old");
-		plotMaps(outputDir, outFilePrefix+"_orig_zoom", oldZoomData, zoomReg, dataMin, dataMax,
-				mapLabelPrefix+", Origial", dataCPT, false, false);
-		System.out.println("Mapping zoom, new");
-		plotMaps(outputDir, outFilePrefix+"_new_zoom", newZoomData, zoomReg, dataMin, dataMax,
-				mapLabelPrefix+", New", dataCPT, false, false);
 		CPT vs30CPT = GMT_CPT_Files.MAX_SPECTRUM.instance().rescale(150, 800);
 		System.out.println("Mapping Vs30 full");
-		plotMaps(outputDir, "wills2015_vs30_full", vs30FullData, fullReg, 150d, 800d,
-				"Wills 2015 Vs30", vs30CPT, false, true);
+		plotMaps(outputDir, willsPrefix+"_full", vs30FullData, fullReg, 150d, 800d,
+				"Wills 2015 Vs30", vs30CPT, false, generateKML);
 		System.out.println("Mapping Vs30 zoom");
-		plotMaps(outputDir, "wills2015_vs30_zoom", vs30ZoomData, zoomReg, 150d, 800d,
-				"Wills 2015 Vs30", vs30CPT, false, true);
+		if (zoomReg != null) {
+			System.out.println("Mapping zoom, old");
+			plotMaps(outputDir, outFilePrefix+"_orig_zoom", oldZoomData, zoomReg, dataMin, dataMax,
+					mapLabelPrefix+", Origial", dataCPT, false, false);
+			System.out.println("Mapping zoom, new");
+			plotMaps(outputDir, outFilePrefix+"_new_zoom", newZoomData, zoomReg, dataMin, dataMax,
+					mapLabelPrefix+", New", dataCPT, false, false);
+			plotMaps(outputDir, willsPrefix+"_zoom", vs30ZoomData, zoomReg, 150d, 800d,
+					"Wills 2015 Vs30", vs30CPT, false, generateKML);
+		}
 		
 		// now scatter
 		DefaultXY_DataSet scatter = new DefaultXY_DataSet();
@@ -130,7 +157,7 @@ public class BasinDepthCompare {
 			double oldVal = oldFullData.get(i);
 			double newVal = newFullData.get(i);
 			
-			if (Double.isNaN(oldVal) || Double.isNaN(newVal))
+			if (Double.isNaN(oldVal) || Double.isNaN(newVal) || (oldFetch instanceof CVM_CCAi6BasinDepth && oldVal == 15d))
 				continue;
 			
 			if (oldVal > 0 && oldVal < minNonZero)

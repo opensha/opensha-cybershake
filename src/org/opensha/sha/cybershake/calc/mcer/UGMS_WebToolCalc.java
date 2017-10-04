@@ -882,9 +882,10 @@ public class UGMS_WebToolCalc {
 		HeadlessGraphPanel gp = new HeadlessGraphPanel();
 		gp.setBackgroundColor(Color.WHITE);
 		//			gp.setRenderingOrder(DatasetRenderingOrder.REVERSE);
-		gp.setTickLabelFontSize(18);
-		gp.setAxisLabelFontSize(20);
-		gp.setPlotLabelFontSize(21);
+		gp.setTickLabelFontSize(20);
+		gp.setAxisLabelFontSize(22);
+		gp.setPlotLabelFontSize(24);
+		gp.setLegendFontSize(20);
 
 		gp.drawGraphPanel(spec, xLog, yLog, xRange, yRange);
 		gp.getChartPanel().setSize(1000, 800);

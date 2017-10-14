@@ -785,7 +785,7 @@ public class UGMS_WebToolCalc {
 		plot(false, false, false, false, true);
 	}
 	
-	private static final DecimalFormat valDF = new DecimalFormat("0.00");
+	private static final DecimalFormat valDF = new DecimalFormat("0.000");
 	private static final DecimalFormat latLonDF = new DecimalFormat("0.0000");
 	private static final DecimalFormat vs30DF = new DecimalFormat("0");
 	private static final DecimalFormat zDF = new DecimalFormat("0.00");

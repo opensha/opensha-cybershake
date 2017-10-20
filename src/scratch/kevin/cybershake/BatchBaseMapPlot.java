@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
+import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.region.CaliforniaRegions;
 import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.impl.CVM4BasinDepth;
@@ -38,6 +39,7 @@ import org.opensha.sha.cybershake.maps.ProbGainCalc;
 import org.opensha.sha.cybershake.maps.InterpDiffMap.InterpDiffMapType;
 import org.opensha.sha.cybershake.maps.servlet.CS_InterpDiffMapServletAccessor;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 public class BatchBaseMapPlot {
@@ -65,7 +67,8 @@ public class BatchBaseMapPlot {
 //		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_04_10-ccai6-cs-nga2-2sec");
 //		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_04_11-cca-nobasin-cs-nga2-2sec");
 //		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_09_10-cvm4i26-cs-nga2-individual-5sec");
-		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_09_10-cca-cs-nga2-individual-5sec");
+//		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_09_10-cca-cs-nga2-individual-10sec");
+		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_08_24-ccai6-cs-nga2-10sec");
 		
 		boolean ratios = false;
 		
@@ -94,15 +97,15 @@ public class BatchBaseMapPlot {
 		
 //		String imtFileLabel = "3sec";
 //		String label = "3sec SA";
-//		Double customMax = 1.4; // for 3 sec
+//		Double customMax = 1.0; // for 3 sec
 		
-		String imtFileLabel = "5sec";
-		String label = "5sec SA";
-		Double customMax = 1d; // for 5 sec
+//		String imtFileLabel = "5sec";
+//		String label = "5sec SA";
+//		Double customMax = 0.6d; // for 5 sec
 		
-//		String imtFileLabel = "10sec";
-//		String label = "10sec SA";
-//		Double customMax = 0.6d; // for 10 sec
+		String imtFileLabel = "10sec";
+		String label = "10sec SA";
+		Double customMax = 0.4d; // for 10 sec
 		
 		boolean isProbAt_IML = false;
 		double val = 0.0004;
@@ -145,6 +148,11 @@ public class BatchBaseMapPlot {
 			Map<Location, ArbitrarilyDiscretizedFunc> curves = reader.getCurveMap();
 			
 			GeoDataSet baseMap = HazardDataSetLoader.extractPointFromCurves(curves, isProbAt_IML, val);
+			for (int i=0; i<baseMap.size(); i++) {
+				double v = baseMap.get(i);
+				DiscretizedFunc curve = curves.get(baseMap.getLocation(i));
+				Preconditions.checkState(Double.isFinite(v), "Bad value: %s\n\n%s", v, curve);
+			}
 			maps.add(baseMap);
 			names.add(name);
 			if (skip)

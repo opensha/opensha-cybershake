@@ -10,8 +10,8 @@ dependencies {
     compile files('lib/EventWebService.jar')
     compile files('lib/mysql-connector-java-5.1.16-bin.jar')
     
-    compileOnly project(path: ':opensha-apps', configuration: 'compileOnly')
-    compileAndResource project(path: ':opensha-apps')
+    compileOnly project(path: ':opensha-dev', configuration: 'compileOnly')
+    compileAndResource project(path: ':opensha-dev')
 
     testCompile 'junit:junit:4.12'
 }

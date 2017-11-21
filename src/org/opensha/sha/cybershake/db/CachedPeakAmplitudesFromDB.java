@@ -45,7 +45,7 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 	 */
 //	private Table<Integer, CybershakeIM, double[][][]> cache;
 	private LoadingCache<CacheKey, double[][][]> cache;
-	private static int maxRuns = 5;
+	public static int MAX_CACHE_SIZE = 20;
 	private ERF erf;
 	
 	private SiteInfo2DB sites2db;
@@ -102,7 +102,7 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 
 		@Override
 		public double[][][] load(CacheKey key) throws Exception {
-			return getAllIM_Values(key.runID, key.im);
+			return loadAllIM_Values(key.runID, key.im);
 		}
 		
 	}
@@ -111,7 +111,7 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 		super(dbaccess);
 		
 		this.cacheDir = cacheDir;
-		cache = CacheBuilder.newBuilder().maximumSize(maxRuns).build(new CustomLoader());
+		cache = CacheBuilder.newBuilder().maximumSize(MAX_CACHE_SIZE).build(new CustomLoader());
 		this.erf = erf;
 		
 		sites2db = new SiteInfo2DB(dbaccess);
@@ -132,6 +132,14 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 	}
 	
 	public synchronized double[][][] getAllIM_Values(int runID, CybershakeIM im) throws SQLException {
+		try {
+			return cache.get(new CacheKey(runID, im));
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
+		}
+	}
+	
+	private synchronized double[][][] loadAllIM_Values(int runID, CybershakeIM im) throws SQLException {
 		double[][][] vals;
 		File cacheFile = getCacheFile(runID, im);
 		if (cacheFile != null && cacheFile.exists()) {

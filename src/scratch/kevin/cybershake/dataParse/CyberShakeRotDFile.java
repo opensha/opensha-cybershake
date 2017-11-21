@@ -70,7 +70,7 @@ public class CyberShakeRotDFile {
 		return rd100Angle;
 	}
 
-	private static final DecimalFormat df = new DecimalFormat("0.####");
+	private static final DecimalFormat df = new DecimalFormat("0.######");
 	
 	@Override
 	public String toString() {
@@ -89,8 +89,10 @@ public class CyberShakeRotDFile {
 	}
 
 	public static void main(String[] args) throws IOException {
-		File file = new File("/home/kevin/CyberShake/data_access/2017_10_24-assignment/PSA_PARK_4673_71_1_57.rotd");
-		System.out.println(read(file));
+		File file = new File("/home/kevin/CyberShake/data_access/2017_10_24-assignment/PSA_PARK_5564_71_1_57.rotd");
+		CyberShakeRotDFile rotd = read(file);
+		System.out.println(rotd);
+		System.out.println("Closest X to 0.011079: "+rotd.getRotD50().getClosestXtoY(0.011079));
 	}
 
 }

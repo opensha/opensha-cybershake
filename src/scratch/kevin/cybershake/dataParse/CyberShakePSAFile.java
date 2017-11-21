@@ -107,7 +107,7 @@ public class CyberShakePSAFile {
 		return ret;
 	}
 	
-	private static final DecimalFormat df = new DecimalFormat("0.####");
+	private static final DecimalFormat df = new DecimalFormat("0.######");
 	
 	@Override
 	public String toString() {
@@ -134,7 +134,7 @@ public class CyberShakePSAFile {
 	}
 
 	public static void main(String[] args) throws IOException {
-		File file = new File("/home/kevin/CyberShake/data_access/2017_10_24-assignment/PSA_PARK_4673_71_1_57.bsa");
+		File file = new File("/home/kevin/CyberShake/data_access/2017_10_24-assignment/PSA_PARK_5564_71_1_57.bsa");
 		CyberShakePSAFile psa = read(file).get(0);
 		System.out.println(psa.asUnitsG());
 	}

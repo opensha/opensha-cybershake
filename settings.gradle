@@ -7,3 +7,5 @@ include ':opensha-ucerf3'
 project(':opensha-ucerf3').projectDir = new File(settingsDir, '../opensha-ucerf3')
 include ':opensha-apps'
 project(':opensha-apps').projectDir = new File(settingsDir, '../opensha-apps')
+include ':opensha-dev'
+project(':opensha-dev').projectDir = new File(settingsDir, '../opensha-dev')

@@ -34,9 +34,6 @@ import com.google.common.base.Preconditions;
 public class ZFilePlot {
 
 	public static void main(String[] args) throws IOException, GMT_MapException {
-		if (args.length == 1 && args[0].equals("--hardcoded")) {
-//			String str = 
-		}
 		if (!(args.length == 8 || args.length == 10)) {
 			System.err.println("USAGE: <min-lat> <min-lon> <nx> <ny> <grid-spacing> <max-z> <data-file> <label>"
 					+ " [<compare-file> <compare-label>]");

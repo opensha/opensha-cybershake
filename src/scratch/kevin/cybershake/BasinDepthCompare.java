@@ -40,10 +40,12 @@ import scratch.UCERF3.analysis.FaultBasedMapGen;
 
 public class BasinDepthCompare {
 	
-	private static final boolean map_parallel = true;
+	static boolean map_parallel = true;
 	
 	public static void main(String[] args) throws IOException, GMT_MapException {
 		File outputDir = new File("/home/kevin/CyberShake/basin");
+		
+		FaultBasedMapGen.LOCAL_MAPGEN = true;
 		
 		boolean generateKML = false;
 		
@@ -212,7 +214,7 @@ public class BasinDepthCompare {
 		return xyz;
 	}
 	
-	private static void plotMaps(File outputDir, String prefix, GriddedGeoDataSet data, Region region,
+	static void plotMaps(File outputDir, String prefix, GriddedGeoDataSet data, Region region,
 			Double customMin, Double customMax, String label, CPT cpt, boolean rescaleCPT, boolean googleEarth)
 					throws GMT_MapException, IOException {
 		
@@ -230,6 +232,7 @@ public class BasinDepthCompare {
 		map.setCustomScaleMax(customMax);
 		map.setRescaleCPT(rescaleCPT);
 		map.setBlackBackground(false);
+		map.setJPGFileName(null);
 		
 		if (googleEarth) {
 			map.setGenerateKML(true);
@@ -238,7 +241,6 @@ public class BasinDepthCompare {
 		}
 		
 		System.out.println("Making map...");
-		FaultBasedMapGen.LOCAL_MAPGEN = true;
 		
 		Runnable run = new Runnable() {
 			

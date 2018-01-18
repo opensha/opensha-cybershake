@@ -150,7 +150,7 @@ public class CyberShakeBaseMapGen {
 		ERF erf = MeanUCERF2_ToDB.createUCERF2ERF();
 		
 		if (args.length == 11)
-			erf.setParameter(UCERF2.BACK_SEIS_NAME, args[11]);
+			erf.setParameter(UCERF2.BACK_SEIS_NAME, args[10]);
 		
 		ArbitrarilyDiscretizedFunc xValues = IMT_Info.getUSGS_PGA_Function();
 		double maxSourceDistance = 200;

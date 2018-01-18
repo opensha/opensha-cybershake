@@ -34,6 +34,7 @@ import org.opensha.sha.calc.hazus.parallel.HazusJobWriter;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
 import org.opensha.sha.earthquake.ERF;
+import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.UCERF2;
 import org.opensha.sha.gui.infoTools.IMT_Info;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
@@ -54,10 +55,10 @@ public class CyberShakeBaseMapGen {
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) throws IOException {
-		if (args.length < 9 || args.length > 10) {
+		if (args.length < 9 || args.length > 11) {
 			System.out.println("USAGE: "+ClassUtils.getClassNameWithoutPackage(CyberShakeBaseMapGen.class)
 					+" <IMRs> <SA period> <spacing> <CVM4/CVMH/CVMHnGTL/BBP/CVM4i26/CCAi6/CCA1D/null> <constrainBasinMin>"
-					+" <jobName> <minutes> <nodes> <queue> [<LA/CCA/CA>]");
+					+" <jobName> <minutes> <nodes> <queue> [<LA/CCA/CA>] ['Include'/'Exclude' background]");
 			System.exit(2);
 		}
 		
@@ -147,6 +148,9 @@ public class CyberShakeBaseMapGen {
 		ArrayList<Site> sites = HazusJobWriter.loadSites(provs, region.getNodeList(), imrs, nullBasin, constrainBasinMin, null);
 		
 		ERF erf = MeanUCERF2_ToDB.createUCERF2ERF();
+		
+		if (args.length == 11)
+			erf.setParameter(UCERF2.BACK_SEIS_NAME, args[11]);
 		
 		ArbitrarilyDiscretizedFunc xValues = IMT_Info.getUSGS_PGA_Function();
 		double maxSourceDistance = 200;

@@ -19,9 +19,11 @@ import org.opensha.commons.data.xyz.AbstractGeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSetMath;
 import org.opensha.commons.data.xyz.GriddedGeoDataSet;
+import org.opensha.commons.exceptions.GMT_MapException;
 import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.Region;
+import org.opensha.commons.mapping.gmt.GMT_Map;
 import org.opensha.commons.mapping.gmt.elements.PSXYSymbol;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
 import org.opensha.commons.util.FileUtils;
@@ -42,7 +44,12 @@ import org.opensha.sha.cybershake.maps.servlet.CS_InterpDiffMapServletAccessor;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
+import scratch.UCERF3.analysis.FaultBasedMapGen;
+
 public class BatchBaseMapPlot {
+	
+	private static double SPACING = 0.005;
+	private static boolean TOPOGRAPHY = true;
 
 	public static void main(String[] args) throws Exception {
 //		File dir = new File("/home/kevin/CyberShake/baseMaps/2013_11_08-cvm4-cs-nga2-1sec");
@@ -68,28 +75,33 @@ public class BatchBaseMapPlot {
 //		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_04_11-cca-nobasin-cs-nga2-2sec");
 //		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_09_10-cvm4i26-cs-nga2-individual-5sec");
 //		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_09_10-cca-cs-nga2-individual-10sec");
-		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_08_24-ccai6-cs-nga2-10sec");
+//		File dir = new File("/home/kevin/CyberShake/baseMaps/2017_08_24-ccai6-cs-nga2-10sec");
+		File dir = new File("/home/kevin/CyberShake/baseMaps/2018_01_18-statewide-nobasin-backSeisTest");
 		
-		boolean ratios = false;
+		boolean ratios = true;
 		
 		List<SiteData<Double>> siteDatas = Lists.newArrayList();
-		siteDatas.add(new WillsMap2015());
+//		siteDatas.add(new WillsMap2015());
 		
 //		Region region = new CaliforniaRegions.CYBERSHAKE_MAP_REGION();
 //		siteDatas.add(new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0));
 //		siteDatas.add(new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5));
 		
-		Region region = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION();
-		siteDatas.add(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0));
-		siteDatas.add(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5));
+//		Region region = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION();
+//		siteDatas.add(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0));
+//		siteDatas.add(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5));
+		
+		Region region = new CaliforniaRegions.RELM_TESTING();
+		SPACING = 0.05;
+		TOPOGRAPHY = false;
 		
 //		String imtFileLabel = "1sec";
 //		String label = "1sec SA";
 //		Double customMax = 3d; // for 1 sec
 		
-//		String imtFileLabel = "2sec";
-//		String label = "2sec SA";
-//		Double customMax = 1.0; // for 2 sec
+		String imtFileLabel = "2sec";
+		String label = "2sec SA";
+		Double customMax = 1.0; // for 2 sec
 		
 //		String imtFileLabel = "pga";
 //		String label = "PGA";
@@ -103,17 +115,20 @@ public class BatchBaseMapPlot {
 //		String label = "5sec SA";
 //		Double customMax = 0.6d; // for 5 sec
 		
-		String imtFileLabel = "10sec";
-		String label = "10sec SA";
-		Double customMax = 0.4d; // for 10 sec
+//		String imtFileLabel = "10sec";
+//		String label = "10sec SA";
+//		Double customMax = 0.4d; // for 10 sec
 		
 		boolean isProbAt_IML = false;
-		double val = 0.0004;
-		String probLabel = "2% in 50 yrs";
-		String probFileLabel = "2p_in_50";
-//		double val = 0.0002;
-//		String probLabel = "1% in 50 yrs";
-//		String probFileLabel = "1p_in_50";
+//		double val = 0.0004;
+//		String probLabel = "2% in 50 yrs";
+//		String probFileLabel = "2p_in_50";
+//		double val = 0.002;
+//		String probLabel = "10% in 50 yrs";
+//		String probFileLabel = "10p_in_50";
+		double val = 0.0002;
+		String probLabel = "1% in 50 yrs";
+		String probFileLabel = "1p_in_50";
 //		double val = 0.0001;
 //		String probLabel = "1% in 100 yrs";
 //		String probFileLabel = "1p_in_100";
@@ -137,7 +152,8 @@ public class BatchBaseMapPlot {
 			if (!binFile.exists())
 				continue;
 			
-			File outputFile = new File(dir, name.toLowerCase()+"_"+imtFileLabel+"_"+probFileLabel+".png");
+			String prefix = name.toLowerCase()+"_"+imtFileLabel+"_"+probFileLabel;
+			File outputFile = new File(dir, prefix+".png");
 			boolean skip = outputFile.exists();
 			if (!ratios && skip)
 				continue;
@@ -151,7 +167,15 @@ public class BatchBaseMapPlot {
 			for (int i=0; i<baseMap.size(); i++) {
 				double v = baseMap.get(i);
 				DiscretizedFunc curve = curves.get(baseMap.getLocation(i));
-				Preconditions.checkState(Double.isFinite(v), "Bad value: %s\n\n%s", v, curve);
+				Location loc = baseMap.getLocation(i);
+				if (loc.getLatitude() > 35 && loc.getLatitude() < 36 && loc.getLongitude() > -120
+						&& loc.getLongitude() < -119 && !Double.isFinite(v)) {
+					System.out.println("Bad curve where unexpected with value = "+v);
+					System.out.println("\tLocation: "+loc);
+					System.out.println("\tCurve: "+curve);
+					System.out.flush();
+				}
+//				Preconditions.checkState(Double.isFinite(v), "Bad value: %s\n\n%s", v, curve);
 			}
 			maps.add(baseMap);
 			names.add(name);
@@ -180,7 +204,7 @@ public class BatchBaseMapPlot {
 					"val: " + val + "\n";
 			
 			System.out.println("Plotting "+name);
-			plot(outputFile, baseMap, region, customMin, customMax, name+" "+label, metadata, false);
+			plot(dir, prefix, baseMap, region, customMin, customMax, name+" "+label, metadata, false);
 		}
 		
 		// now site data
@@ -195,8 +219,8 @@ public class BatchBaseMapPlot {
 					GeoDataSet map2 = maps.get(j);
 					String name2 = names.get(j);
 					
-					String fName = "ratio_"+name1+"_"+name2+"_"+probFileLabel+".png";
-					File outputFile = new File(dir, fName);
+					String prefix = "ratio_"+name1+"_"+name2+"_"+probFileLabel;
+					File outputFile = new File(dir, prefix+".png");
 					if (outputFile.exists())
 						continue;
 					
@@ -214,7 +238,7 @@ public class BatchBaseMapPlot {
 					
 					System.out.println("Plotting ratio");
 					
-					plot(outputFile, ratio, region, null, null, label+" Ratio", "asdf", true);
+					plot(dir, prefix, ratio, region, null, null, label+" Ratio", "asdf", true);
 				}
 			}
 		}
@@ -229,44 +253,66 @@ public class BatchBaseMapPlot {
 			return CyberShake_GMT_MapGenerator.getHazardCPT();
 	}
 	
-	private static void plot(File outputFile, GeoDataSet baseMap, Region region,
+	private static void plot(File outputDir, String prefix, GeoDataSet baseMap, Region region,
 			Double customMin, Double customMax, String label, String metadata, boolean ratio)
-					throws IOException, ClassNotFoundException {
-		plot(outputFile, baseMap, region, customMin, customMax, label, metadata, getCPT(ratio), !ratio);
+					throws IOException, ClassNotFoundException, GMT_MapException {
+		plot(outputDir, prefix, baseMap, region, customMin, customMax, label, metadata, getCPT(ratio), !ratio);
 	}
 	
-	private static void plot(File outputFile, GeoDataSet baseMap, Region region,
+	private static void plot(File outputDir, String prefix, GeoDataSet baseMap, Region region,
 			Double customMin, Double customMax, String label, String metadata, CPT cpt, boolean rescaleCPT)
-					throws IOException, ClassNotFoundException {
+					throws IOException, ClassNotFoundException, GMT_MapException {
 		
-		double baseMapRes = 0.005;
-		System.out.println("Loading basemap...");
+		double baseMapRes = SPACING;
 		
-		System.out.println("Fetching curves...");
-		AbstractGeoDataSet scatterData = null;
-		
-		System.out.println("Creating map instance...");
-		GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
-		
-		InterpDiffMapType[] mapTypes = {InterpDiffMapType.BASEMAP};
-		
-		InterpDiffMap map = new InterpDiffMap(region, baseMap, baseMapRes, cpt, scatterData, interpSettings, mapTypes);
+		GMT_Map map = new GMT_Map(region, baseMap, baseMapRes, cpt);
 		map.setCustomLabel(label);
-		map.setTopoResolution(TopographicSlopeFile.CA_THREE);
+		if (TOPOGRAPHY) {
+			map.setTopoResolution(TopographicSlopeFile.US_SIX);
+		} else {
+			map.setTopoResolution(null);
+			map.setTopoResolution(null);
+			map.setUseGMTSmoothing(false);
+		}
 		map.setLogPlot(false);
 		map.setDpi(300);
 		map.setXyzFileName("base_map.xyz");
 		map.setCustomScaleMin(customMin);
 		map.setCustomScaleMax(customMax);
+		map.setBlackBackground(false);
 		map.setRescaleCPT(rescaleCPT);
+		map.setJPGFileName(null);
+		map.setPDFFileName(null);
+		FaultBasedMapGen.plotMap(outputDir, prefix, false, map);
 		
-		System.out.println("Making map...");
-		String url = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
-		
-		FileUtils.downloadURL(url+"/basemap.150.png", outputFile);
+//		System.out.println("Loading basemap...");
+//		
+//		System.out.println("Fetching curves...");
+//		AbstractGeoDataSet scatterData = null;
+//		
+//		System.out.println("Creating map instance...");
+//		GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
+//		
+//		InterpDiffMapType[] mapTypes = {InterpDiffMapType.BASEMAP};
+//		
+//		InterpDiffMap map = new InterpDiffMap(region, baseMap, baseMapRes, cpt, scatterData, interpSettings, mapTypes);
+//		map.setCustomLabel(label);
+//		map.setTopoResolution(TopographicSlopeFile.CA_THREE);
+//		map.setLogPlot(false);
+//		map.setDpi(300);
+//		map.setXyzFileName("base_map.xyz");
+//		map.setCustomScaleMin(customMin);
+//		map.setCustomScaleMax(customMax);
+//		map.setRescaleCPT(rescaleCPT);
+//		
+//		System.out.println("Making map...");
+//		String url = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
+//		
+//		FileUtils.downloadURL(url+"/basemap.150.png", outputFile);
 	}
 	
-	private static void checkMakeSiteDataPlot(SiteData<Double> prov, Region region, File dir) throws IOException, ClassNotFoundException {
+	private static void checkMakeSiteDataPlot(SiteData<Double> prov, Region region, File dir)
+			throws IOException, ClassNotFoundException, GMT_MapException {
 		String shortType;
 		Double customMin, customMax;
 		if (prov.getDataType().equals(SiteData.TYPE_VS30)) {
@@ -285,7 +331,8 @@ public class BatchBaseMapPlot {
 			throw new IllegalStateException();
 		}
 		
-		File outputFile = new File(dir, prov.getShortName()+"_"+shortType+".png");
+		String prefix = prov.getShortName()+"_"+shortType;
+		File outputFile = new File(dir, prefix+".png");
 		if (outputFile.exists())
 			return;
 		
@@ -298,7 +345,7 @@ public class BatchBaseMapPlot {
 		CPT cpt = CPT.loadFromStream(HardCodedInterpDiffMapCreator.class.getResourceAsStream(
 				"/resources/cpt/MaxSpectrum2.cpt"));
 		
-		plot(outputFile, data, region, customMin, customMax, prov.getShortName()+" "+shortType, prov.getMetadata(), cpt, true);
+		plot(dir, prefix, data, region, customMin, customMax, prov.getShortName()+" "+shortType, prov.getMetadata(), cpt, true);
 	}
 
 }

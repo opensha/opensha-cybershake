@@ -30,12 +30,13 @@ import org.dom4j.Element;
 import org.opensha.commons.data.TimeSpan;
 import org.opensha.commons.param.event.ParameterChangeEvent;
 import org.opensha.commons.param.impl.BooleanParameter;
+import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.XMLUtils;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.ProbEqkSource;
 
-public class CyberShakeUCERFWrapper_ERF extends AbstractERF {
+public class CyberShakeWrapper_ERF extends AbstractERF {
 	
 	public static final String NAME = "CyberShake UCERF 2 Wrapper";
 	
@@ -47,7 +48,7 @@ public class CyberShakeUCERFWrapper_ERF extends AbstractERF {
 	
 	private BooleanParameter hiResParam;
 	
-	public CyberShakeUCERFWrapper_ERF() {
+	public CyberShakeWrapper_ERF() {
 		super();
 		
 		hiResParam = new BooleanParameter("200m resolution", false);
@@ -69,15 +70,8 @@ public class CyberShakeUCERFWrapper_ERF extends AbstractERF {
 					Element erfEl = root.element(XML_METADATA_NAME);
 					erf = AbstractERF.fromXMLMetadata(erfEl);
 				}
-			} catch (MalformedURLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (DocumentException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (InvocationTargetException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			} catch (Exception e) {
+				throw ExceptionUtils.asRuntimeException(e);
 			}
 		}
 		return erf;
@@ -95,7 +89,7 @@ public class CyberShakeUCERFWrapper_ERF extends AbstractERF {
 		return csSource;
 	}
 
-	public List getSourceList() {
+	public List<ProbEqkSource> getSourceList() {
 		// TODO Auto-generated method stub
 		return getERF().getSourceList();
 	}
@@ -106,6 +100,7 @@ public class CyberShakeUCERFWrapper_ERF extends AbstractERF {
 	}
 
 	public void updateForecast() {
+		getERF().getTimeSpan().setDuration(timeSpan.getDuration());
 		getERF().updateForecast();
 	}
 

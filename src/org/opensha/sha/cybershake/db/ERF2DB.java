@@ -50,13 +50,17 @@ import org.opensha.sha.faultSurface.EvenlyGridCenteredSurface;
 import org.opensha.sha.faultSurface.AbstractEvenlyGriddedSurface;
 import org.opensha.sha.faultSurface.EvenlyGriddedSurface;
 import org.opensha.sha.faultSurface.RuptureSurface;
+import org.opensha.sha.simulators.SimulatorElement;
 import org.opensha.sha.faultSurface.PointSurface;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Range;
 import com.google.common.collect.Table;
+
+import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
 
 public  class ERF2DB implements ERF2DBAPI{
 
@@ -75,6 +79,11 @@ public  class ERF2DB implements ERF2DBAPI{
 
 	public ERF2DB(DBAccess dbaccess){
 		this.dbaccess = dbaccess;
+	}
+
+	public ERF2DB(DBAccess dbaccess, AbstractERF eqkRupForecast){
+		this.dbaccess = dbaccess;
+		this.eqkRupForecast = eqkRupForecast;
 	}
 	
 	public void setFileBased(File erfDir, boolean gZipFiles) {
@@ -294,6 +303,7 @@ public  class ERF2DB implements ERF2DBAPI{
 		"(ERF_ID,ERF_Attr_Name,ERF_Attr_Value,ERF_Attr_Type,ERF_Attr_Units)"+
 		"VALUES('"+erfId+"','"+attrName+"','"+
 		attrVal+"','"+attrType+"','"+attrUnits+"')";
+		System.out.println(sql);
 		try {
 			dbaccess.insertUpdateOrDeleteData(sql);
 		} catch (SQLException e) {
@@ -812,26 +822,50 @@ public  class ERF2DB implements ERF2DBAPI{
 	 * @throws IOException 
 	 */
 	public void insertSrcRupInDB(ERF forecast, int erfID, int sourceID, int rupID) {
-		ProbEqkSource source  = (ProbEqkSource)forecast.getSource(sourceID);
+		ProbEqkSource source  = forecast.getSource(sourceID);
 		String sourceName = source.getName();
 		// getting the rupture on the source and its gridCentered Surface
 		ProbEqkRupture rupture = source.getRupture(rupID);
 		double mag = rupture.getMag();
 		double prob = rupture.getProbability();
 		double aveRake = rupture.getAveRake();
-		AbstractEvenlyGriddedSurface rupSurface = new EvenlyGridCenteredSurface(
-				(EvenlyGriddedSurface)rupture.getRuptureSurface());
-		// Local Strike for each grid centered location on the rupture
-		double[] localStrikeList = this.getLocalStrikeList((EvenlyGriddedSurface)rupture
-				.getRuptureSurface());
+		RuptureSurface rupSurface = rupture.getRuptureSurface();
 		double dip = rupSurface.getAveDip();
-		int numRows = rupSurface.getNumRows();
-		int numCols = rupSurface.getNumCols();
-		int numPoints = numRows * numCols;
-		double gridSpacing = rupSurface.getGridSpacingAlongStrike();
-		if(!rupSurface.isGridSpacingSame()) throw new RuntimeException("this may not work now that grid spacing can differ along strike and down dip");
-		Location surfaceStartLocation = (Location) rupSurface.get(0, 0);
-		Location surfaceEndLocation = (Location) rupSurface.get(0, numCols - 1);
+		int numRows, numCols, numPoints;
+		double gridSpacing;
+		Location surfaceStartLocation, surfaceEndLocation;
+		if (rupture instanceof RSQSimProbEqkRup) {
+			numRows = -1;
+			numCols = -1;
+			RSQSimProbEqkRup rsRup = (RSQSimProbEqkRup)rupture;
+			numPoints = rsRup.getElements().size();
+			double aveArea = 0d;
+			for (SimulatorElement elem : rsRup.getElements())
+				aveArea += elem.getArea();
+			aveArea *= 1e-6;
+			aveArea /= numPoints;
+			gridSpacing = Math.sqrt(aveArea); // approx
+			Range<Double> latRange = rsRup.getElemLatRange();
+			Range<Double> lonRange = rsRup.getElemLonRange();
+			Range<Double> depthRange = rsRup.getElemDepthRange();
+			surfaceStartLocation = new Location(latRange.lowerEndpoint(), lonRange.lowerEndpoint(), depthRange.lowerEndpoint());
+			surfaceEndLocation = new Location(latRange.upperEndpoint(), lonRange.upperEndpoint(), depthRange.upperEndpoint());
+		} else {
+			Preconditions.checkState(rupSurface instanceof EvenlyGriddedSurface);
+			AbstractEvenlyGriddedSurface gridSurface = new EvenlyGridCenteredSurface(
+					(EvenlyGriddedSurface)rupture.getRuptureSurface());
+			// Local Strike for each grid centered location on the rupture
+			double[] localStrikeList = getLocalStrikeList(gridSurface);
+			numRows = gridSurface.getNumRows();
+			numCols = gridSurface.getNumCols();
+			numPoints = numRows * numCols;
+			gridSpacing = gridSurface.getGridSpacingAlongStrike();
+			if(!gridSurface.isGridSpacingSame()) throw new RuntimeException(
+					"this may not work now that grid spacing can differ along strike and down dip");
+			surfaceStartLocation = (Location) gridSurface.get(0, 0);
+			surfaceEndLocation = (Location) gridSurface.get(0, numCols - 1);
+		}
+		
 		double surfaceStartLat = surfaceStartLocation.getLatitude();
 		double surfaceStartLon = surfaceStartLocation.getLongitude();
 		double surfaceStartDepth = surfaceStartLocation.getDepth();
@@ -853,7 +887,7 @@ public  class ERF2DB implements ERF2DBAPI{
 		//			}
 		//		}
 
-		if (fileBased) {
+		if (fileBased && rupSurface instanceof EvenlyGriddedSurface) {
 			if (!erfDir.exists())
 				Preconditions.checkState(erfDir.mkdir(), "couldn't create: "+erfDir.getPath());
 			try {
@@ -862,28 +896,29 @@ public  class ERF2DB implements ERF2DBAPI{
 				ExceptionUtils.throwAsRuntimeException(e);
 			}
 		} else {
-			ArrayList<Integer> sourceIds = new ArrayList<Integer>();
-			ArrayList<Integer> ruptureIds = new ArrayList<Integer>(); 
-			ArrayList<Double> lats = new ArrayList<Double>();
-			ArrayList<Double> lons = new ArrayList<Double>();
-			ArrayList<Double> depths = new ArrayList<Double>();
-			ArrayList<Double> rakes = new ArrayList<Double>(); 
-			ArrayList<Double> dips = new ArrayList<Double>();
-			ArrayList<Double> strikes = new ArrayList<Double>();
-			for(int k=0;k<numRows;++k){
-				for (int j = 0; j < numCols; ++j) {
-					Location loc = rupSurface.getLocation(k,j);
-					sourceIds.add(sourceID);
-					ruptureIds.add(rupID);
-					lats.add(loc.getLatitude());
-					lons.add(loc.getLongitude());
-					depths.add(loc.getDepth());
-					rakes.add(aveRake);
-					dips.add(dip);
-					strikes.add(localStrikeList[j]);
-				}
-			}
-			this.insertRuptureSurface(erfID, sourceIds, ruptureIds, lats, lons, depths, rakes, dips, strikes);
+			// never again
+//			ArrayList<Integer> sourceIds = new ArrayList<Integer>();
+//			ArrayList<Integer> ruptureIds = new ArrayList<Integer>(); 
+//			ArrayList<Double> lats = new ArrayList<Double>();
+//			ArrayList<Double> lons = new ArrayList<Double>();
+//			ArrayList<Double> depths = new ArrayList<Double>();
+//			ArrayList<Double> rakes = new ArrayList<Double>(); 
+//			ArrayList<Double> dips = new ArrayList<Double>();
+//			ArrayList<Double> strikes = new ArrayList<Double>();
+//			for(int k=0;k<numRows;++k){
+//				for (int j = 0; j < numCols; ++j) {
+//					Location loc = rupSurface.getLocation(k,j);
+//					sourceIds.add(sourceID);
+//					ruptureIds.add(rupID);
+//					lats.add(loc.getLatitude());
+//					lons.add(loc.getLongitude());
+//					depths.add(loc.getDepth());
+//					rakes.add(aveRake);
+//					dips.add(dip);
+//					strikes.add(localStrikeList[j]);
+//				}
+//			}
+//			this.insertRuptureSurface(erfID, sourceIds, ruptureIds, lats, lons, depths, rakes, dips, strikes);
 		}
 	}
 

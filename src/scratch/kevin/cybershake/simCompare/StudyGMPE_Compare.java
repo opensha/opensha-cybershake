@@ -52,9 +52,9 @@ import org.opensha.sha.util.SiteTranslator;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Doubles;
 
-import scratch.kevin.MarkdownUtils;
 import scratch.kevin.simCompare.MultiRupGMPE_ComparePageGen;
 import scratch.kevin.simCompare.RuptureComparison;
+import scratch.kevin.util.MarkdownUtils;
 
 public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	
@@ -84,8 +84,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	private static boolean DIST_JB = true;
 	
 	public StudyGMPE_Compare(AbstractERF erf, DBAccess db, File ampsCacheDir, String studyName,
-			int datasetID, int velModelID, double[] periods, double minMag, HashSet<String> limitSiteNames)
-					throws IOException, SQLException {
+			int datasetID, int velModelID, double[] periods, double minMag, HashSet<String> limitSiteNames,
+			HashSet<String> highlightSiteNames) throws IOException, SQLException {
 		this.erf = erf;
 		this.studyName = studyName;
 		this.datasetID = datasetID;
@@ -125,17 +125,22 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		Map<Site, Integer> runIDsMap = new HashMap<>();
 		int erfID = -1;
 		int rvScenID = -1;
+		highlightSites = new ArrayList<>();
 		for (int i=0; i<csSites.size(); i++) {
 			CybershakeSite csSite = csSites.get(i);
 			int runID = csRuns.get(i);
 			Site site = new Site(csSite.createLocation());
 			runIDsMap.put(site, runID);
 			site.setName(csSite.short_name);
-			site.addParameter(new Vs30_Param());
+			site.addParameter(new Vs30_Param(760d));
 			site.addParameter(new Vs30_TypeParam());
-			site.addParameter(new DepthTo1pt0kmPerSecParam());
-			site.addParameter(new DepthTo2pt5kmPerSecParam());
+			site.addParameter(new DepthTo1pt0kmPerSecParam(null, true));
+			site.addParameter(new DepthTo2pt5kmPerSecParam(null, true));
+			for (Parameter<?> param : site)
+				param.setValueAsDefault();
 			sites.add(site);
+			if (highlightSiteNames != null && highlightSiteNames.contains(site.getName()))
+				highlightSites.add(site);
 			
 			if (erfID < 0) {
 				CybershakeRun run = new Runs2DB(db).getRun(runID);
@@ -179,10 +184,13 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			List<SiteDataValue<?>> vals = new ArrayList<>();
 			for (SiteDataValueList<?> list : datas)
 				vals.add(list.getValue(i));
+			Site site = sites.get(i);
+			Double oldVs30 = site.getParameter(Double.class, Vs30_Param.NAME).getValue();
 			for (Parameter<?> param : sites.get(i))
 				trans.setParameterValue(param, vals);
+			Preconditions.checkNotNull(sites.get(i).getValue(Vs30_Param.NAME), "Vs30 Null! Old: %s", oldVs30);
 		}
-		System.out.print("Done with setup");
+		System.out.println("Done with setup");
 		
 		init(prov, sites, DIST_JB, MAX_DIST, minMag, 8.5);
 	}
@@ -431,29 +439,35 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		double minMag = 6;
 		
 		boolean doGMPE = true;
-		boolean doRotD = true;
+		boolean doRotD = false;
+		
+		boolean limitToHighlight = false;
 		
 		AttenRelRef gmpeRef = AttenRelRef.NGAWest_2014_AVG_NOIDRISS;
 		
-//		HashSet<String> limitSiteNames = null;
-		HashSet<String> limitSiteNames = new HashSet<>();
+		HashSet<String> highlightSiteNames = new HashSet<>();
 		if (cca) {
-			limitSiteNames.add("SBR");
-			limitSiteNames.add("VENT");
-			limitSiteNames.add("BAK");
-			limitSiteNames.add("CAR");
-			limitSiteNames.add("SLO");
-			limitSiteNames.add("LEM");
+			highlightSiteNames.add("SBR");
+			highlightSiteNames.add("VENT");
+			highlightSiteNames.add("BAK");
+			highlightSiteNames.add("CAR");
+			highlightSiteNames.add("SLO");
+			highlightSiteNames.add("LEM");
 		} else {
-			limitSiteNames.add("USC");
-			limitSiteNames.add("SBSM");
-			limitSiteNames.add("PAS");
-			limitSiteNames.add("COO");
-			limitSiteNames.add("WNGC");
-			limitSiteNames.add("LAPD");
-			limitSiteNames.add("SMCA");
-			limitSiteNames.add("FIL");
+			highlightSiteNames.add("USC");
+			highlightSiteNames.add("SBSM");
+			highlightSiteNames.add("PAS");
+			highlightSiteNames.add("COO");
+			highlightSiteNames.add("WNGC");
+			highlightSiteNames.add("LAPD");
+			highlightSiteNames.add("SMCA");
+			highlightSiteNames.add("FIL");
 		}
+		HashSet<String> limitSiteNames;
+		if (limitToHighlight)
+			limitSiteNames = highlightSiteNames;
+		else
+			limitSiteNames = null;
 		
 		double[] calcPeriods = null;
 		Preconditions.checkState(doGMPE || doRotD);
@@ -467,7 +481,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		}
 		
 		if (limitSiteNames == null)
-			CachedPeakAmplitudesFromDB.MAX_CACHE_SIZE = 100;
+			CachedPeakAmplitudesFromDB.MAX_CACHE_SIZE = 50;
 		else
 			CachedPeakAmplitudesFromDB.MAX_CACHE_SIZE = limitSiteNames.size()*periods.length*2+10;
 		DBAccess db = Cybershake_OpenSHA_DBApplication.getDB(dbHost);
@@ -478,7 +492,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 		try {
 			StudyGMPE_Compare comp = new StudyGMPE_Compare(erf, db, ampsCacheDir, studyName,
-					datasetID, velModelID, calcPeriods, minMag, limitSiteNames);
+					datasetID, velModelID, calcPeriods, minMag, limitSiteNames, highlightSiteNames);
 			
 			List<CSRuptureComparison> comps = comp.loadCalcComps(gmpeRef, calcPeriods);
 			

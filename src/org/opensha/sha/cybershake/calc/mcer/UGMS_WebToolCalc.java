@@ -136,8 +136,9 @@ public class UGMS_WebToolCalc {
 	private DiscretizedFunc csProbSpectrum;
 	private DiscretizedFunc csMCER;
 	private DiscretizedFunc finalMCER;
+	private DiscretizedFunc designResponseSpectrum;
 	private DiscretizedFunc standardSpectrum;
-	private DiscretizedFunc designSpectrum;
+	private DiscretizedFunc designStandardSpectrum;
 	
 	private double sds;
 	private double sd1;
@@ -714,22 +715,24 @@ public class UGMS_WebToolCalc {
 		Preconditions.checkNotNull(gmpeMCER, "GMPE MCER has not been computed!");
 		finalMCER = MCERDataProductsCalc.calcFinalMCER(csMCER, gmpeMCER);
 		finalMCER.toXMLMetadata(resultsEl, "FinalMCER", valDF);
-		finalMCER.setName("Final MCER");
+		finalMCER.setName("Site Specific MCER");
+		
+		designResponseSpectrum = finalMCER.deepClone();
+		designResponseSpectrum.scale(2d/3d);
+		designResponseSpectrum.setName("Design Response Spectrum");
+		designResponseSpectrum.toXMLMetadata(resultsEl, "DesignResponseSpectrum", valDF);
 		
 		// calc SDS and SD1
-		DiscretizedFunc scaled = finalMCER.deepClone();
-		scaled.scale(2d/3d);
-		
 		/* SDS */
 		// SDS = 0.9 * max(Sa) for 0.2s <= T <= 0.5 where Sa 2/3 * MCER
 		this.sds = 0;
-		for (int i=0; i<scaled.size(); i++) {
-			double x = scaled.getX(i);
+		for (int i=0; i<designResponseSpectrum.size(); i++) {
+			double x = designResponseSpectrum.getX(i);
 			if (x < 0.2)
 				continue;
 			if (x > 0.5)
 				break;
-			double y = scaled.getY(i);
+			double y = designResponseSpectrum.getY(i);
 			sds = Math.max(sds, 0.9 * y);
 		}
 		
@@ -744,13 +747,13 @@ public class UGMS_WebToolCalc {
 			maxPeriodSD1 = 5d;
 		}
 		sd1 = 0;
-		for (int i=0; i<scaled.size(); i++) {
-			double x = scaled.getX(i);
+		for (int i=0; i<designResponseSpectrum.size(); i++) {
+			double x = designResponseSpectrum.getX(i);
 			if (x < minPeriodSD1)
 				continue;
 			if (x > maxPeriodSD1)
 				break;
-			double y = scaled.getY(i);
+			double y = designResponseSpectrum.getY(i);
 			sd1 = Math.max(sd1, x * y);
 		}
 		
@@ -772,17 +775,16 @@ public class UGMS_WebToolCalc {
 		standardSpectrum.setName("Standard MCER Spectrum");
 		standardSpectrum.toXMLMetadata(resultsEl, "StandardMCERSpectrum", valDF);
 		
-		designSpectrum = DesignSpectrumCalc.calcSpectrum(sds, sd1, tl);
-		designSpectrum.setName("Design Response Spectrum");
-		designSpectrum.toXMLMetadata(resultsEl, "DesignResponseSpectrum", valDF);
+		designStandardSpectrum = DesignSpectrumCalc.calcSpectrum(sds, sd1, tl);
+		designStandardSpectrum.setName("Standard Design Response Spectrum");
+		designStandardSpectrum.toXMLMetadata(resultsEl, "StandardDesignResponseSpectrum", valDF);
 	}
 	
 	public void plot() throws IOException {
-		//	PSV		CS/GM  Final  SM      SD
-		plot(false, true, true, false, false);
-		plot(false, false, true, false, false);
-		plot(false, false, true, true, false);
-		plot(false, false, false, false, true);
+		//	PSV		CS/GM  Final  FinDes  SM      SD
+		plot(false, true, true,   false, false, false);
+		plot(false, false, true,  false, false, false);
+		plot(false, false, false, true,  false, false);
 	}
 	
 	private static final DecimalFormat valDF = new DecimalFormat("0.000");
@@ -790,7 +792,7 @@ public class UGMS_WebToolCalc {
 	private static final DecimalFormat vs30DF = new DecimalFormat("0");
 	private static final DecimalFormat zDF = new DecimalFormat("0.00");
 	
-	public void plot(boolean psv, boolean ingredients, boolean finalSpectrum, boolean smSpectrum, boolean sdSpectrum) throws IOException {
+	public void plot(boolean psv, boolean ingredients, boolean finalSpectrum, boolean finalDesign, boolean smSpectrum, boolean sdSpectrum) throws IOException {
 		boolean xLog = psv;
 		boolean yLog = psv;
 		Range xRange = new Range(1e-2, 10d);
@@ -817,8 +819,10 @@ public class UGMS_WebToolCalc {
 		
 		if (smSpectrum)
 			prefix += "_standard_mcer";
-		if (sdSpectrum)
+		if (finalDesign)
 			prefix += "_design";
+		if (sdSpectrum)
+			prefix += "_standard_design";
 		if (finalSpectrum && !ingredients && !smSpectrum && !sdSpectrum)
 			prefix += "_final";
 		boolean writeCSV = ingredients && !smSpectrum && !sdSpectrum;
@@ -868,8 +872,13 @@ public class UGMS_WebToolCalc {
 			chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 2f, Color.RED));
 		}
 		
+		if (finalDesign) {
+			funcs.add(designResponseSpectrum);
+			chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 4f, Color.BLACK));
+		}
+		
 		if (sdSpectrum) {
-			funcs.add(designSpectrum);
+			funcs.add(designStandardSpectrum);
 			chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 2f, Color.RED));
 		}
 
@@ -903,8 +912,8 @@ public class UGMS_WebToolCalc {
 		if (writeCSV) {
 			CSVFile<String> csv = new CSVFile<String>(true);
 			
-
-			List<String> header = Lists.newArrayList("Period (s)", "GMPE Sa (g)", "CyberShake Sa (g)", "Final MCER Sa (g)");
+			List<String> header = Lists.newArrayList("Period (s)", "GMPE Sa (g)", "CyberShake Sa (g)",
+					"Site Specific MCER Sa (g)", "Site Specific Design Response Spectrum (g)");
 			csv.addLine(header);
 			
 			for (double period : periods) {
@@ -912,6 +921,7 @@ public class UGMS_WebToolCalc {
 				line.add(MCERDataProductsCalc.getValIfPresent(gmpeMCER, period, valDF));
 				line.add(MCERDataProductsCalc.getValIfPresent(csMCER, period, valDF));
 				line.add(MCERDataProductsCalc.getValIfPresent(finalMCER, period, valDF));
+				line.add(MCERDataProductsCalc.getValIfPresent(designResponseSpectrum, period, valDF));
 				
 				csv.addLine(line);
 			}

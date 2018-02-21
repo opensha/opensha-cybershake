@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.DiscretizedFunc;
@@ -16,6 +17,9 @@ import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 
 import com.google.common.base.Preconditions;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 
@@ -31,9 +35,61 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	private CybershakeIM[] rd100_ims;
 	private String name;
 	
-	private Table<CSRupture, Site, DiscretizedFunc[]> rd50Table;
-	private Table<CSRupture, Site, DiscretizedFunc[]> rdRatioTable;
-	private Table<CSRupture, Site, DiscretizedFunc[][]> rdTable;
+	public static int MAX_CACHE_SIZE = 100000;
+	
+	private LoadingCache<CacheKey, DiscretizedFunc[]> rd50Cache;
+	private LoadingCache<CacheKey, DiscretizedFunc[][]> rd100Cache;
+	private LoadingCache<CacheKey, DiscretizedFunc[]> rdRatioCache;
+	
+	private class CacheKey {
+		private CSRupture rup;
+		private Site site;
+		
+		public CacheKey(CSRupture rup, Site site) {
+			super();
+			this.rup = rup;
+			this.site = site;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + getOuterType().hashCode();
+			result = prime * result + ((rup == null) ? 0 : rup.hashCode());
+			result = prime * result + ((site == null) ? 0 : site.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			CacheKey other = (CacheKey) obj;
+			if (!getOuterType().equals(other.getOuterType()))
+				return false;
+			if (rup == null) {
+				if (other.rup != null)
+					return false;
+			} else if (!rup.equals(other.rup))
+				return false;
+			if (site == null) {
+				if (other.site != null)
+					return false;
+			} else if (!site.equals(other.site))
+				return false;
+			return true;
+		}
+
+		private StudyRotDProvider getOuterType() {
+			return StudyRotDProvider.this;
+		}
+		
+	}
 	
 	private Map<CSRupture, Integer> rvCountMap;
 
@@ -55,10 +111,10 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 			Preconditions.checkState((float)rd50_ims[i].getVal() == (float)periods[i]);
 		}
 		
-		rd50Table = HashBasedTable.create();
+		rd50Cache = CacheBuilder.newBuilder().maximumSize(MAX_CACHE_SIZE).build(new RD50Loader());
 		if (hasRotD100()) {
-			rdTable = HashBasedTable.create();
-			rdRatioTable = HashBasedTable.create();
+			rd100Cache = CacheBuilder.newBuilder().maximumSize(MAX_CACHE_SIZE).build(new RD100Loader());
+			rdRatioCache = CacheBuilder.newBuilder().maximumSize(MAX_CACHE_SIZE).build(new RDRatioLoader());
 		}
 		
 		rvCountMap = new HashMap<>();
@@ -69,38 +125,62 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 		return name;
 	}
 	
-	private DiscretizedFunc getSpectra(Site site, CSRupture rup, CybershakeIM[] ims, int index) {
-		double[] rds = new double[periods.length];
+	private class RD50Loader extends CacheLoader<CacheKey, DiscretizedFunc[]> {
+
+		@Override
+		public DiscretizedFunc[] load(CacheKey key) throws Exception {
+			return getSpectras(key.site, key.rup, rd50_ims);
+		}
+		
+	}
+	
+	private class RD100Loader extends CacheLoader<CacheKey, DiscretizedFunc[][]> {
+
+		@Override
+		public DiscretizedFunc[][] load(CacheKey key) throws Exception {
+			DiscretizedFunc[] spectra50 = getSpectras(key.site, key.rup, rd50_ims);
+			DiscretizedFunc[] spectra100 = getSpectras(key.site, key.rup, rd100_ims);
+			Preconditions.checkState(spectra50.length == spectra100.length);
+			DiscretizedFunc[][] spectras = new DiscretizedFunc[spectra50.length][2];
+			for (int i=0; i<spectras.length; i++) {
+				spectras[i][0] = spectra50[i];
+				spectras[i][1] = spectra100[i];
+			}
+			return spectras;
+		}
+		
+	}
+	
+	private DiscretizedFunc[] getSpectras(Site site, CSRupture rup, CybershakeIM[] ims) {
+		DiscretizedFunc[] ret = null;
 		int runID = runIDsMap.get(site);
-		for (int i=0; i<rds.length; i++) {
+		for (int i=0; i<ims.length; i++) {
 			try {
 				double[][][] amps = amps2db.getAllIM_Values(runID, ims[i]);
 				double[] myAmps = amps[rup.getSourceID()][rup.getRupID()];
 				Preconditions.checkNotNull(myAmps);
-				Preconditions.checkState(index < myAmps.length);
-				rds[i] = myAmps[index] / HazardCurveComputation.CONVERSION_TO_G;
+				if (ret == null) {
+					ret = new DiscretizedFunc[myAmps.length];
+					for (int j=0; j<ret.length; j++)
+						ret[j] = new LightFixedXFunc(periods, new double[periods.length]);
+				}
+				for (int j=0; j<myAmps.length; j++)
+					ret[j].set(i, myAmps[j] / HazardCurveComputation.CONVERSION_TO_G);
 			} catch (SQLException e) {
 				throw ExceptionUtils.asRuntimeException(e);
 			}
 		}
-		return new LightFixedXFunc(periods, rds);
+		return ret;
 	}
 
 	@Override
 	public DiscretizedFunc getRotD50(Site site, CSRupture rupture, int index) throws IOException {
-		if (rdTable != null)
+		if (rd100Cache != null)
 			return getRotD(site, rupture, index)[0];
-		if (rd50Table.contains(rupture, site))
-			return rd50Table.get(rupture, site)[index];
-		synchronized (rd50Table) {
-			// repeat here as could have been populated while waiting for the lock
-			if (rd50Table.contains(rupture, site))
-				return rd50Table.get(rupture, site)[index];
-			DiscretizedFunc[] spectras = new DiscretizedFunc[getNumSimulations(site, rupture)];
-			for (int i=0; i<spectras.length; i++)
-				spectras[i] = getSpectra(site, rupture, rd50_ims, i);
-			rd50Table.put(rupture, site, spectras);
-			return spectras[index];
+		try {
+			return rd50Cache.get(new CacheKey(rupture, site))[index];
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
 		}
 	}
 
@@ -111,37 +191,32 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 
 	@Override
 	public DiscretizedFunc[] getRotD(Site site, CSRupture rupture, int index) throws IOException {
-		if (rdTable.contains(rupture, site))
-			return rdTable.get(rupture, site)[index];
-		synchronized (rd50Table) {
-			// repeat here as could have been populated while waiting for the lock
-			if (rdTable.contains(rupture, site))
-				return rdTable.get(rupture, site)[index];
-			DiscretizedFunc[][] spectras = new DiscretizedFunc[getNumSimulations(site, rupture)][2];
-			for (int i=0; i<spectras.length; i++) {
-				spectras[i][0] = getSpectra(site, rupture, rd50_ims, i);
-				spectras[i][1] = getSpectra(site, rupture, rd100_ims, i);
-			}
-			rdTable.put(rupture, site, spectras);
-			return spectras[index];
+		try {
+			return rd100Cache.get(new CacheKey(rupture, site))[index];
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
 		}
+	}
+	
+	private class RDRatioLoader extends CacheLoader<CacheKey, DiscretizedFunc[]> {
+
+		@Override
+		public DiscretizedFunc[] load(CacheKey key) throws Exception {
+			DiscretizedFunc[][] spectras = rd100Cache.get(key);
+			DiscretizedFunc[] ratios = new DiscretizedFunc[spectras.length];
+			for (int i=0; i<ratios.length; i++)
+				ratios[i] = SimulationRotDProvider.calcRotDRatio(spectras[i]);
+			return ratios;
+		}
+		
 	}
 
 	@Override
 	public DiscretizedFunc getRotDRatio(Site site, CSRupture rupture, int index) throws IOException {
-		if (rdRatioTable.contains(rupture, site))
-			return rdRatioTable.get(rupture, site)[index];
-		synchronized (rdTable) {
-			// repeat here as could have been populated while waiting for the lock
-			if (rdRatioTable.contains(rupture, site))
-				return rdRatioTable.get(rupture, site)[index];
-			DiscretizedFunc[] ratios = new DiscretizedFunc[getNumSimulations(site, rupture)];
-			for (int i=0; i<ratios.length; i++) {
-				DiscretizedFunc[] spectras = getRotD(site, rupture, i);
-				ratios[i] = SimulationRotDProvider.calcRotDRatio(spectras);
-			}
-			rdRatioTable.put(rupture, site, ratios);
-			return ratios[index];
+		try {
+			return rdRatioCache.get(new CacheKey(rupture, site))[index];
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
 		}
 	}
 
@@ -186,6 +261,11 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	@Override
 	public double getMagnitude(CSRupture rupture) {
 		return rupture.getRup().getMag();
+	}
+
+	@Override
+	public double getMinimumCurvePlotRate() {
+		return 0;
 	}
 
 }

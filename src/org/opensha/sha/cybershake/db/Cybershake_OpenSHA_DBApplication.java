@@ -37,6 +37,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import scratch.kevin.simulators.RSQSimCatalog;
+import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
+import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
+
 
 /**
  * Main application to put the Cybershake locations and Earthquake Rupture Forecast information
@@ -407,30 +411,44 @@ public class Cybershake_OpenSHA_DBApplication {
 		if (db.isReadOnly())
 			db.setIgnoreInserts(true);
 		
-		boolean highRes = true;
-		boolean ddwAdjust = false;
-		System.out.println("Creating and Updating ERF...");
-		MeanUCERF2_ToDB erfDB  = new MeanUCERF2_ToDB(db, highRes, ddwAdjust);
-		File erfDir = new File("/home/kevin/CyberShake/UCERF2_200m_noDDW");
-		erfDB.setFileBased(erfDir, true);
-		String erfName = erfDB.getERF_Instance().getName();
-		String erfDescription;
-		if (highRes)
-			erfDescription = "Mean UCERF 2 - Single Branch Earthquake Rupture Forecast FINAL, 200m";
-		else
-			erfDescription = "Mean UCERF 2 - Single Branch Earthquake Rupture Forecast FINAL";
+		// for UCERF2
+//		boolean highRes = true;
+//		boolean ddwAdjust = false;
+//		System.out.println("Creating and Updating ERF...");
+//		MeanUCERF2_ToDB erfDB  = new MeanUCERF2_ToDB(db, highRes, ddwAdjust);
+//		File erfDir = new File("/home/kevin/CyberShake/UCERF2_200m_noDDW");
+//		erfDB.setFileBased(erfDir, true);
+//		String erfName = erfDB.getERF_Instance().getName();
+//		String erfDescription;
+//		if (highRes)
+//			erfDescription = "Mean UCERF 2 - Single Branch Earthquake Rupture Forecast FINAL, 200m";
+//		else
+//			erfDescription = "Mean UCERF 2 - Single Branch Earthquake Rupture Forecast FINAL";
+//		
+//		if (ddwAdjust) {
+//			erfDescription += ", No DDW Adjustment";
+//			if (!highRes)
+//				// already added if it is high res
+//				erfName += ", No DDW";
+//		}
 		
-		if (ddwAdjust) {
-			erfDescription += ", No DDW Adjustment";
-			if (!highRes)
-				// already added if it is high res
-				erfName += ", No DDW";
-		}
+		// for RSQSim
+		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
+		RSQSimCatalog catalog = Catalogs.BRUCE_2457.instance(localBaseDir);
+		double minMag = 6.5;
+		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
+		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
+				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
+		String erfName = "RSQSim "+catalog.getName()+" M"+(float)minMag;
+		String erfDescription = "RSQSim ERF for catalog "+catalog.getName()+", M"+(float)minMag;
+		erf.updateForecast();
+		ERF2DB erfDB = new ERF2DB(db, erf);
+//		erfDB.seter
 		
-		ERF forecast = erfDB.getERF_Instance();
+//		ERF forecast = erfDB.getERF_Instance();
 		System.out.println("ERF NAME: " + erfName);
-//		int erfId = erfDB.getInserted_ERF_ID(erfName);
-//		System.out.println("ERF ID: " + erfId);
+		int erfID = erfDB.getInserted_ERF_ID(erfName);
+		System.out.println("ERF ID: " + erfID);
 		
 //		System.exit(0);
 		
@@ -453,17 +471,18 @@ public class Cybershake_OpenSHA_DBApplication {
 		
 		// this inserts it
 		// TODO deal with rakes along strike before inserting UCERF3
-		erfDB.insertForecaseInDB(erfName, erfDescription, region);
+		// COMMENT OUT AFTER, will insert with new ID if duplicate
+//		erfDB.insertForecaseInDB(erfName, erfDescription, region);
 		
 		// if you have to reinsert a rupture surface for some reason, do this
-//		int erfID = 35;
-//		int sourceID = 7;
-//		int ruptureID = 0;
-//		erfDB.insertSrcRupInDB(forecast, erfID, sourceID, ruptureID);
+//		int startSourceID = 0;
+//		int startRuptureID = 0;
+//		System.out.println("Inserting all ruptures starting with source "+startSourceID);
+//		erfDB.insertSrcRupInDB(erf, erfID, startSourceID, startRuptureID);
 		
 		// this inserts the site info
 		siteDB.setMatchSourceNames(false);
-		app.insertNewERFForAllSites(erfDB, erfName, erfDescription);
+//		app.insertNewERFForAllSites(erfDB, erfName, erfDescription);
 		
 		SiteInfo2DB sites2db = new SiteInfo2DB(db);
 		ArrayList<CybershakeSite> sites = Lists.newArrayList();
@@ -474,14 +493,22 @@ public class Cybershake_OpenSHA_DBApplication {
 //		sites.add(sites2db.getSiteFromDB("s758"));
 //		sites.add(sites2db.getSiteFromDB("s778"));
 //		sites.add(sites2db.getSiteFromDB("STNI"));
-		sites.add(sites2db.getSiteFromDB("SBSM"));
-		sites.add(sites2db.getSiteFromDB("USC"));
+		
+//		sites.add(sites2db.getSiteFromDB("USC"));
+//		sites.add(sites2db.getSiteFromDB("PAS"));
+//		sites.add(sites2db.getSiteFromDB("SBSM"));
+//		sites.add(sites2db.getSiteFromDB("WNGC"));
+		sites.add(sites2db.getSiteFromDB("OSI"));
+		sites.add(sites2db.getSiteFromDB("PARK"));
+		
 ////		sites.add(sites2db.getSiteFromDB(73));
 ////		sites.add(sites2db.getSiteFromDB(978));
 //		sites.add(sites2db.getSiteFromDB(999));
 //		sites.add(sites2db.getSiteFromDB(1000));
 //		sites.add(sites2db.getSiteFromDB(1001));
-		app.insertNewERFForSites(sites, erfDB, erfName, erfDescription, false);
+		if (!sites.isEmpty())
+			// false here is forceAdd which will attempt to re-add all ruptures. use checkAdd (expose it here) if needed
+			app.insertNewERFForSites(sites, erfDB, erfName, erfDescription, false);
 		
 		/////////////// ADD SITES //////////////////////
 		/*

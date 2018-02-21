@@ -52,7 +52,8 @@ import org.opensha.sha.cybershake.db.Runs2DB;
 import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.cybershake.gui.util.AttenRelSaver;
 import org.opensha.sha.cybershake.openshaAPIs.CyberShakeIMR;
-import org.opensha.sha.cybershake.openshaAPIs.CyberShakeUCERFWrapper_ERF;
+import org.opensha.sha.cybershake.openshaAPIs.CyberShakeWrapper_ERF;
+import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.gui.infoTools.DisaggregationPlotViewerWindow;
 import org.opensha.sha.gui.infoTools.IMT_Info;
 import org.opensha.sha.imr.AttenuationRelationship;
@@ -83,7 +84,7 @@ public class DisaggregationPlotter {
 	private CybershakeSite csSite;
 	private Site site;
 	
-	private CyberShakeUCERFWrapper_ERF erf;
+	private AbstractERF erf;
 	private CyberShakeIMR imr;
 	
 	private List<AttenuationRelationship> gmpeComparisons;
@@ -220,7 +221,7 @@ public class DisaggregationPlotter {
 		this.csSite = site2db.getSiteFromDB(run.getSiteID());
 		this.site = new Site(csSite.createLocation());
 		
-		erf = new CyberShakeUCERFWrapper_ERF();
+		erf = new CyberShakeWrapper_ERF();
 		erf.updateForecast();
 		imr = new CyberShakeIMR(null);
 		imr.setParamDefaults();

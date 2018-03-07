@@ -754,7 +754,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 			CybershakeSite site = new CybershakeSite(id, lat, lon, longName, shortName, typeID);
 			return site;
 		} catch (SQLException e) {
-			e.printStackTrace();
+//			e.printStackTrace();
 			return null;
 		}
 	}

@@ -49,6 +49,7 @@ import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
 import org.opensha.sha.imr.param.SiteParams.Vs30_TypeParam;
 import org.opensha.sha.util.SiteTranslator;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Doubles;
 
@@ -85,7 +86,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	
 	public StudyGMPE_Compare(AbstractERF erf, DBAccess db, File ampsCacheDir, String studyName,
 			int datasetID, int velModelID, double[] periods, double minMag, HashSet<String> limitSiteNames,
-			HashSet<String> highlightSiteNames) throws IOException, SQLException {
+			HashSet<String> highlightSiteNames, boolean doRotD) throws IOException, SQLException {
 		this.erf = erf;
 		this.studyName = studyName;
 		this.datasetID = datasetID;
@@ -95,15 +96,19 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 
 		rd50_ims = amps2db.getIMs(Doubles.asList(periods),
 				IMType.SA, CyberShakeComponent.RotD50).toArray(new CybershakeIM[0]);
-		rd100_ims = amps2db.getIMs(Doubles.asList(periods),
-				IMType.SA, CyberShakeComponent.RotD100).toArray(new CybershakeIM[0]);
+		if (doRotD)
+			rd100_ims = amps2db.getIMs(Doubles.asList(periods),
+					IMType.SA, CyberShakeComponent.RotD100).toArray(new CybershakeIM[0]);
 		
 		for (int i=0; i<periods.length; i++) {
 			Preconditions.checkNotNull(rd50_ims[i]);
-			Preconditions.checkNotNull(rd100_ims[i]);
+			if (doRotD)
+				Preconditions.checkNotNull(rd100_ims[i]);
 		}
 		
-		HazardCurveFetcher fetcher = new HazardCurveFetcher(db, datasetID, rd50_ims[0].getID());
+//		HazardCurveFetcher fetcher = new HazardCurveFetcher(db, datasetID, rd50_ims[0].getID());
+		System.out.println("TODO: hardcoded to using im=21 for curve/site discovery");
+		HazardCurveFetcher fetcher = new HazardCurveFetcher(db, datasetID, 21); // TODO
 		csSites = fetcher.getCurveSites();
 		csRuns = fetcher.getRunIDs();
 		System.out.println("Loaded "+csRuns.size()+" runs for "+studyName+" (dataset "+datasetID+")");
@@ -411,12 +416,13 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		File outputDir = new File("/home/kevin/git/rsqsim-analysis/cybershake_comparisons");
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		
-//		boolean cca = false;
-//		int velModelID = 5;
-//		int datasetID = 57;
-//		String studyName = "CS Study 15.4";
-//		String studyDirName = "study_15_4";
-//		String dbHost = Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME;
+		boolean cca = false;
+		int velModelID = 5;
+		int datasetID = 57;
+		String studyName = "CS Study 15.4";
+		String studyDirName = "study_15_4";
+		String dbHost = Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME;
+//		String dbHost = "localhost";
 		
 //		boolean cca = true;
 //		int velModelID = 9;
@@ -425,12 +431,12 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		String studyDirName = "study_17_3_1d";
 //		String dbHost = Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME;
 		
-		boolean cca = true;
-		int velModelID = 10;
-		int datasetID = 81;
-		String studyName = "CS Study 17.3 3-D";
-		String studyDirName = "study_17_3_3d";
-		String dbHost = Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME;
+//		boolean cca = true;
+//		int velModelID = 10;
+//		int datasetID = 81;
+//		String studyName = "CS Study 17.3 3-D";
+//		String studyDirName = "study_17_3_3d";
+//		String dbHost = Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME;
 		
 		File studyDir = new File(outputDir, studyDirName);
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
@@ -443,7 +449,14 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 		boolean limitToHighlight = false;
 		
-		AttenRelRef gmpeRef = AttenRelRef.NGAWest_2014_AVG_NOIDRISS;
+		boolean replotScatters = false;
+		boolean replotZScores = false;
+		boolean replotCurves = false;
+		boolean replotResiduals = true;
+		
+		AttenRelRef primaryGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS; // this one will include highlight sites
+		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
+				AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
 		
 		HashSet<String> highlightSiteNames = new HashSet<>();
 		if (cca) {
@@ -490,22 +503,42 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		erf.getTimeSpan().setDuration(1d);
 		erf.updateForecast();
 		
+		System.out.println("Calc periods: "+Joiner.on(",").join(Doubles.asList(calcPeriods)));
+		
 		try {
 			StudyGMPE_Compare comp = new StudyGMPE_Compare(erf, db, ampsCacheDir, studyName,
-					datasetID, velModelID, calcPeriods, minMag, limitSiteNames, highlightSiteNames);
+					datasetID, velModelID, calcPeriods, minMag, limitSiteNames, highlightSiteNames, doRotD);
+			comp.setReplotCurves(replotCurves);
+			comp.setReplotResiduals(replotResiduals);
+			comp.setReplotScatters(replotScatters);
+			comp.setReplotZScores(replotZScores);
 			
-			List<CSRuptureComparison> comps = comp.loadCalcComps(gmpeRef, calcPeriods);
+			List<Site> highlightSites = comp.highlightSites;
 			
-			if (doGMPE) {
-				File catalogGMPEDir = new File(studyDir, "gmpe_comparisons_"+gmpeRef.getShortName());
-				Preconditions.checkState(catalogGMPEDir.exists() || catalogGMPEDir.mkdir());
-				comp.generateGMPE_page(catalogGMPEDir, gmpeRef, periods, comps);
-			}
-			
-			if (doRotD) {
-				File catalogRotDDir = new File(studyDir, "rotd_ratio_comparisons");
-				Preconditions.checkState(catalogRotDDir.exists() || catalogRotDDir.mkdir());
-				comp.generateRotDRatioPage(catalogRotDDir, rotDPeriods, periods, gmpeRef, comps);
+			for (AttenRelRef gmpeRef : gmpeRefs) {
+				List<CSRuptureComparison> comps;
+				if (gmpeRef == primaryGMPE) {
+					comp.highlightSites = highlightSites;
+					comps = comp.loadCalcComps(gmpeRef, calcPeriods);
+				} else {
+					if (!doGMPE)
+						continue;
+					// don't include RotD periods
+					comps = comp.loadCalcComps(gmpeRef, periods);
+					comp.highlightSites = new ArrayList<>();
+				}
+				
+				if (doGMPE) {
+					File catalogGMPEDir = new File(studyDir, "gmpe_comparisons_"+gmpeRef.getShortName());
+					Preconditions.checkState(catalogGMPEDir.exists() || catalogGMPEDir.mkdir());
+					comp.generateGMPE_page(catalogGMPEDir, gmpeRef, periods, comps);
+				}
+				
+				if (doRotD && gmpeRef == primaryGMPE) {
+					File catalogRotDDir = new File(studyDir, "rotd_ratio_comparisons");
+					Preconditions.checkState(catalogRotDDir.exists() || catalogRotDDir.mkdir());
+					comp.generateRotDRatioPage(catalogRotDDir, rotDPeriods, periods, gmpeRef, comps);
+				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();

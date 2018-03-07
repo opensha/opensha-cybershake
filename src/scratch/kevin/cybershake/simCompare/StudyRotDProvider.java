@@ -107,7 +107,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 		Preconditions.checkState(periods.length == rd50_ims.length);
 		Preconditions.checkState(rd100_ims == null || rd50_ims.length == rd100_ims.length);
 		for (int i=0; i<rd50_ims.length; i++) {
-			Preconditions.checkState((float)rd50_ims[i].getVal() == (float)rd100_ims[i].getVal());
+			Preconditions.checkState((float)rd50_ims[i].getVal() == (float)rd50_ims[i].getVal());
 			Preconditions.checkState((float)rd50_ims[i].getVal() == (float)periods[i]);
 		}
 		

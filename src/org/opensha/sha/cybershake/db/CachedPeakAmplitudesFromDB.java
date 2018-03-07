@@ -12,6 +12,7 @@ import java.io.InputStream;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +39,9 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 	
 	private static final boolean D = true;
 	public static boolean DD = false;
+	
+	private static int num_cache_loads = 0;
+	private static HashSet<String> cacheNamesLoaded = new HashSet<>();
 	
 	private File cacheDir;
 	/**
@@ -327,7 +331,19 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 	}
 	
 	private static double[][][] loadCacheFile(File file) throws IOException {
-		if (D) System.out.println("Loading cache from "+file.getName());
+		if (D) {
+			if (num_cache_loads < 100) {
+				System.out.println("Loading cache from "+file.getName());
+			} else {
+				int mod = (int)Math.pow(10, Math.floor(Math.log10(num_cache_loads)));
+				if (num_cache_loads % mod == 0) {
+					double percentUnique = 100d*cacheNamesLoaded.size()/num_cache_loads;
+					System.out.println("Loaded "+num_cache_loads+" caches ("+(float)percentUnique+" % unique)");
+				}
+			}
+			cacheNamesLoaded.add(file.getName());
+			num_cache_loads++;
+		}
 		long len = file.length();
 		Preconditions.checkState(len > 0, "file is empty!");
 		Preconditions.checkState(len % 4 == 0, "file size isn't evenly divisible by 4, " +

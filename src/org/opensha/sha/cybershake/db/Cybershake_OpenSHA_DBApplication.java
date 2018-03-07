@@ -215,6 +215,11 @@ public class Cybershake_OpenSHA_DBApplication {
 		int numSites = sites.size();
 		for (CybershakeSite newsite : sites) {
 			System.out.println("Doing Site " + newsite.name + " (" + newsite.short_name + "), " + ++i + " of " + numSites + " (" + getPercent(i, numSites) + ")");
+			CybershakeSite existingSite = siteDB.getSiteFromDB(newsite.short_name);
+			if (existingSite != null) {
+				System.out.println(existingSite.short_name+" already exists, skipping");
+				continue;
+			}
 			System.out.println("Putting location into DB");
 			int siteId= siteDB.putCybershakeLocationInDB(newsite);
 			Preconditions.checkState(siteId >= 0);
@@ -412,40 +417,39 @@ public class Cybershake_OpenSHA_DBApplication {
 			db.setIgnoreInserts(true);
 		
 		// for UCERF2
-//		boolean highRes = true;
-//		boolean ddwAdjust = false;
-//		System.out.println("Creating and Updating ERF...");
-//		MeanUCERF2_ToDB erfDB  = new MeanUCERF2_ToDB(db, highRes, ddwAdjust);
-//		File erfDir = new File("/home/kevin/CyberShake/UCERF2_200m_noDDW");
-//		erfDB.setFileBased(erfDir, true);
-//		String erfName = erfDB.getERF_Instance().getName();
-//		String erfDescription;
-//		if (highRes)
-//			erfDescription = "Mean UCERF 2 - Single Branch Earthquake Rupture Forecast FINAL, 200m";
-//		else
-//			erfDescription = "Mean UCERF 2 - Single Branch Earthquake Rupture Forecast FINAL";
-//		
-//		if (ddwAdjust) {
-//			erfDescription += ", No DDW Adjustment";
-//			if (!highRes)
-//				// already added if it is high res
-//				erfName += ", No DDW";
-//		}
+		boolean highRes = true;
+		boolean ddwAdjust = true;
+		System.out.println("Creating and Updating ERF...");
+		MeanUCERF2_ToDB erfDB  = new MeanUCERF2_ToDB(db, highRes, ddwAdjust);
+		File erfDir = new File("/home/kevin/CyberShake/UCERF2_200m_noDDW");
+		erfDB.setFileBased(erfDir, true);
+		String erfName = erfDB.getERF_Instance().getName();
+		String erfDescription;
+		if (highRes)
+			erfDescription = "Mean UCERF 2 - Single Branch Earthquake Rupture Forecast FINAL, 200m";
+		else
+			erfDescription = "Mean UCERF 2 - Single Branch Earthquake Rupture Forecast FINAL";
 		
-		// for RSQSim
-		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
-		RSQSimCatalog catalog = Catalogs.BRUCE_2457.instance(localBaseDir);
-		double minMag = 6.5;
-		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
-		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
-				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
-		String erfName = "RSQSim "+catalog.getName()+" M"+(float)minMag;
-		String erfDescription = "RSQSim ERF for catalog "+catalog.getName()+", M"+(float)minMag;
-		erf.updateForecast();
-		ERF2DB erfDB = new ERF2DB(db, erf);
-//		erfDB.seter
+		if (ddwAdjust) {
+			erfDescription += ", No DDW Adjustment";
+			if (!highRes)
+				// already added if it is high res
+				erfName += ", No DDW";
+		}
 		
-//		ERF forecast = erfDB.getERF_Instance();
+//		// for RSQSim
+//		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_2457.instance(localBaseDir);
+//		double minMag = 6.5;
+//		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
+//		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
+//				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
+//		String erfName = "RSQSim "+catalog.getName()+" M"+(float)minMag;
+//		String erfDescription = "RSQSim ERF for catalog "+catalog.getName()+", M"+(float)minMag;
+//		erf.updateForecast();
+//		ERF2DB erfDB = new ERF2DB(db, erf);
+		
+		ERF forecast = erfDB.getERF_Instance();
 		System.out.println("ERF NAME: " + erfName);
 		int erfID = erfDB.getInserted_ERF_ID(erfName);
 		System.out.println("ERF ID: " + erfID);
@@ -498,27 +502,28 @@ public class Cybershake_OpenSHA_DBApplication {
 //		sites.add(sites2db.getSiteFromDB("PAS"));
 //		sites.add(sites2db.getSiteFromDB("SBSM"));
 //		sites.add(sites2db.getSiteFromDB("WNGC"));
-		sites.add(sites2db.getSiteFromDB("OSI"));
-		sites.add(sites2db.getSiteFromDB("PARK"));
+//		sites.add(sites2db.getSiteFromDB("OSI"));
+//		sites.add(sites2db.getSiteFromDB("PARK"));
 		
 ////		sites.add(sites2db.getSiteFromDB(73));
 ////		sites.add(sites2db.getSiteFromDB(978));
 //		sites.add(sites2db.getSiteFromDB(999));
 //		sites.add(sites2db.getSiteFromDB(1000));
 //		sites.add(sites2db.getSiteFromDB(1001));
+//		sites.add(sites2db.getSiteFromDB("s2839"));
 		if (!sites.isEmpty())
 			// false here is forceAdd which will attempt to re-add all ruptures. use checkAdd (expose it here) if needed
 			app.insertNewERFForSites(sites, erfDB, erfName, erfDescription, false);
 		
 		/////////////// ADD SITES //////////////////////
-		/*
+		
 		
 		boolean checkAdd = false;
 		
 		List<CybershakeSite> site_list = new ArrayList<CybershakeSite>();
 //		site_list.addAll(loadSitesFromCSV(new File("/tmp/all_but_10km_short_names.csv")));
 //		site_list.addAll(loadSitesFromCSV(new File("/tmp/20km_10km_5km_sites.csv")));
-		site_list.addAll(loadSitesFromCSV(new File("/tmp/new_sites.csv")));
+		site_list.addAll(loadSitesFromCSV(new File("/home/kevin/CyberShake/sites/bay_area_proposed_sites_CAG_coastal.csv")));
 //		site_list = site_list.subList(0, 1);
 //		site_list.add(new CybershakeSite(33.88110, -118.17568, "Lighthipe", "LTP"));
 //		site_list.add(new CybershakeSite(34.10647, -117.09822, "Seven Oaks Dam", "SVD"));
@@ -527,9 +532,9 @@ public class Cybershake_OpenSHA_DBApplication {
 //		site_list.add(new CybershakeSite(33.93088, -118.17881, "Seven Ten-Ninety Interchange ", "STNI"));
 //		site_list.add(new CybershakeSite(34.019200, -118.28600, "CyberShake Verification Test - USC", "TEST"));
 		
-		app.putSiteListInfoInDB(site_list, forecast, erfId, siteDB, checkAdd);
+		app.putSiteListInfoInDB(site_list, forecast, erfID, siteDB, checkAdd);
 		
-		*/
+		
 		
 		db.destroy();
 		
@@ -541,7 +546,7 @@ public class Cybershake_OpenSHA_DBApplication {
 	private static List<CybershakeSite> loadSitesFromCSV(File cvsFile) throws IOException {
 		CSVFile<String> csv = CSVFile.readFile(cvsFile, true);
 		
-		 List<CybershakeSite> sites = Lists.newArrayList();
+		List<CybershakeSite> sites = Lists.newArrayList();
 		
 		for (int row=0; row<csv.getNumRows(); row++) {
 			int typeID = Integer.parseInt(csv.get(row, 0));

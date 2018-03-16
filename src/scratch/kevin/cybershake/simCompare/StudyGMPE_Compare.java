@@ -14,9 +14,12 @@ import java.util.Map;
 import java.util.concurrent.Future;
 
 import org.opensha.commons.data.Site;
+import org.opensha.commons.data.region.CaliforniaRegions;
 import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
+import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.SiteDataValue;
 import org.opensha.commons.data.siteData.SiteDataValueList;
+import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.ExceptionUtils;
@@ -53,6 +56,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Doubles;
 
+import scratch.kevin.bbp.BBP_Module.VelocityModel;
 import scratch.kevin.simCompare.MultiRupGMPE_ComparePageGen;
 import scratch.kevin.simCompare.RuptureComparison;
 import scratch.kevin.util.MarkdownUtils;
@@ -62,8 +66,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	private CachedPeakAmplitudesFromDB amps2db;
 	private ERF2DB erf2db;
 	private AbstractERF erf;
-	private String studyName;
-	private int datasetID;
+	private CyberShakeStudy study;
 	private double[] periods;
 	
 	private CybershakeIM[] rd50_ims;
@@ -84,13 +87,50 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	private static double MAX_DIST = 200d;
 	private static boolean DIST_JB = true;
 	
-	public StudyGMPE_Compare(AbstractERF erf, DBAccess db, File ampsCacheDir, String studyName,
-			int datasetID, int velModelID, double[] periods, double minMag, HashSet<String> limitSiteNames,
-			HashSet<String> highlightSiteNames, boolean doRotD) throws IOException, SQLException {
+	private static WillsMap2015 wills2015;
+	private Vs30_Source vs30Source;
+	
+	public static enum Vs30_Source {
+		Wills2015("Wills 2015"),
+		Simulation("Simulation Value");
+		
+		private String name;
+		
+		private Vs30_Source(String name) {
+			this.name = name;
+		}
+		
+		public double getVs30(CybershakeRun run, Location siteLoc) {
+			if (this == Wills2015) {
+				try {
+					if (wills2015 == null)
+						wills2015 = new WillsMap2015();
+					return wills2015.getValue(siteLoc);
+				} catch (IOException e) {
+					throw ExceptionUtils.asRuntimeException(e);
+				}
+			} else if (this == Vs30_Source.Simulation) {
+				double vs30 = run.getVs30();
+				Preconditions.checkState(Double.isFinite(vs30), "Vs30 is null for run %s", run.getRunID());
+				return vs30;
+			} else {
+				throw new IllegalStateException("Unknown Vs30_Source: "+this);
+			}
+		}
+		
+		@Override
+		public String toString() {
+			return name;
+		}
+	}
+	
+	public StudyGMPE_Compare(CyberShakeStudy study, AbstractERF erf, DBAccess db, File ampsCacheDir, double[] periods,
+			double minMag, HashSet<String> limitSiteNames, HashSet<String> highlightSiteNames, boolean doRotD,
+			Vs30_Source vs30Source) throws IOException, SQLException {
+		this.study = study;
 		this.erf = erf;
-		this.studyName = studyName;
-		this.datasetID = datasetID;
 		this.periods = periods;
+		this.vs30Source = vs30Source;
 		this.amps2db = new CachedPeakAmplitudesFromDB(db, ampsCacheDir, erf);
 		this.erf2db = new ERF2DB(db);
 
@@ -108,10 +148,11 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 //		HazardCurveFetcher fetcher = new HazardCurveFetcher(db, datasetID, rd50_ims[0].getID());
 		System.out.println("TODO: hardcoded to using im=21 for curve/site discovery");
-		HazardCurveFetcher fetcher = new HazardCurveFetcher(db, datasetID, 21); // TODO
+		HazardCurveFetcher fetcher = new HazardCurveFetcher(db, study.getDatasetID(), 21); // TODO
 		csSites = fetcher.getCurveSites();
 		csRuns = fetcher.getRunIDs();
-		System.out.println("Loaded "+csRuns.size()+" runs for "+studyName+" (dataset "+datasetID+")");
+		Runs2DB runs2db = new Runs2DB(db);
+		System.out.println("Loaded "+csRuns.size()+" runs for "+study.getName()+" (dataset "+study.getDatasetID()+")");
 		Preconditions.checkState(!csSites.isEmpty());
 		Preconditions.checkState(csSites.size() == csRuns.size());
 		
@@ -137,7 +178,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			Site site = new Site(csSite.createLocation());
 			runIDsMap.put(site, runID);
 			site.setName(csSite.short_name);
-			site.addParameter(new Vs30_Param(760d));
+			site.addParameter(new Vs30_Param(vs30Source.getVs30(runs2db.getRun(runID), site.getLocation())));
 			site.addParameter(new Vs30_TypeParam());
 			site.addParameter(new DepthTo1pt0kmPerSecParam(null, true));
 			site.addParameter(new DepthTo2pt5kmPerSecParam(null, true));
@@ -177,9 +218,13 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			}
 		}
 		
-		prov = new StudyRotDProvider(amps2db, runIDsMap, siteRupsMap, periods, rd50_ims, rd100_ims, studyName);
+		prov = new StudyRotDProvider(amps2db, runIDsMap, siteRupsMap, periods, rd50_ims, rd100_ims, study.getName());
 		
-		OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(velModelID);
+		OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(study.getVelocityModelID());
+		for (int i=0; i<provs.size(); i++)
+			// disable Vs30 providers
+			if (provs.getProvider(i).getDataType().equals(SiteData.TYPE_VS30))
+				provs.setEnabled(i, false);
 		
 		System.out.println("Fetching site datas");
 		ArrayList<SiteDataValueList<?>> datas = provs.getAllAvailableData(sites);
@@ -349,9 +394,15 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		String distDescription = getDistDescription();
 		
 		// header
-		lines.add("# "+studyName+"/"+gmpeRef.getShortName()+" GMPE Comparisons");
+		lines.add("# "+study.getName()+"/"+gmpeRef.getShortName()+" GMPE Comparisons");
 		lines.add("");
 		lines.add("**GMPE: "+gmpeRef.getName()+"**");
+		lines.add("");
+		lines.add("**Vs30 Source: "+vs30Source.name+"**");
+		lines.add("");
+		lines.add("**Study Details**");
+		lines.add("");
+		lines.addAll(study.getMarkdownMetadataTable());
 		lines.add("");
 		lines.add("Ruptures are binned by their moment magnitude (**Mw**) and the "+distDescription);
 		
@@ -390,7 +441,11 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		String distDescription = getDistDescription();
 		
 		// header
-		lines.add("# "+studyName+"/"+gmpeRef.getShortName()+" RotD100/RotD50 Ratios");
+		lines.add("# "+study.getName()+"/"+gmpeRef.getShortName()+" RotD100/RotD50 Ratios");
+		lines.add("");
+		lines.add("**Study Details**");
+		lines.add("");
+		lines.addAll(study.getMarkdownMetadataTable());
 		lines.add("");
 		lines.add("Distance dependent plots use the "+distDescription+" distance metric");
 		lines.add("");
@@ -413,33 +468,29 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	}
 	
 	public static void main(String[] args) throws IOException, SQLException {
-		File outputDir = new File("/home/kevin/git/rsqsim-analysis/cybershake_comparisons");
+		File outputDir = new File("/home/kevin/git/cybershake-analysis/");
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		
-		boolean cca = false;
-		int velModelID = 5;
-		int datasetID = 57;
-		String studyName = "CS Study 15.4";
-		String studyDirName = "study_15_4";
-		String dbHost = Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME;
-//		String dbHost = "localhost";
+		List<CyberShakeStudy> studies = new ArrayList<>();
+		List<Vs30_Source> vs30s = new ArrayList<>();
 		
-//		boolean cca = true;
-//		int velModelID = 9;
-//		int datasetID = 80;
-//		String studyName = "CS Study 17.3 1-D";
-//		String studyDirName = "study_17_3_1d";
-//		String dbHost = Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME;
+		studies.add(CyberShakeStudy.STUDY_17_3_3D);
+		vs30s.add(Vs30_Source.Simulation);
+		studies.add(CyberShakeStudy.STUDY_17_3_3D);
+		vs30s.add(Vs30_Source.Wills2015);
 		
-//		boolean cca = true;
-//		int velModelID = 10;
-//		int datasetID = 81;
-//		String studyName = "CS Study 17.3 3-D";
-//		String studyDirName = "study_17_3_3d";
-//		String dbHost = Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME;
+		studies.add(CyberShakeStudy.STUDY_17_3_1D);
+		vs30s.add(Vs30_Source.Simulation);
 		
-		File studyDir = new File(outputDir, studyDirName);
-		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
+		studies.add(CyberShakeStudy.STUDY_15_4);
+		vs30s.add(Vs30_Source.Simulation);
+		studies.add(CyberShakeStudy.STUDY_15_4);
+		vs30s.add(Vs30_Source.Wills2015);
+		
+		AttenRelRef primaryGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS; // this one will include highlight sites
+		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
+				AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
+		
 		double[] periods = { 2, 3, 5 };
 		double[] rotDPeriods = { 2, 3, 5, 7.5, 10 };
 		double minMag = 6;
@@ -454,97 +505,107 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		boolean replotCurves = false;
 		boolean replotResiduals = true;
 		
-		AttenRelRef primaryGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS; // this one will include highlight sites
-		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
-				AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
-		
-		HashSet<String> highlightSiteNames = new HashSet<>();
-		if (cca) {
-			highlightSiteNames.add("SBR");
-			highlightSiteNames.add("VENT");
-			highlightSiteNames.add("BAK");
-			highlightSiteNames.add("CAR");
-			highlightSiteNames.add("SLO");
-			highlightSiteNames.add("LEM");
-		} else {
-			highlightSiteNames.add("USC");
-			highlightSiteNames.add("SBSM");
-			highlightSiteNames.add("PAS");
-			highlightSiteNames.add("COO");
-			highlightSiteNames.add("WNGC");
-			highlightSiteNames.add("LAPD");
-			highlightSiteNames.add("SMCA");
-			highlightSiteNames.add("FIL");
-		}
-		HashSet<String> limitSiteNames;
-		if (limitToHighlight)
-			limitSiteNames = highlightSiteNames;
-		else
-			limitSiteNames = null;
-		
-		double[] calcPeriods = null;
-		Preconditions.checkState(doGMPE || doRotD);
-		if (doGMPE)
-			calcPeriods = periods;
-		if (doRotD) {
-			if (calcPeriods == null)
-				calcPeriods = rotDPeriods;
-			else
-				calcPeriods = union(rotDPeriods, calcPeriods);
-		}
-		
-		if (limitSiteNames == null)
-			CachedPeakAmplitudesFromDB.MAX_CACHE_SIZE = 50;
-		else
-			CachedPeakAmplitudesFromDB.MAX_CACHE_SIZE = limitSiteNames.size()*periods.length*2+10;
-		DBAccess db = Cybershake_OpenSHA_DBApplication.getDB(dbHost);
-		
-		AbstractERF erf = MeanUCERF2_ToDB.createUCERF2ERF();
-		erf.getTimeSpan().setDuration(1d);
-		erf.updateForecast();
-		
-		System.out.println("Calc periods: "+Joiner.on(",").join(Doubles.asList(calcPeriods)));
-		
-		try {
-			StudyGMPE_Compare comp = new StudyGMPE_Compare(erf, db, ampsCacheDir, studyName,
-					datasetID, velModelID, calcPeriods, minMag, limitSiteNames, highlightSiteNames, doRotD);
-			comp.setReplotCurves(replotCurves);
-			comp.setReplotResiduals(replotResiduals);
-			comp.setReplotScatters(replotScatters);
-			comp.setReplotZScores(replotZScores);
+		for (int s=0; s<studies.size(); s++) {
+			System.gc();
 			
-			List<Site> highlightSites = comp.highlightSites;
+			CyberShakeStudy study = studies.get(s);
+			Vs30_Source vs30Source = vs30s.get(s);
 			
-			for (AttenRelRef gmpeRef : gmpeRefs) {
-				List<CSRuptureComparison> comps;
-				if (gmpeRef == primaryGMPE) {
-					comp.highlightSites = highlightSites;
-					comps = comp.loadCalcComps(gmpeRef, calcPeriods);
-				} else {
-					if (!doGMPE)
-						continue;
-					// don't include RotD periods
-					comps = comp.loadCalcComps(gmpeRef, periods);
-					comp.highlightSites = new ArrayList<>();
-				}
-				
-				if (doGMPE) {
-					File catalogGMPEDir = new File(studyDir, "gmpe_comparisons_"+gmpeRef.getShortName());
-					Preconditions.checkState(catalogGMPEDir.exists() || catalogGMPEDir.mkdir());
-					comp.generateGMPE_page(catalogGMPEDir, gmpeRef, periods, comps);
-				}
-				
-				if (doRotD && gmpeRef == primaryGMPE) {
-					File catalogRotDDir = new File(studyDir, "rotd_ratio_comparisons");
-					Preconditions.checkState(catalogRotDDir.exists() || catalogRotDDir.mkdir());
-					comp.generateRotDRatioPage(catalogRotDDir, rotDPeriods, periods, gmpeRef, comps);
-				}
+			File studyDir = new File(outputDir, study.getDirName());
+			Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
+			
+			HashSet<String> highlightSiteNames = new HashSet<>();
+			if (study.getRegion() instanceof CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION) {
+				highlightSiteNames.add("SBR");
+				highlightSiteNames.add("VENT");
+				highlightSiteNames.add("BAK");
+				highlightSiteNames.add("CAR");
+				highlightSiteNames.add("SLO");
+				highlightSiteNames.add("LEM");
+			} else {
+				highlightSiteNames.add("USC");
+				highlightSiteNames.add("SBSM");
+				highlightSiteNames.add("PAS");
+				highlightSiteNames.add("COO");
+				highlightSiteNames.add("WNGC");
+				highlightSiteNames.add("LAPD");
+				highlightSiteNames.add("SMCA");
+				highlightSiteNames.add("FIL");
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
+			HashSet<String> limitSiteNames;
+			if (limitToHighlight)
+				limitSiteNames = highlightSiteNames;
+			else
+				limitSiteNames = null;
+			
+			double[] calcPeriods = null;
+			Preconditions.checkState(doGMPE || doRotD);
+			if (doGMPE)
+				calcPeriods = periods;
+			if (doRotD) {
+				if (calcPeriods == null)
+					calcPeriods = rotDPeriods;
+				else
+					calcPeriods = union(rotDPeriods, calcPeriods);
+			}
+			
+			if (limitSiteNames == null)
+				CachedPeakAmplitudesFromDB.MAX_CACHE_SIZE = 50;
+			else
+				CachedPeakAmplitudesFromDB.MAX_CACHE_SIZE = limitSiteNames.size()*periods.length*2+10;
+			DBAccess db = study.getDB();
+			
+			AbstractERF erf = MeanUCERF2_ToDB.createUCERF2ERF();
+			erf.getTimeSpan().setDuration(1d);
+			erf.updateForecast();
+			
+			System.out.println("Calc periods: "+Joiner.on(",").join(Doubles.asList(calcPeriods)));
+			
+			try {
+				StudyGMPE_Compare comp = new StudyGMPE_Compare(study, erf, db, ampsCacheDir, calcPeriods,
+						minMag, limitSiteNames, highlightSiteNames, doRotD, vs30Source);
+				comp.setReplotCurves(replotCurves);
+				comp.setReplotResiduals(replotResiduals);
+				comp.setReplotScatters(replotScatters);
+				comp.setReplotZScores(replotZScores);
+				
+				List<Site> highlightSites = comp.highlightSites;
+				
+				for (AttenRelRef gmpeRef : gmpeRefs) {
+					List<CSRuptureComparison> comps;
+					if (gmpeRef == primaryGMPE) {
+						comp.highlightSites = highlightSites;
+						comps = comp.loadCalcComps(gmpeRef, calcPeriods);
+					} else {
+						if (!doGMPE)
+							continue;
+						// don't include RotD periods
+						comps = comp.loadCalcComps(gmpeRef, periods);
+						comp.highlightSites = new ArrayList<>();
+					}
+					
+					if (doGMPE) {
+						File catalogGMPEDir = new File(studyDir, "gmpe_comparisons_"+gmpeRef.getShortName()+"_Vs30"+vs30Source.name());
+						Preconditions.checkState(catalogGMPEDir.exists() || catalogGMPEDir.mkdir());
+						comp.generateGMPE_page(catalogGMPEDir, gmpeRef, periods, comps);
+					}
+					
+					if (doRotD && gmpeRef == primaryGMPE) {
+						File catalogRotDDir = new File(studyDir, "rotd_ratio_comparisons");
+						Preconditions.checkState(catalogRotDDir.exists() || catalogRotDDir.mkdir());
+						comp.generateRotDRatioPage(catalogRotDDir, rotDPeriods, periods, gmpeRef, comps);
+					}
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
+			study.writeMarkdownSummary(studyDir);
+			CyberShakeStudy.writeCatalogsIndex(outputDir);
 		}
 		
-		db.destroy();
+		for (CyberShakeStudy study : studies)
+			study.getDB().destroy();
 		
 		System.exit(0);
 	}

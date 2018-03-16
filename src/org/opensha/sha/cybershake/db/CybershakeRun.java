@@ -25,6 +25,8 @@ import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 
+import com.google.common.base.Preconditions;
+
 public class CybershakeRun {
 	
 	public static final DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -41,9 +43,12 @@ public class CybershakeRun {
 	private String ppHost;
 	private double maxFreq;
 	private double lowFreqCutof;
+	private double vs30;
+	private String vs30Source;
 	
 	public CybershakeRun(int runID, int siteID, int erfID, int sgtVarID, int rupVarScenID, int velModelID,
-			Timestamp sgtTime, Timestamp ppTime, String sgtHost, String ppHost, double maxFreq, double lowFreqCutoff) {
+			Timestamp sgtTime, Timestamp ppTime, String sgtHost, String ppHost, double maxFreq, double lowFreqCutoff,
+			double vs30, String vs30Source) {
 		this.runID = runID;
 		this.siteID = siteID;
 		this.erfID = erfID;
@@ -56,6 +61,8 @@ public class CybershakeRun {
 		this.ppHost = ppHost;
 		this.maxFreq = maxFreq;
 		this.lowFreqCutof = lowFreqCutoff;
+		this.vs30 = vs30;
+		this.vs30Source = vs30Source;
 	}
 
 	public int getRunID() {
@@ -106,6 +113,14 @@ public class CybershakeRun {
 		return lowFreqCutof;
 	}
 	
+	public double getVs30() {
+		return vs30;
+	}
+
+	public String getVs30Source() {
+		return vs30Source;
+	}
+
 	@Override
 	public String toString() {
 		return "ID: " + getRunID() + ", Site_ID: " + getSiteID() + ", ERF_ID: " + getERFID() +
@@ -128,9 +143,18 @@ public class CybershakeRun {
 		String ppHost = rs.getString("PP_Host");
 		double maxFreq = rs.getDouble("Max_Frequency");
 		double lowFreqCutoff = rs.getDouble("Low_Frequency_Cutoff");
+		double vs30 = rs.getDouble("Vs30");
+		String vs30Source;
+		if (rs.wasNull()) {
+			vs30 = Double.NaN;
+			vs30Source = null;
+		} else {
+			Preconditions.checkState(vs30 > 0);
+			vs30Source = rs.getString("Vs30_Source");
+		}
 		
 		return new CybershakeRun(runID, siteID, erfID, sgtVarID, rupVarScenID, velModelID,
-				sgtTime, ppTime, sgtHost, ppHost, maxFreq, lowFreqCutoff);
+				sgtTime, ppTime, sgtHost, ppHost, maxFreq, lowFreqCutoff, vs30, vs30Source);
 	}
 
 }

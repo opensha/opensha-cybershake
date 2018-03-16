@@ -778,6 +778,16 @@ public class UGMS_WebToolCalc {
 		designStandardSpectrum = DesignSpectrumCalc.calcSpectrum(sds, sd1, tl);
 		designStandardSpectrum.setName("Standard Design Response Spectrum");
 		designStandardSpectrum.toXMLMetadata(resultsEl, "StandardDesignResponseSpectrum", valDF);
+		
+		System.out.println("SDS: "+(float)sds);
+		System.out.println("SD1: "+(float)sd1);
+		System.out.println("SMS: "+(float)sms);
+		System.out.println("SM1: "+(float)sm1);
+		System.out.println("1s MCER: "+(float)finalMCER.getY(1d));
+		System.out.println("10s MCER: "+(float)finalMCER.getY(10d));
+		System.out.println("T0: "+(float)t0);
+		System.out.println("Ts: "+(float)ts);
+		System.out.println("PGAM: "+gmpePGA.floatValue());
 	}
 	
 	public void plot() throws IOException {
@@ -1090,28 +1100,20 @@ public class UGMS_WebToolCalc {
 //			String argStr = "--longitude -119.26000 --latitude 34.27110"; // this is an interpolation fail site
 //			String argStr = "--longitude -118.4761 --latitude 33.9743"; // offshore, still shows 4 interp points
 //			String argStr = "--longitude -118.91 --latitude 33.969";
-			String argStr = "--longitude -117.5888 --latitude 33.2976";
+//			String argStr = "--longitude -117.5888 --latitude 33.2976";
+			String argStr = "--longitude -118.369 --latitude 34.043";
 //			String argStr = "--site-name LADT";
 //			String argStr = "--site-id 20";
-//			argStr += " --dataset-id 57";
-//			argStr += " --gmpe-dir /home/kevin/CyberShake/MCER/gmpe_cache_gen/mcer_binary_results_2016_09_30";
-//			argStr += " --gmpe-dir /home/kevin/CyberShake/MCER/gmpe_cache_gen/mcer_binary_results_2017_01_20";
-//			argStr += " --gmpe-dir /home/kevin/CyberShake/MCER/gmpe_cache_gen/mcer_binary_results_2017_05_19";
 			argStr += " --gmpe-dir /home/kevin/CyberShake/MCER/gmpe_cache_gen/mcer_binary_results_2017_07_27";
 			argStr += " --gmpe-spacing 0.02";
-//			argStr += " --cs-dir /home/kevin/CyberShake/MCER/.amps_cache";
-//			argStr += " --cs-data-file /home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/interp_tests/mcer_spectrum_0.001.bin";
-//			argStr += " --cs-spacing 0.001";
-//			argStr += " --cs-data-file /home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/interp_tests/mcer_spectrum_0.005.bin";
-//			argStr += " --cs-spacing 0.005";
 			argStr += " --cs-data-file /home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/interp_tests/mcer_spectrum_0.002.bin";
 			argStr += " --cs-spacing 0.002";
 			argStr += " --vel-model-id 5";
 			argStr += " --z10-file /home/kevin/workspace/opensha-commons/src/resources/data/site/CVM4i26/depth_1.0.bin";
 			argStr += " --z25-file /home/kevin/workspace/opensha-commons/src/resources/data/site/CVM4i26/depth_2.5.bin";
 			argStr += " --output-dir /tmp/ugms_web_tool";
-//			argStr += " --vs30 380";
-//			argStr += " --class AorB";
+//			argStr += " --vs30 987";
+//			argStr += " --class E";
 //			argStr += " --class D_default";
 			argStr += " --gmpe-erf UCERF3";
 			argStr += " --wills-file /data/kevin/opensha/wills2015.flt";

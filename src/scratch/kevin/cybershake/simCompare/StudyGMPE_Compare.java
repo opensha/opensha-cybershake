@@ -19,6 +19,7 @@ import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
 import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.SiteDataValue;
 import org.opensha.commons.data.siteData.SiteDataValueList;
+import org.opensha.commons.data.siteData.impl.WaldAllenGlobalVs30;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.param.Parameter;
@@ -86,12 +87,14 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	
 	private static double MAX_DIST = 200d;
 	private static boolean DIST_JB = true;
-	
+
 	private static WillsMap2015 wills2015;
+	private static WaldAllenGlobalVs30 wald2008;
 	private Vs30_Source vs30Source;
 	
 	public static enum Vs30_Source {
 		Wills2015("Wills 2015"),
+		WaldAllen2008("Wald & Allen 2008"),
 		Simulation("Simulation Value");
 		
 		private String name;
@@ -100,12 +103,26 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			this.name = name;
 		}
 		
-		public double getVs30(CybershakeRun run, Location siteLoc) {
+		public synchronized double getVs30(CybershakeRun run, Location siteLoc) {
 			if (this == Wills2015) {
 				try {
 					if (wills2015 == null)
 						wills2015 = new WillsMap2015();
-					return wills2015.getValue(siteLoc);
+					Double val = wills2015.getValue(siteLoc);
+					if (!wills2015.isValueValid(val)) {
+						System.out.println("Wills 2015 Vs30 is "+val+" for run "+run.getRunID()+" at "
+								+siteLoc.getLatitude()+", "+siteLoc.getLongitude()+". Defaulting to Wald Allen 2008");
+						val = WaldAllen2008.getVs30(run, siteLoc);
+					}
+					return val;
+				} catch (IOException e) {
+					throw ExceptionUtils.asRuntimeException(e);
+				}
+			} else if (this == WaldAllen2008) {
+				try {
+					if (wald2008 == null)
+						wald2008 = new WaldAllenGlobalVs30();
+					return wald2008.getValue(siteLoc);
 				} catch (IOException e) {
 					throw ExceptionUtils.asRuntimeException(e);
 				}
@@ -178,7 +195,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			Site site = new Site(csSite.createLocation());
 			runIDsMap.put(site, runID);
 			site.setName(csSite.short_name);
-			site.addParameter(new Vs30_Param(vs30Source.getVs30(runs2db.getRun(runID), site.getLocation())));
+			double vs30 = vs30Source.getVs30(runs2db.getRun(runID), site.getLocation());
+			Preconditions.checkState(Double.isFinite(vs30),
+					"Bad Vs30=%s for site %s at %s, %s", vs30, csSite.short_name, csSite.lat, csSite.lon);
+			site.addParameter(new Vs30_Param(vs30));
 			site.addParameter(new Vs30_TypeParam());
 			site.addParameter(new DepthTo1pt0kmPerSecParam(null, true));
 			site.addParameter(new DepthTo2pt5kmPerSecParam(null, true));
@@ -474,16 +494,16 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		List<CyberShakeStudy> studies = new ArrayList<>();
 		List<Vs30_Source> vs30s = new ArrayList<>();
 		
-		studies.add(CyberShakeStudy.STUDY_17_3_3D);
-		vs30s.add(Vs30_Source.Simulation);
-		studies.add(CyberShakeStudy.STUDY_17_3_3D);
-		vs30s.add(Vs30_Source.Wills2015);
-		
-		studies.add(CyberShakeStudy.STUDY_17_3_1D);
-		vs30s.add(Vs30_Source.Simulation);
-		
-		studies.add(CyberShakeStudy.STUDY_15_4);
-		vs30s.add(Vs30_Source.Simulation);
+//		studies.add(CyberShakeStudy.STUDY_17_3_3D);
+//		vs30s.add(Vs30_Source.Simulation);
+//		studies.add(CyberShakeStudy.STUDY_17_3_3D);
+//		vs30s.add(Vs30_Source.Wills2015);
+//		
+//		studies.add(CyberShakeStudy.STUDY_17_3_1D);
+//		vs30s.add(Vs30_Source.Simulation);
+//		
+//		studies.add(CyberShakeStudy.STUDY_15_4);
+//		vs30s.add(Vs30_Source.Simulation);
 		studies.add(CyberShakeStudy.STUDY_15_4);
 		vs30s.add(Vs30_Source.Wills2015);
 		

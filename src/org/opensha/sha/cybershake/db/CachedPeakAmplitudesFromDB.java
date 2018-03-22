@@ -132,6 +132,9 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 			throw ExceptionUtils.asRuntimeException(e);
 		}
 		
+		if (runVals[srcId] == null || runVals[srcId][rupId] == null)
+			return null;
+		
 		return Doubles.asList(runVals[srcId][rupId]);
 	}
 	

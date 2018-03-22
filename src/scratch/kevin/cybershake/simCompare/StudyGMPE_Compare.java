@@ -498,14 +498,14 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		vs30s.add(Vs30_Source.Simulation);
 //		studies.add(CyberShakeStudy.STUDY_17_3_3D);
 //		vs30s.add(Vs30_Source.Wills2015);
-//		
-//		studies.add(CyberShakeStudy.STUDY_17_3_1D);
-//		vs30s.add(Vs30_Source.Simulation);
-//		
+		
+		studies.add(CyberShakeStudy.STUDY_17_3_1D);
+		vs30s.add(Vs30_Source.Simulation);
+		
 //		studies.add(CyberShakeStudy.STUDY_15_4);
 //		vs30s.add(Vs30_Source.Simulation);
-		studies.add(CyberShakeStudy.STUDY_15_4);
-		vs30s.add(Vs30_Source.Wills2015);
+//		studies.add(CyberShakeStudy.STUDY_15_4);
+//		vs30s.add(Vs30_Source.Wills2015);
 		
 		AttenRelRef primaryGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS; // this one will include highlight sites
 		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
@@ -520,9 +520,9 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 		boolean limitToHighlight = false;
 		
-		boolean replotScatters = false;
-		boolean replotZScores = false;
-		boolean replotCurves = false;
+		boolean replotScatters = true;
+		boolean replotZScores = true;
+		boolean replotCurves = true;
 		boolean replotResiduals = true;
 		
 		for (int s=0; s<studies.size(); s++) {

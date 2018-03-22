@@ -251,12 +251,12 @@ public class HazardCurvePlotter {
 		ArrayList<SiteData<?>> providers = new ArrayList<SiteData<?>>();
 		
 		// CCA LA 1D model, via e-mail from David Gill 9/22/16
-		providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_2_5,
-				SiteData.TYPE_FLAG_INFERRED, 0.0d, "CCA 1-D model", "CCA-1D"));
 		providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_1_0,
-				SiteData.TYPE_FLAG_INFERRED, 5.110d, "CCA 1-D model", "CCA-1D"));
+				SiteData.TYPE_FLAG_INFERRED, 0.0d, "CCA 1-D model", "CCA-1D"));
+		providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_2_5,
+				SiteData.TYPE_FLAG_INFERRED, 5.5001d, "CCA 1-D model", "CCA-1D"));
 		providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_VS30,
-				SiteData.TYPE_FLAG_INFERRED, 1987.291d, "CCA 1-D model Vs30", "CCA-1D"));
+				SiteData.TYPE_FLAG_INFERRED, 2101d, "CCA 1-D model Vs30", "CCA-1D"));
 		
 		return providers;
 	}
@@ -1705,6 +1705,13 @@ public class HazardCurvePlotter {
 		Option output = new Option("o", "output-dir", true, "Output directory");
 		ops.addOption(output);
 		
+		Option erfFile = new Option("ef", "erf-file", true, "XML ERF description file for comparison");
+		ops.addOption(erfFile);
+		
+		Option attenRelFiles = new Option("af", "atten-rel-file", true, "XML Attenuation Relationship description file(s) for " + 
+				"comparison. Multiple files should be comma separated");
+		ops.addOption(attenRelFiles);
+		
 		return ops;
 	}
 	
@@ -1715,13 +1722,6 @@ public class HazardCurvePlotter {
 				" (or multiple IDs, comma separated)");
 		compare.setRequired(false);
 		ops.addOption(compare);
-		
-		Option erfFile = new Option("ef", "erf-file", true, "XML ERF description file for comparison");
-		ops.addOption(erfFile);
-		
-		Option attenRelFiles = new Option("af", "atten-rel-file", true, "XML Attenuation Relationship description file(s) for " + 
-				"comparison. Multiple files should be comma separated");
-		ops.addOption(attenRelFiles);
 		
 		Option pass = new Option("pf", "password-file", true, "Path to a file that contains the username and password for " + 
 				"inserting curves into the database. Format should be \"user:pass\"");

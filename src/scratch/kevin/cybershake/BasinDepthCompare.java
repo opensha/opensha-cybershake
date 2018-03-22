@@ -49,38 +49,43 @@ public class BasinDepthCompare {
 		
 		boolean generateKML = false;
 		
-//		String type = CVM4i26BasinDepth.TYPE_DEPTH_TO_2_5;
-////		File dataDir = new File("/home/kevin/CyberShake/basin");
-////		String outFilePrefix = "cvm426_z25";
-////		String mapLabelPrefix = "CVM-S4.26 Z2.5";
-////		File newFile = new File(dataDir, "cvms426_z25_map_full.bin");
-////		String outFilePrefix = "cvm426m01_z25";
-////		String mapLabelPrefix = "CVM-S4.26-01 Z2.5";
-////		File newFile = new File(dataDir, "cvms426m01_z25_map_full.bin");
+		String type = CVM4i26BasinDepth.TYPE_DEPTH_TO_2_5;
 //		File dataDir = new File("/home/kevin/CyberShake/basin");
-//		String outFilePrefix = "cca06_z25";
-//		String mapLabelPrefix = "CCA-06 Z2.5";
+//		String outFilePrefix = "cvm426_z25";
+//		String mapLabelPrefix = "CVM-S4.26 Z2.5";
+//		File newFile = new File(dataDir, "cvms426_z25_map_full.bin");
+//		String outFilePrefix = "cvm426m01_z25";
+//		String mapLabelPrefix = "CVM-S4.26-01 Z2.5";
+//		File newFile = new File(dataDir, "cvms426m01_z25_map_full.bin");
+		File dataDir = new File("/home/kevin/CyberShake/basin");
+		String outFilePrefix = "cca06_z25_final";
+		String mapLabelPrefix = "CCA-06 Z2.5";
+//		File newFile = new File(dataDir, "cca_z2.5_final.last");
+		File newFile = new File(dataDir, "cca_z2.5_final.firstOrSecond");
+		File oldFile = new File(dataDir, "cca06_z25_map_full.bin");
 //		File newFile = new File(dataDir, "cca06_z25_map_full.bin");
 //		File oldFile = new File(dataDir, "cca_depth_2.5.bin");
-//		double dataMin = 0d;
-//		double dataMax = 10d;
-		
-		String type = CVM4i26BasinDepth.TYPE_DEPTH_TO_1_0;
-//		File dataDir = new File("/home/kevin/CyberShake/basin");
-//		String outFilePrefix = "cvm426_z10";
-//		String mapLabelPrefix = "CVM-S4.26 Z1.0";
-//		File newFile = new File(dataDir, "cvms426_z10_map_full.bin");
-//		String outFilePrefix = "cvm426m01_z10";
-//		String mapLabelPrefix = "CVM-S4.26-01 Z1.0";
-//		File newFile = new File(dataDir, "cvms426m01_z10_map_full.bin");
-//		File oldFile = new File(dataDir, "depth_1.0.bin");
-		File dataDir = new File("/home/kevin/CyberShake/basin");
-		String outFilePrefix = "cca06_z10";
-		String mapLabelPrefix = "CCA-06 Z1.0";
-		File newFile = new File(dataDir, "cca06_z10_map_full.bin");
-		File oldFile = new File(dataDir, "cca_depth_1.0.bin");
 		double dataMin = 0d;
-		double dataMax = 2d;
+		double dataMax = 10d;
+		
+//		String type = CVM4i26BasinDepth.TYPE_DEPTH_TO_1_0;
+////		File dataDir = new File("/home/kevin/CyberShake/basin");
+////		String outFilePrefix = "cvm426_z10";
+////		String mapLabelPrefix = "CVM-S4.26 Z1.0";
+////		File newFile = new File(dataDir, "cvms426_z10_map_full.bin");
+////		String outFilePrefix = "cvm426m01_z10";
+////		String mapLabelPrefix = "CVM-S4.26-01 Z1.0";
+////		File newFile = new File(dataDir, "cvms426m01_z10_map_full.bin");
+////		File oldFile = new File(dataDir, "depth_1.0.bin");
+//		File dataDir = new File("/home/kevin/CyberShake/basin");
+//		String outFilePrefix = "cca06_z10_final";
+//		String mapLabelPrefix = "CCA-06 Z1.0";
+//		File newFile = new File(dataDir, "cca_z1_final.firstOrSecond");
+//		File oldFile = new File(dataDir, "cca06_z10_map_full.bin");
+////		File newFile = new File(dataDir, "cca06_z10_map_full.bin");
+////		File oldFile = new File(dataDir, "cca_depth_1.0.bin");
+//		double dataMin = 0d;
+//		double dataMax = 2d;
 		
 		double fullDiscr = 0.01;
 		double zoomDiscr = 0.001;
@@ -129,6 +134,7 @@ public class BasinDepthCompare {
 		CPT dataCPT = GMT_CPT_Files.MAX_SPECTRUM.instance().rescale(dataMin, dataMax);
 		dataCPT.setBelowMinColor(dataCPT.getMinColor());
 		dataCPT.setAboveMaxColor(dataCPT.getMaxColor());
+		dataCPT.setNanColor(Color.GRAY);
 		System.out.println("Mapping full, old");
 		plotMaps(outputDir, outFilePrefix+"_orig_full", oldFullData, fullReg, dataMin, dataMax,
 				mapLabelPrefix+", Origial", dataCPT, false, generateKML);

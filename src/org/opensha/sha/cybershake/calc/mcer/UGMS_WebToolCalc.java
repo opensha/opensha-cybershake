@@ -794,6 +794,7 @@ public class UGMS_WebToolCalc {
 		//	PSV		CS/GM  Final  FinDes  SM      SD
 		plot(false, true, true,   false, false, false);
 		plot(false, false, true,  false, false, false);
+		plot(false, false, true,  true, false, false);
 		plot(false, false, false, true,  false, false);
 	}
 	
@@ -861,9 +862,7 @@ public class UGMS_WebToolCalc {
 		if (ingredients) {
 			funcs.add(gmpeMCER);
 			chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 2f, Color.BLUE));
-		}
-
-		if (ingredients) {
+			
 			funcs.add(csMCER);
 			chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 2f, Color.RED));
 		}
@@ -884,7 +883,11 @@ public class UGMS_WebToolCalc {
 		
 		if (finalDesign) {
 			funcs.add(designResponseSpectrum);
-			chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 4f, Color.BLACK));
+			
+			if (finalSpectrum)
+				chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.RED));
+			else
+				chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 4f, Color.BLACK));
 		}
 		
 		if (sdSpectrum) {

@@ -77,6 +77,7 @@ import org.opensha.sha.cybershake.gui.util.ERFSaver;
 import org.opensha.sha.cybershake.plot.DisaggregationPlotter;
 import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
 import org.opensha.sha.cybershake.plot.PlotType;
+import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.ERF;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.MeanUCERF2.MeanUCERF2;
 import org.opensha.sha.gui.infoTools.IMT_Info;
@@ -146,15 +147,15 @@ public class MCERDataProductsCalc {
 	private boolean disaggregate = false;
 	private Map<String, List<Integer>> combinedSources = null;
 	
-	private ERF erf;
+	private AbstractERF erf;
 	
-	public MCERDataProductsCalc(ERF erf, List<AttenuationRelationship> gmpes,
+	public MCERDataProductsCalc(AbstractERF erf, List<AttenuationRelationship> gmpes,
 			CyberShakeComponent comp, List<Double> periods, File outputDir) throws IOException {
 		init(db = Cybershake_OpenSHA_DBApplication.getDB(), erf, gmpes, null, comp, periods, outputDir, false, null, false);
 	}
 	
 	public MCERDataProductsCalc(CommandLine cmd) throws IOException, DocumentException, InvocationTargetException {
-		ERF erf = ERFSaver.LOAD_ERF_FROM_FILE(cmd.getOptionValue("erf-file"));
+		AbstractERF erf = ERFSaver.LOAD_ERF_FROM_FILE(cmd.getOptionValue("erf-file"));
 		List<AttenuationRelationship> attenRels = Lists.newArrayList();
 		
 		for (String attenRelFile : DataUtils.commaSplit(cmd.getOptionValue("atten-rel-file"))) {
@@ -198,7 +199,7 @@ public class MCERDataProductsCalc {
 				cmd.hasOption("weight-average"), gmpeCacheDir, includeNEHRP);
 	}
 	
-	private void init(DBAccess db, ERF erf, List<AttenuationRelationship> gmpes, ERF gmpeERF,
+	private void init(DBAccess db, AbstractERF erf, List<AttenuationRelationship> gmpes, ERF gmpeERF,
 			CyberShakeComponent comp, List<Double> periods, File outputDir, boolean weightAverage,
 			File gmpeCacheDir, boolean includeNEHRP) throws IOException {
 		this.db = db;
@@ -597,7 +598,7 @@ public class MCERDataProductsCalc {
 			}
 			
 			// now disagg
-			DisaggregationPlotter disagg = new DisaggregationPlotter(run.getRunID(), imsForDisagg,
+			DisaggregationPlotter disagg = new DisaggregationPlotter(run.getRunID(), erf, imsForDisagg,
 					Lists.newArrayList(gmpe), Lists.newArrayList(uhsVal), null, disaggDir,
 					Lists.newArrayList(PlotType.PDF, PlotType.PNG, PlotType.TXT));
 			disagg.disaggregate();

@@ -19,11 +19,10 @@
 
 package org.opensha.sha.cybershake.openshaAPIs;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.concurrent.ExecutionException;
 
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbDiscrEmpiricalDistFunc;
@@ -31,26 +30,18 @@ import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.exceptions.IMRException;
 import org.opensha.commons.exceptions.ParameterException;
-import org.opensha.commons.geo.LocationUtils;
 import org.opensha.commons.param.ParameterList;
 import org.opensha.commons.param.constraint.impl.DoubleDiscreteConstraint;
-import org.opensha.commons.param.constraint.impl.IntegerConstraint;
-import org.opensha.commons.param.constraint.impl.IntegerDiscreteConstraint;
-import org.opensha.commons.param.constraint.impl.StringConstraint;
 import org.opensha.commons.param.event.ParameterChangeEvent;
 import org.opensha.commons.param.event.ParameterChangeListener;
 import org.opensha.commons.param.event.ParameterChangeWarningListener;
 import org.opensha.commons.param.impl.IntegerParameter;
-import org.opensha.commons.param.impl.StringParameter;
-import org.opensha.sha.cybershake.calc.HazardCurveComputation;
+import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.sha.cybershake.db.CybershakeIM;
-import org.opensha.sha.cybershake.db.CybershakeSite;
-import org.opensha.sha.cybershake.db.CybershakeVelocityModel;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
+import org.opensha.sha.cybershake.db.HazardCurve2DB;
 import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
-import org.opensha.sha.cybershake.db.Runs2DB;
-import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.earthquake.EqkRupture;
 import org.opensha.sha.imr.AttenuationRelationship;
 import org.opensha.sha.imr.param.IntensityMeasureParams.DampingParam;
@@ -59,19 +50,14 @@ import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 import org.opensha.sha.imr.param.OtherParams.SigmaTruncLevelParam;
 import org.opensha.sha.imr.param.OtherParams.SigmaTruncTypeParam;
 
-import com.google.common.base.Preconditions;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 
 public class CyberShakeIMR extends AttenuationRelationship implements ParameterChangeListener {
 
 	public static final String NAME = "CyberShake Fake Attenuation Relationship";
 	public static final String SHORT_NAME = "CyberShakeIMR";
-	
-	/**
-	 * distance tolerance in KM for site selection
-	 */
-	private static final double distanceTolerance = 5d;
-	
-	EqkRupture curRupture = null;
 
 	/** ParameterList of all Site parameters */
 	protected ParameterList siteParams = new ParameterList();
@@ -80,177 +66,185 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 	protected ParameterList eqkRuptureParams = new ParameterList();
 
 	boolean dbConnInitialized = false;
-	DBAccess db = null;
-	SiteInfo2DB site2db = null;
-	PeakAmplitudesFromDB ampsDB = null;
-	Runs2DB runs2db = null;
+	private PeakAmplitudesFromDB ampsDB = null;
+	private HazardCurve2DB curvesDB;
 	
-	int forcedRunID = -1;
-
-	List<CybershakeSite> sites = null;
-	CybershakeSite csSite = null;
-
-	public static final String SGT_VAR_PARAM = "SGT Variation ID";
-	public static final String RUP_VAR_SCENARIO_PARAM = "Rupture Variation Scenario ID";
-	public static final String VEL_MODEL_PARAM = "Velocity Model";
-
-	//source index parameter
-	private IntegerParameter sgtVarParam;
-
-	//rupture index parameter
-	private IntegerParameter rupVarScenarioParam;
+	private IntegerParameter runIDParam;
+	private int curRunID;
 	
-	//vel model index parameter
-	private StringParameter velModelParam;
-
-	private ArrayList<CybershakeVelocityModel> velModels;
-	
-	int selectedSGTVariation = 5;
-	int selectedRupVarScenario = 3;
-	int selectedVelModel = 1;
-	
-	double curPeriod = 0;
-	CybershakeIM curIM = null;
-
-	ArrayList<CybershakeIM> csIMs = null;
+	private IntegerParameter imTypeIDParam;
+	private CybershakeIM curIM = null;
 
 	private boolean isInitialized;
+	
+	private LoadingCache<CacheKey, List<Double>> imsCache;
+	
+	private class CacheKey {
+		private final int runID;
+		private final int sourceID;
+		private final int rupID;
+		private final CybershakeIM im;
+		public CacheKey(int runID, int sourceID, int rupID, CybershakeIM im) {
+			super();
+			this.runID = runID;
+			this.sourceID = sourceID;
+			this.rupID = rupID;
+			this.im = im;
+		}
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + getOuterType().hashCode();
+			result = prime * result + ((im == null) ? 0 : im.hashCode());
+			result = prime * result + runID;
+			result = prime * result + rupID;
+			result = prime * result + sourceID;
+			return result;
+		}
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			CacheKey other = (CacheKey) obj;
+			if (!getOuterType().equals(other.getOuterType()))
+				return false;
+			if (im == null) {
+				if (other.im != null)
+					return false;
+			} else if (!im.equals(other.im))
+				return false;
+			if (runID != other.runID)
+				return false;
+			if (rupID != other.rupID)
+				return false;
+			if (sourceID != other.sourceID)
+				return false;
+			return true;
+		}
+		private CyberShakeIMR getOuterType() {
+			return CyberShakeIMR.this;
+		}
+	}
 
 	public CyberShakeIMR(ParameterChangeWarningListener listener) {
+		this(listener, null);
+	}
+
+	public CyberShakeIMR(ParameterChangeWarningListener listener, DBAccess db) {
+		this(listener, db, null);
+	}
+
+	public CyberShakeIMR(ParameterChangeWarningListener listener, DBAccess db, PeakAmplitudesFromDB ampsDB) {
 		super();
 		isInitialized = false;
-//		loading = true;
+		//		loading = true;
 		initSupportedIntensityMeasureParams();
 
-		sgtVarParam = new IntegerParameter(SGT_VAR_PARAM, -1);
-		rupVarScenarioParam = new IntegerParameter(RUP_VAR_SCENARIO_PARAM, -1);
-		velModelParam = new StringParameter(VEL_MODEL_PARAM, "");
-		//		saPeriod = saPeriods.get(0);
-		//		saPeriodParam = new StringParameter(SA_PERIOD_SELECTOR_PARAM_NAME,
-		//		saPeriods,saPeriod);
-		//		saPeriodParam.addParameterChangeListener(this);
-
-		//		this.supportedIMParams.addParameter(saPeriodParam);
-
 		initOtherParams();
+
+		if (db != null)
+			initDB(db, ampsDB);
 	}
 
 	private void checkInit() {
 		// we don't want to initilize the DB connection until we know the user actually wants to use this
 		if (!isInitialized) {
 			System.out.println("Initializing CyberShake IMR!");
-			this.initDB();
+			if (!dbConnInitialized)
+				this.initDB();
 
-			csIMs = ampsDB.getSupportedIMs();
-			curIM = getIMForPeriod(3);
-
-			// SGT Variation ID
-			ArrayList<Integer> ids = ampsDB.getSGTVarIDs();
-			selectedSGTVariation = ids.get(0);
-			sgtVarParam.setValue(ids.get(0));
-			sgtVarParam.setConstraint(new IntegerDiscreteConstraint(ids));
-			sgtVarParam.addParameterChangeListener(this);
-
-			// Rupture Variation IDs
-			ids = ampsDB.getRupVarScenarioIDs();
-			selectedRupVarScenario = ids.get(0);
-			rupVarScenarioParam.setValue(ids.get(0));
-			rupVarScenarioParam.setConstraint(new IntegerDiscreteConstraint(ids));
-			rupVarScenarioParam.addParameterChangeListener(this);
+			// Run ID
+			runIDParam = new IntegerParameter("Run ID", -1);
+			runIDParam.addParameterChangeListener(this);
+			this.curRunID = runIDParam.getValue();
 			
-			velModels = runs2db.getVelocityModels();
-			selectedVelModel = velModels.get(0).getID();
-			ArrayList<String> vals = new ArrayList<String>();
-			for (CybershakeVelocityModel velModel : velModels) {
-				vals.add(velModel.toString());
-			}
-			velModelParam.setValue(vals.get(0));
-			velModelParam.setConstraint(new StringConstraint(vals));
-			velModelParam.addParameterChangeListener(this);
-			
+			// IM Type ID
+			imTypeIDParam = new IntegerParameter("IM Type ID", -1);
+			imTypeIDParam.addParameterChangeListener(this);
+			this.curIM = null;
+
 			ParameterList[] listsToAdd = { otherParams, imlAtExceedProbIndependentParams,
 					exceedProbIndependentParams, meanIndependentParams, stdDevIndependentParams };
-			
-			for (ParameterList paramList : listsToAdd) {
-				paramList.addParameter(rupVarScenarioParam);
-				paramList.addParameter(sgtVarParam);
-				paramList.addParameter(velModelParam);
-			}
 
-			saPeriodParam.addParameterChangeListener(this);
+			for (ParameterList paramList : listsToAdd) {
+				paramList.addParameter(runIDParam);
+				paramList.addParameter(imTypeIDParam);
+			}
+			
+			CacheLoader<CacheKey, List<Double>> loader = new CacheLoader<CacheKey, List<Double>>() {
+
+				@Override
+				public List<Double> load(CacheKey key) throws Exception {
+					List<Double> ret = ampsDB.getIM_Values(key.runID, key.sourceID, key.rupID, key.im);
+					if (ret == null)
+						ret = new ArrayList<>();
+					return ret;
+				}
+				
+			};
+			
+			imsCache = CacheBuilder.newBuilder().maximumSize(IM_VALS_BUFF_SIZE).build(loader);
 
 			isInitialized = true;
 		}
 	}
 
 	private void initDB() {
-		db = Cybershake_OpenSHA_DBApplication.getDB();
-		site2db = new SiteInfo2DB(db);
-		ampsDB = new PeakAmplitudesFromDB(db);
-		runs2db = new Runs2DB(db);
-		sites = site2db.getAllSitesFromDB();
+		initDB(null, null);
+	}
+
+	private void initDB(DBAccess db, PeakAmplitudesFromDB ampsDB) {
+		if (db == null)
+			db = Cybershake_OpenSHA_DBApplication.getDB();
+		if (ampsDB == null)
+			ampsDB = new PeakAmplitudesFromDB(db);
+		this.ampsDB = ampsDB;
+		this.curvesDB = new HazardCurve2DB(db);
 		dbConnInitialized = true;
 	}
 
 	@Override
 	public void setSite(Site site) {
-		checkInit();
-		System.out.println("Setting the site!");
-		if (!dbConnInitialized)
-			initDB();
-		
-		CybershakeSite minSite = null;
-		double minDist = Double.POSITIVE_INFINITY;
-		
-		for (CybershakeSite csSite : sites) {
-			double dist = LocationUtils.horzDistanceFast(csSite.createLocation(), site.getLocation());
-			if (dist < distanceTolerance && dist < minDist) {
-				// it's a match!
-				minSite = csSite;
-				minDist = dist;
-				System.out.println("Idedntified possible CyberShake site (dist=" + dist + " KM): " + csSite);
-			}
-		}
-		this.csSite = minSite;
-		if (this.csSite == null)
-			System.out.println("No match for site: " + site);
-		else
-			System.out.println("Using site: " + this.csSite.name);
-		this.site = site;
+		// do nothing
 	}
 
 	@Override
 	public double getExceedProbability() throws ParameterException,
-			IMRException {
+	IMRException {
 		double iml = (Double)this.getIntensityMeasureLevel();
 		return getExceedProbability(iml);
 	}
-	
+
 	private CyberShakeEqkRupture getRuptureAsCSRup() {
 		if (this.eqkRupture instanceof CyberShakeEqkRupture) {
 			return (CyberShakeEqkRupture)this.eqkRupture;
 		} else
 			throw new RuntimeException("The CyberShakeIMR isn't being used with a CyberShake ERF!");
 	}
-	
+
 	/**
 	 * Returns a normalized cumulative distribution for the CyberShake rupture variation values
 	 * @param vals
 	 * @return
 	 */
-	
+
 	private ArbitrarilyDiscretizedFunc getCumDistFunction(List<Double> vals) {
 		ArbDiscrEmpiricalDistFunc function = new ArbDiscrEmpiricalDistFunc();
-		
+
 		for (double val : vals) {
 			function.set(val,1);
 		}
-		
+
 		ArbitrarilyDiscretizedFunc normCumDist = function.getNormalizedCumDist();
-		
+
 		return normCumDist;
 	}
-	
+
 	/**
 	 * Returns a new ArbitrarilyDiscretizedFunc where each x value is the natural log
 	 * of the original function
@@ -259,36 +253,36 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 	 */
 	private ArbitrarilyDiscretizedFunc getLogXFunction(ArbitrarilyDiscretizedFunc func) {
 		ArbitrarilyDiscretizedFunc logFunc = new ArbitrarilyDiscretizedFunc();
-		
+
 		for (int i=0; i<func.size(); i++) {
 			logFunc.set(Math.log(func.getX(i)), func.getY(i));
 		}
-		
+
 		return logFunc;
 	}
-	
+
 	private void oneMinusYFunction(ArbitrarilyDiscretizedFunc func) {
 		for (int i=0; i<func.size(); i++) {
 			func.set(i, 1 - func.getY(i));
 		}
 	}
-	
+
 	/**
 	 * First gets the norm cum dist using getCumDistFunction(). Then it creates a new function where
 	 * x = log(x) and y = 1 - y;
 	 * @param vals
 	 * @return
 	 */
-	
+
 	private ArbitrarilyDiscretizedFunc getLogX_OneMinusYCumDistFunction(List<Double> vals) {
 		ArbitrarilyDiscretizedFunc normCumDist = getCumDistFunction(vals);
-		
+
 		ArbitrarilyDiscretizedFunc logFunc = getLogXFunction(normCumDist);
 		oneMinusYFunction(logFunc);
-		
+
 		return logFunc;
 	}
-	
+
 	private double getProbabilityFromLogCumDistFunc(ArbitrarilyDiscretizedFunc logFunc, double iml) {
 		double prob;
 		if(iml < logFunc.getMinX())
@@ -306,32 +300,27 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 		checkInit();
 		CyberShakeEqkRupture rup = getRuptureAsCSRup();
 
-		int srcID = rup.getSrcID();
-		int rupID = rup.getRupID();
-		int erfID = rup.getErfID();
-		int sgtVarID = this.selectedSGTVariation;
-		int rupVarID = this.selectedRupVarScenario;
-		int velModelID = this.selectedVelModel;
-
-		List<Double> imVals = null; 
-
+		List<Double> imVals;
 		try {
-			imVals = getIMVals(this.csSite.id, erfID, sgtVarID, rupVarID, velModelID, srcID, rupID, curIM);
-			// remove any zeros
-			for (int i=imVals.size(); --i>=0;)
-				if (imVals.get(i) == 0d)
-					imVals.remove(i);
-		} catch (SQLException e) {
-			//			e.printStackTrace();
-			return 0;
+			imVals = imsCache.get(new CacheKey(curRunID, rup.getSrcID(), rup.getRupID(), curIM));
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
 		}
-		
+
+		if (imVals == null)
+			// no amps for this run/source
+			return 0d;
+		// remove any zeros
+		for (int i=imVals.size(); --i>=0;)
+			if (imVals.get(i) == 0d)
+				imVals.remove(i);
+
 		if (imVals.size() == 0)
 			// all zeros
 			return 0d;
-		
+
 		ArbitrarilyDiscretizedFunc logFunc = getLogX_OneMinusYCumDistFunction(imVals);
-		
+
 		return getProbabilityFromLogCumDistFunc(logFunc, iml);
 	}
 
@@ -349,44 +338,48 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 	 */
 	public DiscretizedFunc getExceedProbabilities(
 			DiscretizedFunc intensityMeasureLevels
-	) throws ParameterException {
+			) throws ParameterException {
 		checkInit();
-		
+
 		CyberShakeEqkRupture rup = null;
 		if (this.eqkRupture instanceof CyberShakeEqkRupture) {
 			rup = (CyberShakeEqkRupture)this.eqkRupture;
 		} else throw new RuntimeException("The CyberShakeIMR isn't being used with a CyberShake ERF!");
-
-		int srcID = rup.getSrcID();
-		int rupID = rup.getRupID();
-		int erfID = rup.getErfID();
-		int sgtVarID = this.selectedSGTVariation;
-		int rupVarID = this.selectedRupVarScenario;
-		int velModelID = this.selectedVelModel;
-
-		List<Double> imVals = null; 
-
+		
+		List<Double> imVals;
 		try {
-			imVals = getIMVals(this.csSite.id, erfID, sgtVarID, rupVarID, velModelID, srcID, rupID, curIM);
-		} catch (SQLException e) {
-			//			e.printStackTrace();
+			imVals = imsCache.get(new CacheKey(curRunID, rup.getSrcID(), rup.getRupID(), curIM));
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
+		}
+
+		if (imVals == null)
+			// no amps for this run/source
+			imVals = new ArrayList<>();
+		// remove any zeros
+		for (int i=imVals.size(); --i>=0;)
+			if (imVals.get(i) == 0d)
+				imVals.remove(i);
+
+		if (imVals.size() == 0) {
+			// all zeros
 			for (int i=0; i<intensityMeasureLevels.size(); i++) {
 				intensityMeasureLevels.set(i, 0);
 			}
 			return intensityMeasureLevels;
 		}
-		
+
 		ArbitrarilyDiscretizedFunc logFunc = getLogX_OneMinusYCumDistFunction(imVals);
-		
+
 		for (int i=0; i<intensityMeasureLevels.size(); i++) {
 			double iml = intensityMeasureLevels.getX(i);
 			double prob = getProbabilityFromLogCumDistFunc(logFunc, iml);
 			intensityMeasureLevels.set(i, prob);
 		}
-		
+
 		return intensityMeasureLevels;
 	}
-	
+
 	@Override
 	protected void initOtherParams() {
 
@@ -405,12 +398,12 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 
 	@Override
 	protected void initSupportedIntensityMeasureParams() {
-		
+
 		// hard coded so that we don't have to retrieve from the DB whenever this IMR is included in an application
 
 		// Create SA Parameter:
 		DoubleDiscreteConstraint periodConstraint = new DoubleDiscreteConstraint();
-		
+
 		periodConstraint.addDouble(0.01);
 		periodConstraint.addDouble(0.1);
 		periodConstraint.addDouble(0.1111111);
@@ -474,115 +467,29 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 		return NAME;
 	}
 
-	public void setParamDefaults() {
-		// TODO Auto-generated method stub
-
-	}
-
-	private CybershakeIM getIMForPeriod(double period) {
-		for (CybershakeIM im : csIMs) {
-			if (Math.abs(im.getVal() - period) < 0.01) {
-				curPeriod = im.getVal();
-				System.out.println("Matched period of " + period +  " with: " + im);
-				return im;
-			}
-		}
-		return null;
-	}
+	public void setParamDefaults() {}
 
 	public void parameterChange(ParameterChangeEvent event) {
 		checkInit();
-		String paramName = event.getParameterName();
-
-		if (paramName.equals(PeriodParam.NAME)) {
-			this.curIM = getIMForPeriod((Double)event.getParameter().getValue());
-			System.out.println("We got a period of " + (Double)event.getParameter().getValue() + "! " + curIM);
-		} else if (paramName.equals(SGT_VAR_PARAM)) {
-			selectedSGTVariation = sgtVarParam.getValue();
-			//			this.reloadParams();
-		} else if (paramName.equals(RUP_VAR_SCENARIO_PARAM)) {
-			selectedRupVarScenario = rupVarScenarioParam.getValue();
-			//			this.reloadParams();
-		} else if (paramName.equals(VEL_MODEL_PARAM)) {
-			String velModelStr = velModelParam.getValue();
-			selectedVelModel = -1;
-			for (CybershakeVelocityModel velModel : velModels) {
-				if (velModelStr.equals(velModel.toString()))
-					selectedVelModel = velModel.getID();
-			}
-			Preconditions.checkState(selectedVelModel >= 0, "Vel model not found: "+velModelStr);
+		if (event.getParameter() == runIDParam) {
+			curRunID = runIDParam.getValue();
+		} else if (event.getParameter() == imTypeIDParam) {
+			int imTypeID = imTypeIDParam.getValue();
+			if (imTypeID < 0)
+				curIM = null;
+			else
+				curIM = curvesDB.getIMFromID(imTypeID);
 		}
 
 	}
 
 	@Override
-	protected void initPropagationEffectParams() {
-		// TODO Auto-generated method stub
-
-	}
+	protected void initPropagationEffectParams() {}
 
 	@Override
-	protected void setPropagationEffectParams() {
-		// TODO Auto-generated method stub
+	protected void setPropagationEffectParams() {}
 
-	}
-
-	private String getBuffKey(int siteID, int erfID, int sgtVarID, int rupVarID, int velModelID, int srcID, int rupID, CybershakeIM im) {
-		return siteID + "_" + erfID + "_" + sgtVarID + "_" + rupVarID + "_" + velModelID + "_" + srcID + "_" + rupID + "_" + im.getID();
-	}
-
-	private List<Double> getIMVals(int siteID, int erfID, int sgtVarID, int rupVarID, int velModelID, int srcID, int rupID, CybershakeIM im) throws SQLException {
-		if (imValsBuff == null) {
-			imValsBuff = new LinkedList<List<Double>>();
-			imValsBuffKeys = new LinkedList<String>();
-			//			for (int i=0; i<IM_VALS_BUFF_SIZE; i++) {
-			//				imValsBuff.add(null);
-			//				imValsBuffKeys.add(null);
-			//			}
-		}
-
-		String key = getBuffKey(siteID, erfID, sgtVarID, rupVarID, velModelID, srcID, rupID, im);
-		for (int i=0; i<imValsBuffKeys.size(); i++) {
-			String bufKey = imValsBuffKeys.get(i);
-
-			if (bufKey.equals(key)) {
-				return imValsBuff.get(i);
-			}
-		}
-
-		// if we made it this far, then it's not in the buffer...we'll need to get it manually
-//		System.out.println("Loading amps for " + erfID + " " + srcID + " " + rupID);
-		int runID = forcedRunID;
-		if (runID <= 0)
-			runID = runs2db.getLatestRunID(siteID, erfID, sgtVarID, rupVarID, velModelID, null, null, null, null);
-		Preconditions.checkState(runID > 0, "Couldn't get runID for: siteID="+siteID+", erfID="+erfID
-				+", sgtVarID="+sgtVarID+", rupVarID="+rupVarID+", velModelID="+velModelID);
-		List<Double> imVals = ampsDB.getIM_Values(runID, srcID, rupID, im);
-
-//		String valStr = "";
-		for (int i=0; i<imVals.size(); i++) {
-			double val = imVals.get(i);
-//			valStr += val + " ";
-			imVals.set(i, imVals.get(i)/HazardCurveComputation.CONVERSION_TO_G);
-		}
-//		System.out.println("VALS: " + valStr);
-
-		// first if the buffer is full, make room for it
-		if (imValsBuff.size() >= IM_VALS_BUFF_SIZE) {
-			imValsBuff.removeFirst();
-			imValsBuffKeys.removeFirst();
-		}
-
-		// now add it to the buffer
-		imValsBuff.add(imVals);
-		imValsBuffKeys.add(key);
-
-		return imVals;
-	}
-
-	private static final int IM_VALS_BUFF_SIZE = 5;
-	private LinkedList<String> imValsBuffKeys = null;
-	private LinkedList<List<Double>> imValsBuff = null;
+	private static final int IM_VALS_BUFF_SIZE = 100;
 
 	private double calcMean(List<Double> vals) {
 		double tot = 0;
@@ -613,55 +520,43 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 	}
 
 	public double getMean() {
-		if (csSite == null)
-			return Double.NEGATIVE_INFINITY;
+		if (curRunID < 0)
+			return 0d;
 		CyberShakeEqkRupture rup = null;
 		if (this.eqkRupture instanceof CyberShakeEqkRupture) {
 			rup = (CyberShakeEqkRupture)this.eqkRupture;
 		} else throw new RuntimeException("The CyberShakeIMR isn't being used with a CyberShake ERF!");
-
-		int srcID = rup.getSrcID();
-		int rupID = rup.getRupID();
-		int erfID = rup.getErfID();
-		int sgtVarID = this.selectedSGTVariation;
-		int rupVarID = this.selectedRupVarScenario;
-		int velModelID = this.selectedVelModel;
-
+		
+		List<Double> imVals;
 		try {
-			List<Double> imVals = getIMVals(this.csSite.id, erfID, sgtVarID, rupVarID, velModelID, srcID, rupID, curIM);
-
-			return calcMean(imVals);
-		} catch (SQLException e) {
-			//			e.printStackTrace();
-			//			System.out.println("Skipping rupture: " + srcID + " " + rupID);
-			return Double.NEGATIVE_INFINITY;
+			imVals = imsCache.get(new CacheKey(curRunID, rup.getSrcID(), rup.getRupID(), curIM));
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
 		}
+		
+		if (imVals == null)
+			return 0d;
+		return calcMean(imVals);
 	}
 
 	public double getStdDev() {
-		if (csSite == null)
-			return 0;
+		if (curRunID < 0)
+			return 0d;
 		CyberShakeEqkRupture rup = null;
 		if (this.eqkRupture instanceof CyberShakeEqkRupture) {
 			rup = (CyberShakeEqkRupture)this.eqkRupture;
 		} else throw new RuntimeException("The CyberShakeIMR isn't being used with a CyberShake ERF!");
-
-		int srcID = rup.getSrcID();
-		int rupID = rup.getRupID();
-		int erfID = rup.getErfID();
-		int sgtVarID = this.selectedSGTVariation;
-		int rupVarID = this.selectedRupVarScenario;
-		int velModelID = this.selectedVelModel;
-
+		
+		List<Double> imVals;
 		try {
-			List<Double> vals = getIMVals(this.csSite.id, erfID, sgtVarID, rupVarID, velModelID, srcID, rupID, curIM);
-
-			return calcStdDev(vals);
-		} catch (SQLException e) {
-			//			e.printStackTrace();
-//			System.out.println("Skipping rupture: " + srcID + " " + rupID);
-			return 0;
+			imVals = imsCache.get(new CacheKey(curRunID, rup.getSrcID(), rup.getRupID(), curIM));
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
 		}
+		
+		if (imVals == null)
+			return 0d;
+		return calcStdDev(imVals);
 	}
 
 	@Override
@@ -677,23 +572,28 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 		checkInit();
 		return super.getOtherParams();
 	}
+
+	public void setRunID(int runID) {
+		checkInit();
+		runIDParam.setValue(runID);
+	}
 	
-	public void setForcedRunID(int forcedRunID) {
-		this.forcedRunID = forcedRunID;
+	public void setIM(CybershakeIM im) {
+		this.curIM = im;
 	}
 
 	public static void main(String args[]) {
-		CyberShakeIMR imr = new CyberShakeIMR(null);
-		imr.checkInit();
-		try {
-			imr.getIMVals(28, 34, 5, 3, 1, 1, 0, new CybershakeIM(21, null, 3, "", null));
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		System.exit(1);
+//		CyberShakeIMR imr = new CyberShakeIMR(null);
+//		imr.checkInit();
+//		try {
+//			imr.getIMVals(28, 34, 5, 3, 1, 1, 0, new CybershakeIM(21, null, 3, "", null));
+//		} catch (SQLException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+//		System.exit(1);
 	}
-	
+
 	// Methods required by abstract parent, but not needed here
 	protected void initEqkRuptureParams() {}
 	protected void initSiteParams() {}

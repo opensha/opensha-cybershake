@@ -9,6 +9,7 @@ import java.util.List;
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
+import org.opensha.commons.data.siteData.impl.ConstantValueDataProvider;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationUtils;
 import org.opensha.sha.cybershake.HazardCurveFetcher;
@@ -42,13 +43,17 @@ public class SiteFlatFileGen {
 	public static void main(String[] args) throws IOException {
 		File baseDir = new File("/home/kevin/CyberShake/pge_flat_files");
 		
-		int datasetID = 81; // CCA 3D
-		String datasetLabel = "17_3_cca_3d";
-		SiteData<Double> z10fetch = new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0);
-		SiteData<Double> z25fetch = new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5);
+//		int datasetID = 81; // CCA 3D
+//		String datasetLabel = "17_3_cca_3d";
+//		SiteData<Double> z10fetch = new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0);
+//		SiteData<Double> z25fetch = new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5);
 		
-//		int datasetID = 80; // CCA 1D
-//		String datasetLabel = "17_3_cca_1d";
+		int datasetID = 80; // CCA 1D
+		String datasetLabel = "17_3_cca_1d";
+		SiteData<Double> z10fetch = new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_1_0,
+				SiteData.TYPE_FLAG_INFERRED, 0.0d, "CCA 1-D model", "CCA-1D");
+		SiteData<Double> z25fetch = new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_2_5,
+				SiteData.TYPE_FLAG_INFERRED, 5.5001, "CCA 1-D model", "CCA-1D");
 		
 		File outputDir = new File(baseDir, datasetLabel);
 		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
@@ -98,9 +103,8 @@ public class SiteFlatFileGen {
 			for (int row=1; row<inputCSV.getNumRows(); row++) {
 				String siteName = inputCSV.get(row, 0);
 				int siteID = Integer.parseInt(inputCSV.get(row, 1));
-				double vs30 = Double.parseDouble(inputCSV.get(row, 4));
 				
-				System.out.println("Site: "+siteName+" ("+siteID+"), Vs30="+vs30);
+				System.out.println("Site: "+siteName+" ("+siteID+")");
 				
 				int runID = -1;
 				Location siteLoc = null;
@@ -114,6 +118,8 @@ public class SiteFlatFileGen {
 				Preconditions.checkState(runID >= 0);
 				
 				CybershakeRun run = run2db.getRun(runID);
+				double vs30 = run.getVs30();
+				System.out.println("Vs30: "+vs30+" ("+run.getVs30Source()+")");
 				
 				double z10 = z10fetch.getValue(siteLoc);
 				double z25 = z25fetch.getValue(siteLoc);

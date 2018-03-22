@@ -426,6 +426,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 		} catch (SQLException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
+			return null;
 		}
 		rs.first();
 		vals.add(rs.getDouble("IM_Value"));

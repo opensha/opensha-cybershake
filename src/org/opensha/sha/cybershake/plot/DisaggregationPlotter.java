@@ -40,6 +40,7 @@ import org.opensha.sha.calc.params.NonSupportedTRT_OptionsParam;
 import org.opensha.sha.calc.params.PtSrcDistanceCorrectionParam;
 import org.opensha.sha.calc.params.SetTRTinIMR_FromSourceParam;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
+import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeSite;
@@ -51,6 +52,7 @@ import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.Runs2DB;
 import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.cybershake.gui.util.AttenRelSaver;
+import org.opensha.sha.cybershake.gui.util.ERFSaver;
 import org.opensha.sha.cybershake.openshaAPIs.CyberShakeIMR;
 import org.opensha.sha.cybershake.openshaAPIs.CyberShakeWrapper_ERF;
 import org.opensha.sha.earthquake.AbstractERF;
@@ -84,7 +86,7 @@ public class DisaggregationPlotter {
 	private CybershakeSite csSite;
 	private Site site;
 	
-	private AbstractERF erf;
+	private CyberShakeWrapper_ERF erf;
 	private CyberShakeIMR imr;
 	
 	private List<AttenuationRelationship> gmpeComparisons;
@@ -113,6 +115,7 @@ public class DisaggregationPlotter {
 	
 	public DisaggregationPlotter(
 			int runID,
+			AbstractERF rawERF,
 			List<CybershakeIM> ims,
 			List<AttenuationRelationship> gmpes,
 			List<Double> probLevels,
@@ -120,7 +123,7 @@ public class DisaggregationPlotter {
 			File outputDir,
 			List<PlotType> plotTypes) {
 		initDB();
-		init(runID, ims, gmpes, probLevels, imlLevels, outputDir, plotTypes);
+		init(runID, rawERF, ims, gmpes, probLevels, imlLevels, outputDir, plotTypes);
 	}
 	
 	public DisaggregationPlotter(CommandLine cmd) {
@@ -192,11 +195,22 @@ public class DisaggregationPlotter {
 				forceVs30 = Double.parseDouble(cmd.getOptionValue("force-vs30"));
 		}
 		
-		init(runID, ims, gmpeComparisons, probLevels, imlLevels, outputDir, plotTypes);
+		Preconditions.checkArgument(cmd.hasOption("erf-file"), "Must supply ERF file argument!");
+		File erfFile = new File(cmd.getOptionValue("erf-file"));
+		Preconditions.checkArgument(erfFile.exists(), "ERF file doesn't exist: %s", erfFile.getAbsolutePath());
+		AbstractERF rawERF;
+		try {
+			rawERF = ERFSaver.LOAD_ERF_FROM_FILE(erfFile.getAbsolutePath());
+		} catch (Exception e) {
+			throw ExceptionUtils.asRuntimeException(e);
+		}
+		
+		init(runID, rawERF, ims, gmpeComparisons, probLevels, imlLevels, outputDir, plotTypes);
 	}
 	
 	public void init(
 			int runID,
+			AbstractERF rawERF,
 			List<CybershakeIM> ims,
 			List<AttenuationRelationship> gmpeComparisons,
 			List<Double> probLevels,
@@ -221,24 +235,18 @@ public class DisaggregationPlotter {
 		this.csSite = site2db.getSiteFromDB(run.getSiteID());
 		this.site = new Site(csSite.createLocation());
 		
-		erf = new CyberShakeWrapper_ERF();
+		erf = new CyberShakeWrapper_ERF(run.getERFID(), rawERF);
 		erf.updateForecast();
-		imr = new CyberShakeIMR(null);
+		imr = new CyberShakeIMR(null, db, new CachedPeakAmplitudesFromDB(db, null, rawERF));
 		imr.setParamDefaults();
 		
 		imr.setSite(site);
 		
-		imr.setForcedRunID(runID);
+		imr.setRunID(runID);
 		
 		// now set the IMR params
 		// hard code the IMT to SA. the period gets set later
 		imr.setIntensityMeasure(SA_Param.NAME);
-		// now we set CyberShake specific imr params
-		imr.getParameter(CyberShakeIMR.RUP_VAR_SCENARIO_PARAM).setValue(run.getRupVarScenID());
-		imr.getParameter(CyberShakeIMR.SGT_VAR_PARAM).setValue(run.getSgtVarID());
-		
-		String velModelStr = runs2db.getVelocityModel(run.getVelModelID()).toString();
-		imr.getParameter(CyberShakeIMR.VEL_MODEL_PARAM).setValue(velModelStr);
 		
 		this.gmpeComparisons = gmpeComparisons;
 		
@@ -261,13 +269,7 @@ public class DisaggregationPlotter {
 		List<SiteDataValue<?>> datas = null; // for comparisons if needed
 		
 		for (CybershakeIM im : ims) {
-			double period = im.getVal();
-			SA_Param saParam = (SA_Param)imr.getIntensityMeasure();
-			List<Double> periods = saParam.getPeriodParam().getAllowedDoubles();
-			int closestPeriod = ListUtils.getClosestIndex(periods, period);
-			if (closestPeriod < 0)
-				throw new IllegalStateException("no match found for period: "+period);
-			SA_Param.setPeriodInSA_Param(imr.getIntensityMeasure(), periods.get(closestPeriod));
+			imr.setIM(im);
 			
 			System.out.println("IMR Metadata: "+imr.getAllParamMetadata());
 			
@@ -372,7 +374,7 @@ public class DisaggregationPlotter {
 						outFileName += "_DisaggPOE_"+(float)prob;
 					else
 						outFileName += "_DisaggIML_"+(float)iml+"_G";
-					outFileName += "_" + periodStr + "_" + dateStr;
+					outFileName += "_"+periodStr+"_"+im.getComponent().getShortName()+"_"+dateStr;
 					
 					String meanModeHeader = getMeanModeHeader(iml, isProb, prob);
 					
@@ -476,6 +478,10 @@ public class DisaggregationPlotter {
 	private static Options createOptions() {
 		Options ops = HazardCurvePlotter.createCommonOptions();
 		
+		for (Option op : ops.getOptions())
+			if (op.getLongOpt().equals("erf-file"))
+				op.setRequired(true);
+		
 		Option probs = new Option("pr", "probs", true, "Probabilities (1 year) to disaggregate at. " +
 				"Multiple probabilities should be comma separated.");
 		probs.setRequired(false);
@@ -491,10 +497,6 @@ public class DisaggregationPlotter {
 		type.setRequired(false);
 		ops.addOption(type);
 		
-		Option attenRelFiles = new Option("af", "atten-rel-file", true, "XML Attenuation Relationship description file(s) for " + 
-				"comparison. Multiple files should be comma separated");
-		ops.addOption(attenRelFiles);
-		
 		Option forceVs30 = new Option("fvs", "force-vs30", true, "Option to force the given Vs30 value to be used"
 				+ " in GMPE calculations.");
 		ops.addOption(forceVs30);
@@ -503,10 +505,12 @@ public class DisaggregationPlotter {
 	}
 
 	public static void main(String args[]) throws DocumentException, InvocationTargetException {
-//		String[] newArgs = {"-R", "247", "-p", "3", "-pr", "4.0e-4", "-i", "0.2,0.5", "-o", "/tmp"};
+		String[] newArgs = {"-R", "5760", "-p", "3,5,10", "-pr", "0.002,4.0e-4", "-o", "/tmp", "-t", "png",
+				"-ef", "/home/kevin/workspace/opensha-cybershake/src/org/opensha/sha/cybershake/conf/MeanUCERF.xml"};
 //		String[] newArgs = {"--help"};
 //		String[] newArgs = {"-R", "792", "-p", "3", "-pr", "4.0e-4", "-t", "pdf", "-o", "D:\\Documents\\temp"};
-//		args = newArgs;
+		Cybershake_OpenSHA_DBApplication.HOST_NAME = Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME;
+		args = newArgs;
 		
 		try {
 			Options options = createOptions();

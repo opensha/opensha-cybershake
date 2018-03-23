@@ -8,7 +8,7 @@ dependencies {
 
     /* no remote repo */
     compile files('lib/EventWebService.jar')
-    compile files('lib/mysql-connector-java-5.1.16-bin.jar')
+    compileAndResource files('lib/mysql-connector-java-5.1.16-bin.jar')
     
     compileOnly project(path: ':opensha-dev', configuration: 'compileOnly')
     compileAndResource project(path: ':opensha-dev')

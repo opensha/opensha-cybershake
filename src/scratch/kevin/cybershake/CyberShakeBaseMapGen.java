@@ -19,6 +19,8 @@ import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
 import org.opensha.commons.data.siteData.impl.WillsMap2006;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.geo.GriddedRegion;
+import org.opensha.commons.geo.Location;
+import org.opensha.commons.geo.Region;
 import org.opensha.commons.hpc.JavaShellScriptWriter;
 import org.opensha.commons.hpc.mpj.MPJExpressShellScriptWriter;
 import org.opensha.commons.hpc.pbs.USC_HPCC_ScriptWriter;
@@ -58,7 +60,7 @@ public class CyberShakeBaseMapGen {
 		if (args.length < 9 || args.length > 11) {
 			System.out.println("USAGE: "+ClassUtils.getClassNameWithoutPackage(CyberShakeBaseMapGen.class)
 					+" <IMRs> <SA period> <spacing> <CVM4/CVMH/CVMHnGTL/BBP/CVM4i26/CCAi6/CCA1D/null> <constrainBasinMin>"
-					+" <jobName> <minutes> <nodes> <queue> [<LA/CCA/CA>] ['Include'/'Exclude' background]");
+					+" <jobName> <minutes> <nodes> <queue> [<LA/CCA/CA> OR minLat/minLon/maxLat/maxLon] ['Include'/'Exclude' background]");
 			System.exit(2);
 		}
 		
@@ -86,7 +88,14 @@ public class CyberShakeBaseMapGen {
 				region = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_GRIDDED(spacing);
 			else if (regName.equals("ca"))
 				region = new CaliforniaRegions.RELM_TESTING_GRIDDED(spacing);
-			else
+			else if (regName.split("/").length == 4) {
+				String[] split = regName.split("/");
+				double minLat = Double.parseDouble(split[0]);
+				double minLon = Double.parseDouble(split[1]);
+				double maxLat = Double.parseDouble(split[2]);
+				double maxLon = Double.parseDouble(split[3]);
+				region = new GriddedRegion(new Region(new Location(minLat, minLon), new Location(maxLat, maxLon)), spacing, null);
+			} else
 				throw new IllegalArgumentException("Unknown region: "+args[9]);
 		}
 		

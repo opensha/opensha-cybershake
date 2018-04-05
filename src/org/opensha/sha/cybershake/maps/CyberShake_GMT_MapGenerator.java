@@ -144,7 +144,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 			mapTypes = InterpDiffMapType.values();
 		
 		boolean shouldInterp = false;
-		boolean shouldMakeTopo = true;
+		boolean shouldMakeTopo = true && map.getTopoResolution() != null;
 		boolean shouldMakeRatio = false;
 		for (InterpDiffMapType type : mapTypes) {
 			if (type != InterpDiffMapType.BASEMAP) {

@@ -59,12 +59,12 @@ import com.google.common.io.Files;
 
 public class HardCodedInterpDiffMapCreator {
 	
-	static boolean LOCAL_MAPGEN = true;
+	public static boolean LOCAL_MAPGEN = true;
 	private static CyberShake_GMT_MapGenerator mapGen;
 	static File KEVIN_GMT_DATA_DIR = new File("/data/kevin/opensha/gmt");
 	
-	protected static DBAccess cs_db;
-	protected static DBAccess gmpe_db;
+	public static DBAccess cs_db;
+	public static DBAccess gmpe_db;
 	
 	private static ArbDiscrGeoDataSet getMainScatter(boolean isProbAt_IML, double val, int datasetID,
 			int imTypeID, Collection<Integer> siteTypes) {
@@ -72,7 +72,7 @@ public class HardCodedInterpDiffMapCreator {
 		return getMainScatter(isProbAt_IML, val, datasetIDs, imTypeID, siteTypes);
 	}
 	
-	protected static ArbDiscrGeoDataSet getMainScatter(boolean isProbAt_IML, double val,
+	public static ArbDiscrGeoDataSet getMainScatter(boolean isProbAt_IML, double val,
 			List<Integer> datasetIDs, int imTypeID, Collection<Integer> siteTypes) {
 		Preconditions.checkArgument(!datasetIDs.isEmpty(), "Must supply at least one dataset ID");
 		ArbDiscrGeoDataSet scatterData = new ArbDiscrGeoDataSet(true);
@@ -209,7 +209,7 @@ public class HardCodedInterpDiffMapCreator {
 		}
 	}
 	
-	protected static GeoDataSet loadBaseMap(
+	public static GeoDataSet loadBaseMap(
 			ScalarIMR imr,
 			boolean isProbAt_IML,
 			double level,
@@ -588,7 +588,7 @@ public class HardCodedInterpDiffMapCreator {
 	}
 	
 //	protected static InterpDiffMapType[] normPlotTypes = null;
-	protected static InterpDiffMapType[] normPlotTypes = { InterpDiffMapType.INTERP_NOMARKS,
+	public static InterpDiffMapType[] normPlotTypes = { InterpDiffMapType.INTERP_NOMARKS,
 			InterpDiffMapType.INTERP_MARKS, InterpDiffMapType.BASEMAP, InterpDiffMapType.DIFF,
 			InterpDiffMapType.RATIO};
 	protected static InterpDiffMapType[] gainPlotTypes = 
@@ -774,7 +774,7 @@ public class HardCodedInterpDiffMapCreator {
 		return new String[] {diffAddr, ratioAddr};
 	}
 	
-	static String plotLocally(InterpDiffMap map) throws GMT_MapException, IOException {
+	public static String plotLocally(InterpDiffMap map) throws GMT_MapException, IOException {
 		synchronized (HardCodedInterpDiffMapCreator.class) {
 			if (mapGen == null)
 				mapGen = new CyberShake_GMT_MapGenerator();
@@ -782,7 +782,7 @@ public class HardCodedInterpDiffMapCreator {
 		return mapGen.plotLocally(map, KEVIN_GMT_DATA_DIR).getAbsolutePath();
 	}
 	
-	static void fetchPlot(String addr, String inFileName, File outFile) throws IOException {
+	public static void fetchPlot(String addr, String inFileName, File outFile) throws IOException {
 		if (LOCAL_MAPGEN) {
 			File inFile = new File(addr, inFileName);
 			Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());

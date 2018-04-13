@@ -386,8 +386,8 @@ public class HardCodedInterpDiffMapCreator {
 //			Double customMax = 0.4;
 			
 //			String prefix = "study_17_3_3d_nobasemap";
-//			String prefix = "study_17_3_3d";
-			String prefix = "study_17_3_1d";
+			String prefix = "study_17_3_3d";
+//			String prefix = "study_17_3_1d";
 //			String prefix = "study_15_12";
 //			String prefix = "study_15_4";
 //			String prefix = "study_14_2";
@@ -413,16 +413,16 @@ public class HardCodedInterpDiffMapCreator {
 			/* the main dataset(s) that we're plotting */
 			
 			// CCAi6 (Study 17.3)
-//			int velModelID = 10; // use 3D basemap
-////			int velModelID = 9; // use 1D basemap
-////			int velModelID = -1; // use Vs30 only basemap
-//			List<Integer> datasetIDs = Lists.newArrayList(81);
-//			Region region = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION();
-			
-			// CCA-1D (Study 17.3)
-			int velModelID = 9;
-			List<Integer> datasetIDs = Lists.newArrayList(80);
+			int velModelID = 10; // use 3D basemap
+//			int velModelID = 9; // use 1D basemap
+//			int velModelID = -1; // use Vs30 only basemap
+			List<Integer> datasetIDs = Lists.newArrayList(81);
 			Region region = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION();
+			
+//			// CCA-1D (Study 17.3)
+//			int velModelID = 9;
+//			List<Integer> datasetIDs = Lists.newArrayList(80);
+//			Region region = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION();
 			
 //			// CVM-S4i26, AWP GPU w/ Stochastic HF, 1 Hz (Study 15.12)
 //			int velModelID = 5;

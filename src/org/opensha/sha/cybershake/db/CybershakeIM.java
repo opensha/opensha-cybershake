@@ -28,9 +28,48 @@ import org.opensha.sha.imr.param.OtherParams.Component;
 import org.opensha.sha.imr.param.OtherParams.ComponentParam;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Table;
+import com.google.common.collect.Table.Cell;
 
 public class CybershakeIM implements Comparable<CybershakeIM> {
+	
+	private static Table<CyberShakeComponent, Double, Integer> saIDsMap;
+	
+	static {
+		// validate these mappings with the main method below
+		saIDsMap = HashBasedTable.create();
+		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 1d, 86);
+		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 2d, 26);
+		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 3d, 21);
+		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 4d, 16);
+		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 5d, 11);
+		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 7.5, 6);
+		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 10d, 1);
+		
+		saIDsMap.put(CyberShakeComponent.RotD50, 1d, 169);
+		saIDsMap.put(CyberShakeComponent.RotD50, 2d, 167);
+		saIDsMap.put(CyberShakeComponent.RotD50, 3d, 162);
+		saIDsMap.put(CyberShakeComponent.RotD50, 4d, 160);
+		saIDsMap.put(CyberShakeComponent.RotD50, 5d, 158);
+		saIDsMap.put(CyberShakeComponent.RotD50, 7.5, 154);
+		saIDsMap.put(CyberShakeComponent.RotD50, 10d, 152);
+		
+		saIDsMap.put(CyberShakeComponent.RotD100, 1d, 168);
+		saIDsMap.put(CyberShakeComponent.RotD100, 2d, 151);
+		saIDsMap.put(CyberShakeComponent.RotD100, 3d, 146);
+		saIDsMap.put(CyberShakeComponent.RotD100, 4d, 144);
+		saIDsMap.put(CyberShakeComponent.RotD100, 5d, 142);
+		saIDsMap.put(CyberShakeComponent.RotD100, 7.5, 138);
+		saIDsMap.put(CyberShakeComponent.RotD100, 10d, 136);
+	}
+	
+	public static CybershakeIM getSA(CyberShakeComponent comp, double period) {
+		Integer id = saIDsMap.get(comp, period);
+		Preconditions.checkNotNull(id, "ID not yet hardcoded for comp=%s, period=%s", comp, period);
+		return new CybershakeIM(id, IMType.SA, period, "cm per sec squared", comp);
+	}
 	
 	public enum IMType implements DBField {
 		SA("spectral acceleration", "SA");
@@ -219,5 +258,24 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 		String componentStr = rs.getString("IM_Type_Component");
 		CyberShakeComponent component = fromDBField(componentStr, CyberShakeComponent.class);
 		return new CybershakeIM(id, measure, value, units, component);
+	}
+	
+	public static void main(String[] args) {
+		// validate hardcoded IDs
+		DBAccess db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
+		
+		HazardCurve2DB curves2db = new HazardCurve2DB(db);
+		
+		for (Cell<CyberShakeComponent, Double, Integer> cell : saIDsMap.cellSet()) {
+			CybershakeIM im = curves2db.getIMFromID(cell.getValue());
+			Preconditions.checkState(cell.getRowKey().equals(im.component),
+					"Component mismatch for %s. Hardcoded is %s, DB is %s", im.getID(), cell.getRowKey(), im.getComponent());
+			int p1 = (int)Math.round(cell.getColumnKey()*100d);
+			int p2 = (int)Math.round(im.val*100d);
+			Preconditions.checkState(p1 == p2,
+					"Period mismatch for %s. Hardcoded is %s, DB is %s", im.getID(), cell.getColumnKey(), im.val);
+		}
+		
+		db.destroy();
 	}
 }

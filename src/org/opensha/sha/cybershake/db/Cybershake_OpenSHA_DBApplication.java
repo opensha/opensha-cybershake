@@ -416,38 +416,38 @@ public class Cybershake_OpenSHA_DBApplication {
 		if (db.isReadOnly())
 			db.setIgnoreInserts(true);
 		
-		// for UCERF2
-		boolean highRes = true;
-		boolean ddwAdjust = true;
-		System.out.println("Creating and Updating ERF...");
-		MeanUCERF2_ToDB erfDB  = new MeanUCERF2_ToDB(db, highRes, ddwAdjust);
-		File erfDir = new File("/home/kevin/CyberShake/UCERF2_200m_noDDW");
-		erfDB.setFileBased(erfDir, true);
-		String erfName = erfDB.getERF_Instance().getName();
-		String erfDescription;
-		if (highRes)
-			erfDescription = "Mean UCERF 2 - Single Branch Earthquake Rupture Forecast FINAL, 200m";
-		else
-			erfDescription = "Mean UCERF 2 - Single Branch Earthquake Rupture Forecast FINAL";
+//		// for UCERF2
+//		boolean highRes = true;
+//		boolean ddwAdjust = true;
+//		System.out.println("Creating and Updating ERF...");
+//		MeanUCERF2_ToDB erfDB  = new MeanUCERF2_ToDB(db, highRes, ddwAdjust);
+//		File erfDir = new File("/home/kevin/CyberShake/UCERF2_200m_noDDW");
+//		erfDB.setFileBased(erfDir, true);
+//		String erfName = erfDB.getERF_Instance().getName();
+//		String erfDescription;
+//		if (highRes)
+//			erfDescription = "Mean UCERF 2 - Single Branch Earthquake Rupture Forecast FINAL, 200m";
+//		else
+//			erfDescription = "Mean UCERF 2 - Single Branch Earthquake Rupture Forecast FINAL";
+//		
+//		if (ddwAdjust) {
+//			erfDescription += ", No DDW Adjustment";
+//			if (!highRes)
+//				// already added if it is high res
+//				erfName += ", No DDW";
+//		}
 		
-		if (ddwAdjust) {
-			erfDescription += ", No DDW Adjustment";
-			if (!highRes)
-				// already added if it is high res
-				erfName += ", No DDW";
-		}
-		
-//		// for RSQSim
-//		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
-//		RSQSimCatalog catalog = Catalogs.BRUCE_2457.instance(localBaseDir);
-//		double minMag = 6.5;
-//		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
-//		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
-//				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
-//		String erfName = "RSQSim "+catalog.getName()+" M"+(float)minMag;
-//		String erfDescription = "RSQSim ERF for catalog "+catalog.getName()+", M"+(float)minMag;
-//		erf.updateForecast();
-//		ERF2DB erfDB = new ERF2DB(db, erf);
+		// for RSQSim
+		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
+		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(localBaseDir);
+		double minMag = 6.5;
+		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
+		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
+				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
+		String erfName = "RSQSim "+catalog.getName()+" M"+(float)minMag;
+		String erfDescription = "RSQSim ERF for catalog "+catalog.getName()+", M"+(float)minMag;
+		erf.updateForecast();
+		ERF2DB erfDB = new ERF2DB(db, erf);
 		
 		ERF forecast = erfDB.getERF_Instance();
 		System.out.println("ERF NAME: " + erfName);
@@ -476,7 +476,11 @@ public class Cybershake_OpenSHA_DBApplication {
 		// this inserts it
 		// TODO deal with rakes along strike before inserting UCERF3
 		// COMMENT OUT AFTER, will insert with new ID if duplicate
-//		erfDB.insertForecaseInDB(erfName, erfDescription, region);
+		Preconditions.checkState(erfID < 0, "ERF ID is positive but you're trying to insert: %s", erfID);
+		erfDB.insertForecaseInDB(erfName, erfDescription, region);
+		erfID = erfDB.getInserted_ERF_ID(erfName);
+		System.out.println("Inserted ERF ID: "+erfID);
+		
 		
 		// if you have to reinsert a rupture surface for some reason, do this
 //		int startSourceID = 0;
@@ -498,10 +502,12 @@ public class Cybershake_OpenSHA_DBApplication {
 //		sites.add(sites2db.getSiteFromDB("s778"));
 //		sites.add(sites2db.getSiteFromDB("STNI"));
 		
-//		sites.add(sites2db.getSiteFromDB("USC"));
-//		sites.add(sites2db.getSiteFromDB("PAS"));
-//		sites.add(sites2db.getSiteFromDB("SBSM"));
-//		sites.add(sites2db.getSiteFromDB("WNGC"));
+		sites.add(sites2db.getSiteFromDB("USC"));
+		sites.add(sites2db.getSiteFromDB("PAS"));
+		sites.add(sites2db.getSiteFromDB("SBSM"));
+		sites.add(sites2db.getSiteFromDB("WNGC"));
+		sites.add(sites2db.getSiteFromDB("STNI"));
+		sites.add(sites2db.getSiteFromDB("LAPD"));
 //		sites.add(sites2db.getSiteFromDB("OSI"));
 //		sites.add(sites2db.getSiteFromDB("PARK"));
 		
@@ -520,10 +526,10 @@ public class Cybershake_OpenSHA_DBApplication {
 		
 		boolean checkAdd = false;
 		
-		List<CybershakeSite> site_list = new ArrayList<CybershakeSite>();
+//		List<CybershakeSite> site_list = new ArrayList<CybershakeSite>();
 //		site_list.addAll(loadSitesFromCSV(new File("/tmp/all_but_10km_short_names.csv")));
 //		site_list.addAll(loadSitesFromCSV(new File("/tmp/20km_10km_5km_sites.csv")));
-		site_list.addAll(loadSitesFromCSV(new File("/home/kevin/CyberShake/sites/bay_area_proposed_sites_CAG_coastal.csv")));
+//		site_list.addAll(loadSitesFromCSV(new File("/home/kevin/CyberShake/sites/bay_area_proposed_sites_CAG_coastal.csv")));
 //		site_list = site_list.subList(0, 1);
 //		site_list.add(new CybershakeSite(33.88110, -118.17568, "Lighthipe", "LTP"));
 //		site_list.add(new CybershakeSite(34.10647, -117.09822, "Seven Oaks Dam", "SVD"));
@@ -531,8 +537,8 @@ public class Cybershake_OpenSHA_DBApplication {
 //		site_list.add(new CybershakeSite(34.39865, -118.912, "Filmore Central Park", "FIL"));
 //		site_list.add(new CybershakeSite(33.93088, -118.17881, "Seven Ten-Ninety Interchange ", "STNI"));
 //		site_list.add(new CybershakeSite(34.019200, -118.28600, "CyberShake Verification Test - USC", "TEST"));
-		
-		app.putSiteListInfoInDB(site_list, forecast, erfID, siteDB, checkAdd);
+//		
+//		app.putSiteListInfoInDB(site_list, forecast, erfID, siteDB, checkAdd);
 		
 		
 		

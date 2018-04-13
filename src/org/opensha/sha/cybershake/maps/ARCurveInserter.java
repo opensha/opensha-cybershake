@@ -20,6 +20,9 @@ import org.opensha.sha.calc.hazardMap.HazardDataSetLoader;
 import org.opensha.sha.cybershake.db.AttenRelCurves2DB;
 import org.opensha.sha.cybershake.db.AttenRelDataSets2DB;
 import org.opensha.sha.cybershake.db.AttenRels2DB;
+import org.opensha.sha.cybershake.db.CybershakeIM;
+import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
+import org.opensha.sha.cybershake.db.CybershakeVelocityModel;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.imr.AttenRelRef;
@@ -121,7 +124,11 @@ public class ARCurveInserter {
 //		String dir = "/home/kevin/CyberShake/baseMaps/2017_08_24-ccai6-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 //		String dir = "/home/kevin/CyberShake/baseMaps/2017_08_24-ccai6-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 //		String dir = "/home/kevin/CyberShake/baseMaps/2017_09_05-cvm4i26-ca-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
-		String dir = "/home/kevin/CyberShake/baseMaps/2017_09_10-cvm4i26-cs-nga2-individual-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2017_09_10-cvm4i26-cs-nga2-individual-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2018_04_05-cca1d-cs-nga2-2sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2018_04_05-cca1d-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2018_04_05-cca1d-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+		String dir = "/home/kevin/CyberShake/baseMaps/2018_04_05-cca1d-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 		// UPDATE IM TYPE AND DATE BELOW!!!!!!!!!!!!!!!!!!!!!!!
 		boolean deleteOld = false;
 		ScalarIMR imr = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
@@ -132,30 +139,15 @@ public class ARCurveInserter {
 		imr.setParamDefaults();
 		setTruncation(imr, 3d);
 		int erfID = 36;
-//		int velModelID = 1;
-//		int velModelID = 8; // BBP 1D
-		int velModelID = 5; // CVMS-4i26
-//		int velModelID = 7; // CVM-H 11.9 no gtl
-//		int velModelID = 10; // CCAi6
-//		int velModelID = 9; // CCA-1D
+		/*		UPDATE THESE		*/
+		int velModelID = CybershakeVelocityModel.Models.CCA_1D.instance().getID();
+		int imTypeID = CybershakeIM.getSA(CyberShakeComponent.RotD50, 10d).getID();
 //		int velModelID = -1; // Vs30 only
+		Calendar cal = GregorianCalendar.getInstance();
+		cal.set(2014, 3, 5); // month is 0-based, 3=April
+		/*		END UPDATE THESE	*/
 		int probModelID = 1;
 		int timeSpanID = 1;
-		// GEOMETRIC MEAN
-//		int imTypeID = 21; // 3sec GEOM
-//		int imTypeID = 26; // 2sec GEOM
-//		int imTypeID = 11; // 5sec GEOM
-//		int imTypeID = 1; // 10sec GEOM
-//		int imTypeID = 94; // 0.2sec GEOM
-//		int imTypeID = 88; // 0.5sec GEOM
-//		int imTypeID = 86; // 1sec GEOM
-		// RotD50
-//		int imTypeID = 167; // 2sec
-//		int imTypeID = 162; // 3sec
-		int imTypeID = 158; // 5sec
-//		int imTypeID = 152; // 10sec
-		Calendar cal = GregorianCalendar.getInstance();
-		cal.set(2017, 8, 10); // month is 0-based, 3=April
 		String dbHostName = Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME;
 		Date calcDate = cal.getTime();
 		Date timeSpanDate = null;
@@ -172,10 +164,10 @@ public class ARCurveInserter {
 		AttenRelCurves2DB arCurves2DB = new AttenRelCurves2DB(db);
 		AttenRels2DB ar2db = new AttenRels2DB(db);
 		
-		// for bulk deletion
+//		// for bulk deletion
 //		for (int typeID : new int[] {152,158,162,167})
 //			try {
-//				arCurves2DB.deleteAllCurvesFromDataset(33, typeID);
+//				arCurves2DB.deleteAllCurvesFromDataset(34, typeID);
 //			} catch (SQLException e1) {
 //				// TODO Auto-generated catch block
 //				e1.printStackTrace();

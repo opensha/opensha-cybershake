@@ -4,8 +4,10 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import org.opensha.commons.data.Site;
@@ -40,6 +42,8 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	private LoadingCache<CacheKey, DiscretizedFunc[]> rd50Cache;
 	private LoadingCache<CacheKey, DiscretizedFunc[][]> rd100Cache;
 	private LoadingCache<CacheKey, DiscretizedFunc[]> rdRatioCache;
+	
+	private double minNonZeroRate = Double.POSITIVE_INFINITY;
 	
 	private class CacheKey {
 		private CSRupture rup;
@@ -118,6 +122,32 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 		}
 		
 		rvCountMap = new HashMap<>();
+	}
+	
+	protected StudyRotDProvider(StudyRotDProvider o, String name) {
+		this.amps2db = o.amps2db;
+		this.runIDsMap = o.runIDsMap;
+		this.siteRups = o.siteRups;
+		this.periods = o.periods;
+		this.rd50_ims = o.rd50_ims;
+		this.rd100_ims = o.rd100_ims;
+		this.name = name;
+		
+		this.rd50Cache = o.rd50Cache;
+		if (hasRotD100()) {
+			this.rd100Cache = o.rd100Cache;
+			this.rdRatioCache = o.rdRatioCache;
+		}
+		
+		this.rvCountMap = o.rvCountMap;
+	}
+	
+	public Set<Site> getAvailableSites() {
+		return runIDsMap.keySet();
+	}
+	
+	public Map<Site, Integer> getRunIDsMap() {
+		return runIDsMap;
 	}
 
 	@Override
@@ -264,8 +294,19 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	}
 
 	@Override
-	public double getMinimumCurvePlotRate() {
-		return 0;
+	public synchronized double getMinimumCurvePlotRate() {
+		if (!Double.isFinite(minNonZeroRate)) {
+			System.out.print("Calculating minimum rate to plot...");
+			for (Site site : siteRups.keySet()) {
+				for (CSRupture rup : siteRups.get(site)) {
+					double rate = getAnnualRate(rup)/getNumSimulations(site, rup);
+					if (rate > 0)
+						minNonZeroRate = Math.min(minNonZeroRate, rate);
+				}
+			}
+			System.out.println("DONE: "+minNonZeroRate);
+		}
+		return minNonZeroRate;
 	}
 
 }

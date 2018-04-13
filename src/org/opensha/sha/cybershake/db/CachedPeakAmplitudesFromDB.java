@@ -13,6 +13,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -195,7 +196,7 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 		CybershakeRun run = runs2db.getRun(runID);
 		Preconditions.checkNotNull(run, "No run found for "+runID+"?");
 		if (D) System.out.println("Getting source list");
-		List<Integer> sourcesLeft = Lists.newArrayList(sites2db.getSrcIdsForSite(run.getSiteID(), run.getERFID()));
+		List<Integer> sourcesLeft = new LinkedList<>(sites2db.getSrcIdsForSite(run.getSiteID(), run.getERFID()));
 		Preconditions.checkState(!sourcesLeft.isEmpty());
 		
 		while (!sourcesLeft.isEmpty()) {
@@ -262,7 +263,9 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 				if (prevSourceID == sourceID)
 					Preconditions.checkState(rupID >= prevRupID, "Rup IDs not sorted?");
 				if (curIMs != null) {
-					Preconditions.checkState(vals[prevSourceID].length > prevRupID);
+					Preconditions.checkState(vals[prevSourceID].length > prevRupID,
+							"srcID=%s, prevSrcID=%s, rupID=%s, prevRupID=%s, vals[src].length=%s, erf.getNumRuptures(srcID)=%s",
+							sourceID, prevSourceID, rupID, prevRupID, vals[prevSourceID].length, erf.getNumRuptures(prevSourceID));
 					Preconditions.checkState(vals[prevSourceID][prevRupID] == null, "duplicate rup");
 					vals[prevSourceID][prevRupID] = Doubles.toArray(curIMs);
 				}

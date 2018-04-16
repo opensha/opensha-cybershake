@@ -55,18 +55,18 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		super(simProv, simName, compSimProvs);
 	}
 	
-	private static StudyRotDProvider getSimProv(CyberShakeStudy study, String siteName, File ampsCacheDir,
+	static StudyRotDProvider getSimProv(CyberShakeStudy study, String siteName, File ampsCacheDir,
 			double[] periods, CybershakeIM[] rd50_ims, Vs30_Source vs30Source, AttenRelRef gmpeRef, List<CSRuptureComparison> comps)
 					throws SQLException, IOException {
 		return getSimProv(study, siteName, ampsCacheDir, periods, rd50_ims, null, vs30Source, gmpeRef, comps);
 	}
 	
-	private static StudyRotDProvider getSimProv(CyberShakeStudy study, String siteName, File ampsCacheDir,
+	static StudyRotDProvider getSimProv(CyberShakeStudy study, String siteName, File ampsCacheDir,
 			double[] periods, CybershakeIM[] rd50_ims, Site site) throws SQLException, IOException {
 		return getSimProv(study, siteName, ampsCacheDir, periods, rd50_ims, site, null, null, null);
 	}
 	
-	private static StudyRotDProvider getSimProv(CyberShakeStudy study, String siteName, File ampsCacheDir, double[] periods,
+	static StudyRotDProvider getSimProv(CyberShakeStudy study, String siteName, File ampsCacheDir, double[] periods,
 			CybershakeIM[] rd50_ims, Site site, Vs30_Source vs30Source, AttenRelRef gmpeRef, List<CSRuptureComparison> compsList)
 					throws SQLException, IOException {
 		DBAccess db = study.getDB();

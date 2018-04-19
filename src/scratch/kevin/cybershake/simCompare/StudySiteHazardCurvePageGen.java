@@ -211,9 +211,19 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		double bbpDurationYears = bbpCatalog.getDurationYears() - 5000d;
 		System.out.println("BBP duration: "+(int)Math.round(bbpDurationYears)+" years");
 		
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+//		Vs30_Source vs30Source = Vs30_Source.Simulation;
+//		CyberShakeStudy[] compStudies = { };
+//		
+//		File bbpDir = null;
+//		double bbpDurationYears = -1;
+		
 		boolean includeAleatoryStrip = true;
 		
 		String siteName = "USC";
+		
+		boolean replotCurves = true;
+		boolean replotDisaggs = false;
 		
 		AttenRelRef gmpeRef = AttenRelRef.NGAWest_2014_AVG_NOIDRISS;
 		double[] periods = { 3, 5, 7.5, 10 };
@@ -227,6 +237,10 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		List<SimulationRotDProvider<?>> compSimProvs = new ArrayList<>();
 		
+		if (includeAleatoryStrip && study.getERF() instanceof MeanUCERF2)
+			compSimProvs.add(new StudyModifiedProbRotDProvider(
+					mainProv, new UCERF2_AleatoryMagVarRemovalMod(study.getERF()), study.getName()+" w/o Aleatory Mag"));
+		
 		for (CyberShakeStudy compStudy : compStudies) {
 			StudyRotDProvider compProv = getSimProv(compStudy, siteName, ampsCacheDir, periods, rd50_ims, site);
 			compSimProvs.add(compProv);
@@ -239,6 +253,8 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 			compSimProvs.add(loadBBP(bbpDir, site, bbpDurationYears));
 		
 		StudySiteHazardCurvePageGen pageGen = new StudySiteHazardCurvePageGen(mainProv, study.getName(), compSimProvs);
+		pageGen.setReplotCurves(replotCurves);
+		pageGen.setReplotDisaggs(replotDisaggs);
 		
 		File studyDir = new File(mainOutputDir, study.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());

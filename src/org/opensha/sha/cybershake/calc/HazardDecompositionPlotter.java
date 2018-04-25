@@ -102,7 +102,7 @@ public class HazardDecompositionPlotter {
 		
 		AbstractERF erf = MeanUCERF2_ToDB.createUCERF2ERF();
 		
-		Map<String, List<Integer>> combSourceMap = getCombinedSources(erf);
+		Map<String, List<Integer>> combSourceMap = MeanUCERF2_ToDB.getFaultsToSourcesMap(erf);
 		
 		DBAccess db = Cybershake_OpenSHA_DBApplication.getDB();
 		Runs2DB run2db = new Runs2DB(db); 
@@ -536,73 +536,6 @@ public class HazardDecompositionPlotter {
 			cacheMisses = 0;
 		}
 		
-	}
-	
-	public static Map<String, List<Integer>> getCombinedSources(ERF erf) {
-		int commonPrefix = 8; // will pass if common prefix this long 
-		int distance = 3; // or if lev distance this little and prefix as long as below
-		int distPrefix = 6;
-		
-		Map<String, List<Integer>> map = Maps.newHashMap();
-		
-		HashSet<Integer> processedSources = new HashSet<Integer>();
-		
-		for (int sourceID=0; sourceID<erf.getNumSources(); sourceID++) {
-			if (processedSources.contains(sourceID))
-				continue;
-			String name = getStrippedName(erf.getSource(sourceID).getName());
-			List<Integer> matches = Lists.newArrayList();
-			matches.add(sourceID);
-			String commonAllPrefix = null;
-			List<String> matchNames = Lists.newArrayList();
-			matchNames.add("'"+erf.getSource(sourceID).getName()+"'");
-			for (int s=0; s<erf.getNumSources(); s++) {
-				if (s == sourceID || processedSources.contains(s))
-					continue;
-				String name2 = getStrippedName(erf.getSource(s).getName());
-				String common = StringUtils.getCommonPrefix(name, name2);
-				if (common.length() >= commonPrefix
-						|| (common.length() >= distPrefix
-							&& StringUtils.getLevenshteinDistance(name, name2) <= distance)) {
-					matches.add(s);
-					matchNames.add("'"+erf.getSource(s).getName()+"'");
-					if (commonAllPrefix == null || common.length() < commonAllPrefix.length())
-						commonAllPrefix = common;
-				}
-			}
-			if (commonAllPrefix == null) {
-				Preconditions.checkState(matches.size() == 1);
-				commonAllPrefix = name;
-			}
-			String origPrefix = commonAllPrefix;
-			commonAllPrefix = commonAllPrefix.trim();
-			if (commonAllPrefix.contains("alt"))
-				commonAllPrefix = commonAllPrefix.substring(0, commonAllPrefix.indexOf("alt")).trim();
-			while (commonAllPrefix.endsWith(",") || commonAllPrefix.endsWith(";")
-					|| commonAllPrefix.endsWith("("))
-				commonAllPrefix = commonAllPrefix.substring(0, commonAllPrefix.length()-1);
-			
-			Preconditions.checkState(commonAllPrefix.length() > 2,
-					"Common prefix too short: '"+commonAllPrefix+"', orig: '"+origPrefix+"'");
-			map.put(commonAllPrefix, matches);
-			processedSources.addAll(matches);
-			
-			System.out.println(commonAllPrefix+": "+Joiner.on(", ").join(matchNames));
-		}
-		
-		return map;
-	}
-	
-	private static String getStrippedName(String name) {
-		name = name.trim();
-		if (StringUtils.isNumeric(name.substring(0,1)) || name.startsWith("NV"))
-			name = name.substring(name.indexOf(" ")+1);
-		name = name.replaceAll("-", " ");
-		if (name.toLowerCase().startsWith("eastern"))
-			name = name.substring("eastern".length()).trim();
-		if (name.toLowerCase().startsWith("western"))
-			name = name.substring("western".length()).trim();
-		return name;
 	}
 	
 	public static void writeBarChart(HazardCurveComputation calc, SiteInfo2DB site2db,

@@ -69,6 +69,7 @@ import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.CybershakeSiteInfo2DB;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
+import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.Runs2DB;
 import org.opensha.sha.cybershake.db.SiteInfo2DB;
@@ -548,7 +549,7 @@ public class MCERDataProductsCalc {
 			DiscretizedFunc xVals = new IMT_Info().getDefaultHazardCurve(SA_Param.NAME);
 			int numToInclude = 5;
 			if (combinedSources == null)
-				combinedSources = HazardDecompositionPlotter.getCombinedSources(erf);
+				combinedSources = MeanUCERF2_ToDB.getFaultsToSourcesMap(erf);
 //			numToInclude = combinedSources.size()-1;
 			System.out.println("Sources: "+combinedSources.size());
 			

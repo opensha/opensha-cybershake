@@ -3,8 +3,11 @@
  */
 package org.opensha.sha.cybershake.db;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.TimeSpan;
 import org.opensha.commons.geo.Location;
@@ -12,6 +15,7 @@ import org.opensha.commons.geo.LocationList;
 import org.opensha.commons.geo.LocationUtils;
 import org.opensha.commons.param.ParameterList;
 import org.opensha.sha.earthquake.AbstractERF;
+import org.opensha.sha.earthquake.ERF;
 import org.opensha.sha.earthquake.ProbEqkRupture;
 import org.opensha.sha.earthquake.ProbEqkSource;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.UCERF2;
@@ -21,8 +25,10 @@ import org.opensha.sha.faultSurface.EvenlyGriddedSurface;
 import org.opensha.sha.faultSurface.InterpolatedEvenlyGriddedSurface;
 import org.opensha.sha.faultSurface.RuptureSurface;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 /**
  * This Class creates an instances of Mean UCERF2 ERF to insert into the database
@@ -277,5 +283,72 @@ public class MeanUCERF2_ToDB extends ERF2DB {
 		}
 		
 		return true;
+	}
+	
+	public static Map<String, List<Integer>> getFaultsToSourcesMap(ERF erf) {
+		int commonPrefix = 8; // will pass if common prefix this long 
+		int distance = 3; // or if lev distance this little and prefix as long as below
+		int distPrefix = 6;
+		
+		Map<String, List<Integer>> map = Maps.newHashMap();
+		
+		HashSet<Integer> processedSources = new HashSet<Integer>();
+		
+		for (int sourceID=0; sourceID<erf.getNumSources(); sourceID++) {
+			if (processedSources.contains(sourceID))
+				continue;
+			String name = getStrippedName(erf.getSource(sourceID).getName());
+			List<Integer> matches = Lists.newArrayList();
+			matches.add(sourceID);
+			String commonAllPrefix = null;
+			List<String> matchNames = Lists.newArrayList();
+			matchNames.add("'"+erf.getSource(sourceID).getName()+"'");
+			for (int s=0; s<erf.getNumSources(); s++) {
+				if (s == sourceID || processedSources.contains(s))
+					continue;
+				String name2 = getStrippedName(erf.getSource(s).getName());
+				String common = StringUtils.getCommonPrefix(name, name2);
+				if (common.length() >= commonPrefix
+						|| (common.length() >= distPrefix
+							&& StringUtils.getLevenshteinDistance(name, name2) <= distance)) {
+					matches.add(s);
+					matchNames.add("'"+erf.getSource(s).getName()+"'");
+					if (commonAllPrefix == null || common.length() < commonAllPrefix.length())
+						commonAllPrefix = common;
+				}
+			}
+			if (commonAllPrefix == null) {
+				Preconditions.checkState(matches.size() == 1);
+				commonAllPrefix = name;
+			}
+			String origPrefix = commonAllPrefix;
+			commonAllPrefix = commonAllPrefix.trim();
+			if (commonAllPrefix.contains("alt"))
+				commonAllPrefix = commonAllPrefix.substring(0, commonAllPrefix.indexOf("alt")).trim();
+			while (commonAllPrefix.endsWith(",") || commonAllPrefix.endsWith(";")
+					|| commonAllPrefix.endsWith("("))
+				commonAllPrefix = commonAllPrefix.substring(0, commonAllPrefix.length()-1);
+			
+			Preconditions.checkState(commonAllPrefix.length() > 2,
+					"Common prefix too short: '"+commonAllPrefix+"', orig: '"+origPrefix+"'");
+			map.put(commonAllPrefix, matches);
+			processedSources.addAll(matches);
+			
+			System.out.println(commonAllPrefix+": "+Joiner.on(", ").join(matchNames));
+		}
+		
+		return map;
+	}
+	
+	private static String getStrippedName(String name) {
+		name = name.trim();
+		if (StringUtils.isNumeric(name.substring(0,1)) || name.startsWith("NV"))
+			name = name.substring(name.indexOf(" ")+1);
+		name = name.replaceAll("-", " ");
+		if (name.toLowerCase().startsWith("eastern"))
+			name = name.substring("eastern".length()).trim();
+		if (name.toLowerCase().startsWith("western"))
+			name = name.substring("western".length()).trim();
+		return name;
 	}
 }

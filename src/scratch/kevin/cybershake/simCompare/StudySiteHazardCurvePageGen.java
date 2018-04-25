@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import java.util.zip.ZipFile;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.geo.LocationUtils;
 import org.opensha.commons.util.ExceptionUtils;
+import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
 import org.opensha.sha.cybershake.calc.UCERF2_AleatoryMagVarRemovalMod;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
@@ -24,6 +26,7 @@ import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.DBAccess;
+import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.Runs2DB;
 import org.opensha.sha.cybershake.db.SiteInfo2DB;
@@ -36,9 +39,12 @@ import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.HashBiMap;
+import com.google.common.collect.Table;
 import com.google.common.primitives.Doubles;
 
+import scratch.UCERF3.enumTreeBranches.FaultModels;
 import scratch.kevin.bbp.BBP_Site;
 import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare.CSRuptureComparison;
 import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare.Vs30_Source;
@@ -46,6 +52,8 @@ import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simCompare.SiteHazardCurveComarePageGen;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
+import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
+import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimSectBundledSource;
 import scratch.kevin.simulators.ruptures.LightweightBBP_CatalogSimZipLoader;
 
 public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CSRupture> {
@@ -195,28 +203,89 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		return new LightweightBBP_CatalogSimZipLoader(new ZipFile(bbpZip), bbpSites, gmpeSites, durationYears);
 	}
+	
+	private static Table<String, CSRupture, Double> getSourceContribFracts(
+			AbstractERF erf, Collection<CSRupture> ruptures, RSQSimCatalog catalog) {
+		if (erf instanceof MeanUCERF2) {
+			Map<String, List<Integer>> sourceNameToIDs = MeanUCERF2_ToDB.getFaultsToSourcesMap(erf);
+			Map<Integer, String> sourceIDsToNames = new HashMap<>();
+			for (String name : sourceNameToIDs.keySet())
+				for (Integer sourceID : sourceNameToIDs.get(name))
+					sourceIDsToNames.put(sourceID, name);
+			Table<String, CSRupture, Double> table = HashBasedTable.create();
+			for (CSRupture rup : ruptures) {
+				int sourceID = rup.getSourceID();
+				String name = sourceIDsToNames.get(sourceID);
+				table.put(name, rup, 1d);
+			}
+			return table;
+		} else if (erf instanceof RSQSimSectBundledERF) {
+			List<Map<String, Double>> sourceFractsList = new ArrayList<>();
+			Map<String, List<Integer>> faultNamesToIDsMap = catalog.getFaultModel().getNamedFaultsMapAlt();
+			Map<Integer, String> idsToFaultNamesMap = new HashMap<>();
+			for (String faultName : faultNamesToIDsMap.keySet())
+				for (Integer id : faultNamesToIDsMap.get(faultName))
+					idsToFaultNamesMap.put(id, faultName);
+			
+			for (int sourceID=0; sourceID<erf.getNumSources(); sourceID++) {
+				RSQSimSectBundledSource source = ((RSQSimSectBundledERF)erf).getSource(sourceID);
+				List<FaultSectionPrefData> sects = source.getSortedSourceSects();
+				double totArea = 0d;
+				List<Double> areas = new ArrayList<>();
+				for (FaultSectionPrefData sect : sects) {
+					double area = sect.getOrigDownDipWidth()*sect.getTraceLength();
+					totArea += area;
+					areas.add(area);
+				}
+				Map<String, Double> sourceFracts = new HashMap<>();
+				for (int i=0; i<sects.size(); i++) {
+					FaultSectionPrefData sect = sects.get(i);
+					int id = sect.getParentSectionId();
+					String name = idsToFaultNamesMap.get(id);
+					if (name == null)
+						// not a named fault
+						name = sect.getParentSectionName();
+//					double fract = areas.get(i)/totArea;
+					double fract = 1d;
+					sourceFracts.put(name, fract);
+				}
+				sourceFractsList.add(sourceFracts);
+			}
+			
+			Table<String, CSRupture, Double> table = HashBasedTable.create();
+			for (CSRupture rup : ruptures) {
+				Map<String, Double> fracts = sourceFractsList.get(rup.getSourceID());
+				for (String name : fracts.keySet())
+					table.put(name, rup, fracts.get(name));
+			}
+			
+			return table;
+		}
+		return null;
+	}
 
 	public static void main(String[] args) throws SQLException, IOException {
 		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457;
-		Vs30_Source vs30Source = Vs30_Source.Simulation;
-		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
-		
-		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_12-rundir2457-all-m6.5-skipYears5000-noHF-standardSites");
-		RSQSimCatalog bbpCatalog = Catalogs.BRUCE_2457.instance(new File("/data/kevin/simulators/catalogs"));
-//		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_11-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-standardSites");
-//		RSQSimCatalog bbpCatalog = Catalogs.BRUCE_2585_1MYR.instance(new File("/data/kevin/simulators/catalogs"));
-		double bbpDurationYears = bbpCatalog.getDurationYears() - 5000d;
-		System.out.println("BBP duration: "+(int)Math.round(bbpDurationYears)+" years");
-		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457;
 //		Vs30_Source vs30Source = Vs30_Source.Simulation;
-//		CyberShakeStudy[] compStudies = { };
+//		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
 //		
-//		File bbpDir = null;
-//		double bbpDurationYears = -1;
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_12-rundir2457-all-m6.5-skipYears5000-noHF-standardSites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_2457.instance(new File("/data/kevin/simulators/catalogs"));
+////		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_11-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-standardSites");
+////		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(new File("/data/kevin/simulators/catalogs"));
+//		double catDurationYears = catalog.getDurationYears() - 5000d;
+//		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
+		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+		Vs30_Source vs30Source = Vs30_Source.Simulation;
+		CyberShakeStudy[] compStudies = { };
+		
+		RSQSimCatalog catalog = null;
+		File bbpDir = null;
+		double catDurationYears = -1;
 		
 		boolean includeAleatoryStrip = true;
 		
@@ -241,6 +310,9 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 			compSimProvs.add(new StudyModifiedProbRotDProvider(
 					mainProv, new UCERF2_AleatoryMagVarRemovalMod(study.getERF()), study.getName()+" w/o Aleatory Mag"));
 		
+		Table<String, CSRupture, Double> sourceContribFracts =
+				getSourceContribFracts(study.getERF(), mainProv.getRupturesForSite(site), catalog);
+		
 		for (CyberShakeStudy compStudy : compStudies) {
 			StudyRotDProvider compProv = getSimProv(compStudy, siteName, ampsCacheDir, periods, rd50_ims, site);
 			compSimProvs.add(compProv);
@@ -250,11 +322,12 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		}
 		
 		if (bbpDir != null)
-			compSimProvs.add(loadBBP(bbpDir, site, bbpDurationYears));
+			compSimProvs.add(loadBBP(bbpDir, site, catDurationYears));
 		
 		StudySiteHazardCurvePageGen pageGen = new StudySiteHazardCurvePageGen(mainProv, study.getName(), compSimProvs);
 		pageGen.setReplotCurves(replotCurves);
 		pageGen.setReplotDisaggs(replotDisaggs);
+		pageGen.setSourceRupContributionFractions(sourceContribFracts, 4e-4, 10);
 		
 		File studyDir = new File(mainOutputDir, study.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());

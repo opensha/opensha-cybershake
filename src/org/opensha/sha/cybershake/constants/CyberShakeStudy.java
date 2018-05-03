@@ -50,6 +50,9 @@ import org.opensha.sha.magdist.IncrementalMagFreqDist;
 import org.opensha.sha.simulators.SimulatorElement;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.Table;
+import com.google.common.collect.Table.Cell;
 import com.google.common.primitives.Doubles;
 
 import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare;
@@ -99,6 +102,15 @@ public enum CyberShakeStudy {
 		@Override
 		AbstractERF buildERF() {
 			return getRSQSimERF("rundir2457");
+		}
+	},
+	STUDY_18_4_RSQSIM_2585(cal(2018, 4), 83, "RSQSim 2585",
+			"study_18_4_rsqsim_2585", "RSQSim prototype with catalog 2585 (1myr)", 5,
+			new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		AbstractERF buildERF() {
+			return getRSQSimERF("rundir2585_1myr");
 		}
 	};
 	
@@ -255,8 +267,8 @@ public enum CyberShakeStudy {
 		Map<Vs30_Source, List<String>> gmpeLinksMap = new HashMap<>();
 		Map<Vs30_Source, List<String>> gmpeNamesMap = new HashMap<>();
 		
-		Map<Vs30_Source, List<String>> siteHazardLinksMap = new HashMap<>();
-		Map<Vs30_Source, List<String>> siteHazardNamesMap = new HashMap<>();
+		Table<String, Vs30_Source, List<String>> siteHazardLinksTable = HashBasedTable.create();
+		Table<String, Vs30_Source, List<String>> siteHazardNamesTable = HashBasedTable.create();
 		
 		String rotDDLink = null;
 		
@@ -288,18 +300,20 @@ public enum CyberShakeStudy {
 				rotDDLink = name;
 			} else if (name.startsWith("site_hazard_")) {
 				String siteName = name.substring("site_hazard_".length());
-				siteName = siteName.substring(0, siteName.indexOf("_Vs30"));
+				siteName = siteName.substring(0, siteName.indexOf("_"));
+				String gmpeName = name.substring("site_hazard_".length()+siteName.length()+1);
+				gmpeName = gmpeName.substring(0, gmpeName.indexOf("_Vs30"));
 				String vs30Name = name.substring(name.indexOf("_Vs30")+5);
 				Vs30_Source vs30 = Vs30_Source.valueOf(vs30Name);
 				Preconditions.checkNotNull(vs30);
 				
-				if (!siteHazardNamesMap.containsKey(vs30)) {
-					siteHazardLinksMap.put(vs30, new ArrayList<>());
-					siteHazardNamesMap.put(vs30, new ArrayList<>());
+				if (!siteHazardNamesTable.contains(gmpeName, vs30)) {
+					siteHazardLinksTable.put(gmpeName, vs30, new ArrayList<>());
+					siteHazardNamesTable.put(gmpeName, vs30, new ArrayList<>());
 				}
 				
-				siteHazardLinksMap.get(vs30).add(name);
-				siteHazardNamesMap.get(vs30).add(siteName);
+				siteHazardLinksTable.get(gmpeName, vs30).add(name);
+				siteHazardNamesTable.get(gmpeName, vs30).add(siteName);
 			}
 		}
 		
@@ -320,18 +334,18 @@ public enum CyberShakeStudy {
 					lines.add("* ["+gmpeNames.get(i)+"]("+gmpeLinks.get(i)+"/)");
 			}
 		}
-		if (!siteHazardLinksMap.isEmpty()) {
+		if (!siteHazardLinksTable.isEmpty()) {
 			lines.add("");
 			lines.add("## Site Hazard Comparisons");
 			lines.add(topLink);
 			lines.add("");
-			for (Vs30_Source vs30 : siteHazardLinksMap.keySet()) {
-				if (siteHazardLinksMap.keySet().size() > 1) {
-					lines.add("### Vs30 model for site hazard comparisons: "+vs30);
-					lines.add("");
-				}
-				List<String> siteNames = siteHazardNamesMap.get(vs30);
-				List<String> siteLinks = siteHazardLinksMap.get(vs30);
+			for (Cell<String, Vs30_Source, List<String>> cell : siteHazardLinksTable.cellSet()) {
+				String gmpe = cell.getRowKey();
+				Vs30_Source vs30 = cell.getColumnKey();
+				lines.add("### GMPE: "+cell.getRowKey()+", Vs30 model: "+cell.getColumnKey());
+				lines.add("");
+				List<String> siteNames = siteHazardNamesTable.get(gmpe, vs30);
+				List<String> siteLinks = siteHazardLinksTable.get(gmpe, vs30);
 				
 				for (int i=0; i<siteNames.size(); i++)
 					lines.add("* ["+siteNames.get(i)+"]("+siteLinks.get(i)+"/)");

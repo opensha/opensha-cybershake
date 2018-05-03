@@ -24,6 +24,8 @@ import org.apache.commons.cli.ParseException;
 import org.dom4j.Document;
 import org.dom4j.Element;
 import org.jfree.data.Range;
+import org.jfree.ui.RectangleInsets;
+import org.jfree.util.UnitType;
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
@@ -910,6 +912,7 @@ public class UGMS_WebToolCalc {
 		gp.setLegendFontSize(20);
 
 		gp.drawGraphPanel(spec, xLog, yLog, xRange, yRange);
+		gp.getYAxis().setLabelInsets(new RectangleInsets(UnitType.ABSOLUTE, 15d, 0d, 0d, 0d));
 		gp.getChartPanel().setSize(1000, 800);
 		gp.setVisible(true);
 
@@ -1104,7 +1107,8 @@ public class UGMS_WebToolCalc {
 //			String argStr = "--longitude -118.4761 --latitude 33.9743"; // offshore, still shows 4 interp points
 //			String argStr = "--longitude -118.91 --latitude 33.969";
 //			String argStr = "--longitude -117.5888 --latitude 33.2976";
-			String argStr = "--longitude -118.369 --latitude 34.043";
+//			String argStr = "--longitude -118.369 --latitude 34.043";
+			String argStr = "--longitude -118.178 --latitude 34.033";
 //			String argStr = "--site-name LADT";
 //			String argStr = "--site-id 20";
 			argStr += " --gmpe-dir /home/kevin/CyberShake/MCER/gmpe_cache_gen/mcer_binary_results_2017_07_27";
@@ -1116,7 +1120,7 @@ public class UGMS_WebToolCalc {
 			argStr += " --z25-file /home/kevin/workspace/opensha-commons/src/resources/data/site/CVM4i26/depth_2.5.bin";
 			argStr += " --output-dir /tmp/ugms_web_tool";
 //			argStr += " --vs30 987";
-//			argStr += " --class E";
+			argStr += " --class C";
 //			argStr += " --class D_default";
 			argStr += " --gmpe-erf UCERF3";
 			argStr += " --wills-file /data/kevin/opensha/wills2015.flt";

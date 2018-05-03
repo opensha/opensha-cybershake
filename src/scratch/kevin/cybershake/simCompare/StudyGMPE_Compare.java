@@ -52,6 +52,7 @@ import org.opensha.sha.imr.param.SiteParams.DepthTo1pt0kmPerSecParam;
 import org.opensha.sha.imr.param.SiteParams.DepthTo2pt5kmPerSecParam;
 import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
 import org.opensha.sha.imr.param.SiteParams.Vs30_TypeParam;
+import org.opensha.sha.simulators.utils.RSQSimSubSectEqkRupture;
 import org.opensha.sha.util.SiteTranslator;
 
 import com.google.common.base.Joiner;
@@ -61,6 +62,7 @@ import com.google.common.primitives.Doubles;
 import scratch.kevin.bbp.BBP_Module.VelocityModel;
 import scratch.kevin.simCompare.MultiRupGMPE_ComparePageGen;
 import scratch.kevin.simCompare.RuptureComparison;
+import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
 import scratch.kevin.util.MarkdownUtils;
 
 public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
@@ -306,9 +308,14 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 				for (int rupID=0; rupID<csRups[sourceID].length; rupID++) {
 					if (allAmps[sourceID][rupID] != null) {
 						int numRVs = allAmps[sourceID][rupID].length;
-						if (csRups[sourceID][rupID] == null)
-							csRups[sourceID][rupID] = new CSRupture(erfID, rvScenID, sourceID, rupID,
-									source.getRupture(rupID), numRVs);
+						if (csRups[sourceID][rupID] == null) {
+							ProbEqkRupture rup = source.getRupture(rupID);
+							if (rup instanceof RSQSimProbEqkRup)
+								csRups[sourceID][rupID] = new CSRupture(erfID, rvScenID, sourceID, rupID, rup, numRVs,
+										((RSQSimProbEqkRup)rup).getTimeYears());
+							else
+								csRups[sourceID][rupID] = new CSRupture(erfID, rvScenID, sourceID, rupID, rup, numRVs);
+						}
 						else
 							Preconditions.checkState(numRVs == csRups[sourceID][rupID].getNumRVs());
 						siteRups.add(csRups[sourceID][rupID]);
@@ -382,6 +389,11 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			} else if (!rupture.equals(other.rupture))
 				return false;
 			return true;
+		}
+
+		@Override
+		public double getRuptureTimeYears() {
+			return rupture.getRuptureTimeYears();
 		}
 		
 	}
@@ -543,10 +555,13 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		List<CyberShakeStudy> studies = new ArrayList<>();
 		List<Vs30_Source> vs30s = new ArrayList<>();
 		
+		studies.add(CyberShakeStudy.STUDY_18_4_RSQSIM_2585);
+		vs30s.add(Vs30_Source.Simulation);
+		
 //		studies.add(CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457);
 //		vs30s.add(Vs30_Source.Simulation);
-		studies.add(CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457);
-		vs30s.add(Vs30_Source.Simulation);
+//		studies.add(CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457);
+//		vs30s.add(Vs30_Source.Simulation);
 		
 //		studies.add(CyberShakeStudy.STUDY_17_3_3D);
 //		vs30s.add(Vs30_Source.Simulation);
@@ -564,7 +579,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		AttenRelRef primaryGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS; // this one will include highlight sites
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
 //				AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
-		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };
+		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
 		
 //		double[] periods = { 2, 3, 5 };
 //		double[] rotDPeriods = { 2, 3, 5, 7.5, 10 };

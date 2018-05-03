@@ -16,16 +16,22 @@ public class CSRupture {
 	private ProbEqkRupture rup;
 	private int numRVs;
 	private double rate;
+	private double timeYears;
 	
 	private Location[] hypos;
 	
 	public CSRupture(int erfID, int rvScenID, int sourceID, int rupID, ProbEqkRupture rup, int numRVs) {
+		this(erfID, rvScenID, sourceID, rupID, rup, numRVs, Double.NaN);
+	}
+	
+	public CSRupture(int erfID, int rvScenID, int sourceID, int rupID, ProbEqkRupture rup, int numRVs, double timeYears) {
 		this.erfID = erfID;
 		this.rvScenID = rvScenID;
 		this.sourceID = sourceID;
 		this.rupID = rupID;
 		this.rup = rup;
 		this.numRVs = numRVs;
+		this.timeYears = timeYears;
 		rate = rup.getMeanAnnualRate(1d);
 	}
 
@@ -90,5 +96,9 @@ public class CSRupture {
 			}
 		}
 		return hypos[rv];
+	}
+	
+	public double getRuptureTimeYears() {
+		return timeYears;
 	}
 }

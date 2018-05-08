@@ -202,7 +202,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		return new LightweightBBP_CatalogSimZipLoader(new ZipFile(bbpZip), bbpSites, gmpeSites, durationYears);
 	}
 	
-	private static Table<String, CSRupture, Double> getSourceContribFracts(
+	static Table<String, CSRupture, Double> getSourceContribFracts(
 			AbstractERF erf, Collection<CSRupture> ruptures, RSQSimCatalog catalog) {
 		if (erf instanceof MeanUCERF2) {
 			Map<String, List<Integer>> sourceNameToIDs = MeanUCERF2_ToDB.getFaultsToSourcesMap(erf);
@@ -298,7 +298,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		String[] siteNames = { "USC" };
 		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
 		
-		boolean replotCurves = true;
+		boolean replotCurves = false;
 		boolean replotDisaggs = false;
 		
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };

@@ -270,6 +270,7 @@ public enum CyberShakeStudy {
 		Table<String, Vs30_Source, List<String>> siteHazardLinksTable = HashBasedTable.create();
 		Table<String, Vs30_Source, List<String>> siteHazardNamesTable = HashBasedTable.create();
 		
+		Map<Vs30_Source, String> sourceSiteLinksMap = new HashMap<>();
 		String rotDDLink = null;
 		
 		File[] dirList = dir.listFiles();
@@ -314,6 +315,12 @@ public enum CyberShakeStudy {
 				
 				siteHazardLinksTable.get(gmpeName, vs30).add(name);
 				siteHazardNamesTable.get(gmpeName, vs30).add(siteName);
+			} else if (name.startsWith("source_site_comparisons_")) {
+				String vs30Name = name.substring(name.indexOf("_Vs30")+5);
+				Vs30_Source vs30 = Vs30_Source.valueOf(vs30Name);
+				Preconditions.checkNotNull(vs30);
+				
+				sourceSiteLinksMap.put(vs30, name);
 			}
 		}
 		
@@ -349,6 +356,22 @@ public enum CyberShakeStudy {
 				
 				for (int i=0; i<siteNames.size(); i++)
 					lines.add("* ["+siteNames.get(i)+"]("+siteLinks.get(i)+"/)");
+			}
+		}
+		if (!sourceSiteLinksMap.isEmpty()) {
+			lines.add("");
+			lines.add("## Source/Site Ground Motion Comparisons");
+			lines.add(topLink);
+			lines.add("");
+			for (Vs30_Source vs30 : sourceSiteLinksMap.keySet()) {
+				String link = sourceSiteLinksMap.get(vs30);
+				if (sourceSiteLinksMap.size() > 1) {
+					lines.add("### Vs30 model: "+vs30);
+					lines.add("");
+					lines.add("* [Source/Site Ground Motion Comparisons with Vs30 from "+vs30+"]("+link+"/)");
+				} else {
+					lines.add("[Source/Site Ground Motion Comparisons Here]("+link+"/)");
+				}
 			}
 		}
 		if (rotDDLink != null) {

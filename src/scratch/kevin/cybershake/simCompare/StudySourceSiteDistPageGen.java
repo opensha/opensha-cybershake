@@ -180,12 +180,12 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		}
 		
 		List<List<CSRupture>> rupsForSources = getRupturesForSoruces(sourceNames, parentIDs, study.getERF(), csRups);
-		Table<AttenRelRef, String, List<? extends RuptureComparison<CSRupture>>> sourceCompsTable = HashBasedTable.create();
+		Table<AttenRelRef, String, List<RuptureComparison<CSRupture>>> sourceCompsTable = HashBasedTable.create();
 		for (int i=0; i<sourceNames.size(); i++) {
 			HashSet<CSRupture> rups = new HashSet<>(rupsForSources.get(i));
 			for (AttenRelRef gmpeRef : gmpeComps.keySet()) {
-				List<CSRuptureComparison> sourceComps = new ArrayList<>();
-				for (CSRuptureComparison comp : gmpeComps.get(gmpeRef))
+				List<RuptureComparison<CSRupture>> sourceComps = new ArrayList<>();
+				for (RuptureComparison<CSRupture> comp : gmpeComps.get(gmpeRef))
 					if (rups.contains(comp.getRupture()))
 						sourceComps.add(comp);
 				sourceCompsTable.put(gmpeRef, sourceNames.get(i), sourceComps);

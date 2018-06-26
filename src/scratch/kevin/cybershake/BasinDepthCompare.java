@@ -71,15 +71,15 @@ public class BasinDepthCompare {
 		modelNames.add("CCA UCVM-Py, Scott");
 		modelPrefixes.add("cca_25_ucvm_py_scott");
 		
-		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z2.5_final.firstOrSecond")));
+		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z2.5_nGTL.firstOrSecond")));
 		modelNames.add("CCA UCVMC, First Or Second Crossing");
 		modelPrefixes.add("cca_25_ucvmc_first_or_second");
 		
-		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z2.5_final.last")));
+		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z2.5_nGTL.last")));
 		modelNames.add("CCA UCVMC, Last Crossing");
 		modelPrefixes.add("cca_25_ucvmc_last");
 		
-		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z2.5_final.first")));
+		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z2.5_nGTL.first")));
 		modelNames.add("CCA UCVMC, First Crossing");
 		modelPrefixes.add("cca_25_ucvmc_first");
 		

@@ -10,7 +10,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.commons.math3.stat.StatUtils;
+import org.apache.commons.math3.stat.descriptive.SummaryStatistics;
 import org.jfree.data.Range;
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
@@ -88,6 +90,11 @@ public class NorthridgeCSComparison {
 		List<String> siteNames = Lists.newArrayList("P1", "P23", "SMCA", "CCP", "P18",
 				"LADT", "USC", "COO", "s387", "s478");
 		
+		Color[] gmpeColors = { Color.RED.brighter(), Color.YELLOW.brighter(),
+				Color.CYAN.brighter(), Color.MAGENTA.brighter() };
+		double gmpeTruncLevel = 3;
+		double gmpeHistDelta = 0.001;
+		
 		CSVFile<String> csv = CSVFile.readFile(new File(mainDir, "Northridge.csv"), true);
 		List<Record> records = Lists.newArrayList();
 		for (int row=1; row<csv.getNumRows(); row++) {
@@ -117,7 +124,7 @@ public class NorthridgeCSComparison {
 		
 		DBAccess db = null;
 		try {
-			db = Cybershake_OpenSHA_DBApplication.getDB();
+			db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME);
 			ERF erf = MeanUCERF2_ToDB.createUCERF2ERF();
 			List<Integer> rupIDs = Lists.newArrayList();
 			ProbEqkSource source = erf.getSource(sourceID);
@@ -224,8 +231,8 @@ public class NorthridgeCSComparison {
 					for (Point2D pt : csFunc)
 						csHist.add(pt.getX(), pt.getY());
 //					// convert to density
-//					csHist.scale(1d/(csHistDelta*csHist.calcSumOfY_Vals()));
-					csHist.normalizeBySumOfY_Vals();
+					csHist.scale(1d/(csHistDelta*csHist.calcSumOfY_Vals()));
+//					csHist.normalizeBySumOfY_Vals();
 					Range yRange = new Range(0, csHist.getMaxY()*1.2);
 					
 					double csMean = logAverage(csAmps)/HazardCurveComputation.CONVERSION_TO_G;
@@ -233,36 +240,67 @@ public class NorthridgeCSComparison {
 					csMeanXY.set(csMean, 0d);
 					csMeanXY.set(csMean, yRange.getUpperBound());
 					
-					List<Double> gmpeVals = Lists.newArrayList();
-					for (ScalarIMR gmpe : gmpes) {
-						SA_Param.setPeriodInSA_Param(gmpe.getIntensityMeasure(), period);
-						gmpe.setSite(site);
-						for (int rupID : rupIDs) {
-							ProbEqkRupture rup = source.getRupture(rupID);
-							gmpe.setEqkRupture(rup);
-							double mean = Math.exp(gmpe.getMean());
-							gmpeVals.add(mean);
-						}
-					}
-					double gmpeMean = logAverage(gmpeVals);
-					XY_DataSet gmpeMeanXY = new DefaultXY_DataSet();
-					gmpeMeanXY.set(gmpeMean, 0d);
-					gmpeMeanXY.set(gmpeMean, yRange.getUpperBound());
-					
 					List<XY_DataSet> funcs = Lists.newArrayList();
 					List<PlotCurveCharacterstics> chars = Lists.newArrayList();
 					
 					funcs.add(csHist);
-					chars.add(new PlotCurveCharacterstics(PlotLineType.HISTOGRAM, 1f, Color.DARK_GRAY));
+					chars.add(new PlotCurveCharacterstics(PlotLineType.HISTOGRAM, 1f, Color.GRAY));
 					csHist.setName("CS Distribution");
 					
+					for (int g=0; g<gmpes.size(); g++) {
+						ScalarIMR gmpe = gmpes.get(g);
+						SA_Param.setPeriodInSA_Param(gmpe.getIntensityMeasure(), period);
+						gmpe.setSite(site);
+						List<NormalDistribution> dists = new ArrayList<>();
+						SummaryStatistics stats = new SummaryStatistics();
+						double gmpeMean = 0d;
+						for (int rupID : rupIDs) {
+							ProbEqkRupture rup = source.getRupture(rupID);
+							gmpe.setEqkRupture(rup);
+							double logMean = gmpe.getMean();
+							double stdDev = gmpe.getStdDev();
+							stats.addValue(logMean - gmpeTruncLevel*stdDev);
+							stats.addValue(logMean + gmpeTruncLevel*stdDev);
+							dists.add(new NormalDistribution(logMean, stdDev));
+							gmpeMean += logMean;
+						}
+						gmpeMean = Math.exp(gmpeMean/dists.size());
+						
+						double max = Math.exp(stats.getMax());
+						double min = Math.exp(stats.getMin());
+						HistogramFunction gmpeHist = HistogramFunction.getEncompassingHistogram(min, max, gmpeHistDelta);
+						double scalar = 1d/(gmpeHistDelta*dists.size());
+//						double scalar = gmpeHistDelta/dists.size();
+//						double scalar = 1d/dists.size();
+						for (NormalDistribution dist : dists) {
+							for (int h=0; h<gmpeHist.size(); h++) {
+								double binCenter = gmpeHist.getX(h);
+								double start = binCenter - 0.5*gmpeHistDelta;
+								double end = binCenter + 0.5*gmpeHistDelta;
+								// now to ln
+								start = Math.log(start);
+								end = Math.log(end);
+								dist.probability(start, end);
+								gmpeHist.add(h, dist.probability(start, end)*scalar);
+							}
+						}
+						gmpeHist.setName(gmpe.getShortName());
+						funcs.add(gmpeHist);
+						chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 4f, gmpeColors[g % gmpeColors.length]));
+						XY_DataSet gmpeMeanXY = new DefaultXY_DataSet();
+						gmpeMeanXY.set(gmpeMean, 0d);
+						gmpeMeanXY.set(gmpeMean, gmpeHist.getInterpolatedY(gmpeMean));
+						funcs.add(gmpeMeanXY);
+						chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 4f, gmpeColors[g % gmpeColors.length]));
+					}
+					
 					funcs.add(csMeanXY);
-					chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.BLACK));
+					chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 6f, Color.BLACK));
 					csMeanXY.setName("CS Log-Mean: "+df.format(csMean));
 					
-					funcs.add(gmpeMeanXY);
-					chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.BLUE));
-					gmpeMeanXY.setName("GMPE Log-Mean: "+df.format(gmpeMean));
+//					funcs.add(gmpeMeanXY);
+//					chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.BLUE));
+//					gmpeMeanXY.setName("GMPE Log-Mean: "+df.format(gmpeMean));
 					
 					List<Integer> recordIDs = Lists.newArrayList();
 					
@@ -275,7 +313,7 @@ public class NorthridgeCSComparison {
 						recordingXY.set(recording, yRange.getUpperBound());
 						
 						funcs.add(recordingXY);
-						chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.GREEN.darker()));
+						chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 6f, Color.GREEN.darker()));
 						recordingXY.setName("Record "+record.id+": "+df.format(recording)+" g ("+df.format(dist)+" km)");
 						
 						recordIDs.add(record.id);
@@ -298,7 +336,7 @@ public class NorthridgeCSComparison {
 					
 					String title = sourceName+", "+csSiteName+"/"+recName;
 					
-					PlotSpec spec = new PlotSpec(funcs, chars, title, periodStr+"s SA", "");
+					PlotSpec spec = new PlotSpec(funcs, chars, title, periodStr+"s SA", "   ");
 					spec.setLegendVisible(true);
 					
 					HeadlessGraphPanel gp = new HeadlessGraphPanel();
@@ -310,10 +348,11 @@ public class NorthridgeCSComparison {
 					Range xRange = null;
 					if (forceXRanges != null && forceXRanges.size() > p)
 						xRange = forceXRanges.get(p);
-					if (xRange == null || xRange.getUpperBound() < myMax)
+					if (xRange == null || (forceXRanges == null && xRange.getUpperBound() < myMax))
 						xRange = new Range(0d, maxVals.get(p)*1.1);
 					
 					gp.drawGraphPanel(spec, false, false, xRange, yRange);
+					gp.getYAxis().setTickLabelsVisible(false);
 					gp.getChartPanel().setSize(1000, 800);
 					String fName = sourceName+"_"+csSiteName+"_"+Joiner.on("_").join(recordIDs)+"_"+(int)period+"s_"+comp.getShortName();
 					gp.saveAsPNG(new File(subDir, fName+".png").getAbsolutePath());

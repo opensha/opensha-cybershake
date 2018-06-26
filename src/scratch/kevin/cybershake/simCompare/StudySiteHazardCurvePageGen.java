@@ -269,40 +269,43 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		/*
 		 * For RSQSim studies
 		 */
-////		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457;
-////		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_12-rundir2457-all-m6.5-skipYears5000-noHF-standardSites");
-////		RSQSimCatalog catalog = Catalogs.BRUCE_2457.instance(new File("/data/kevin/simulators/catalogs"));
-//		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
-//		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_13-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-csLASites");
-//		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(new File("/data/kevin/simulators/catalogs"));
-//		
-//		Vs30_Source vs30Source = Vs30_Source.Simulation;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457;
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_12-rundir2457-all-m6.5-skipYears5000-noHF-standardSites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_2457.instance(new File("/data/kevin/simulators/catalogs"));
+		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
+		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_13-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-csLASites");
+		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(new File("/data/kevin/simulators/catalogs"));
+		
+		Vs30_Source vs30Source = Vs30_Source.Simulation;
 //		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
-//		double catDurationYears = catalog.getDurationYears() - 5000d;
-//		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
+		CyberShakeStudy[] compStudies = {  };
+		double catDurationYears = catalog.getDurationYears() - 5000d;
+		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
 		
 		/*
 		 * For regular studies
 		 */
-		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
-		Vs30_Source vs30Source = Vs30_Source.Simulation;
-		CyberShakeStudy[] compStudies = { };
-		
-		RSQSimCatalog catalog = null;
-		File bbpDir = null;
-		double catDurationYears = -1;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+//		Vs30_Source vs30Source = Vs30_Source.Simulation;
+//		CyberShakeStudy[] compStudies = { };
+//		
+//		RSQSimCatalog catalog = null;
+//		File bbpDir = null;
+//		double catDurationYears = -1;
 		
 		boolean includeAleatoryStrip = true;
 		
 //		String[] siteNames = { "USC" };
-		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
+//		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
+		String[] siteNames = { "WNGC" };
 		
 		boolean replotCurves = false;
 		boolean replotDisaggs = false;
 		
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
-		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };
+//		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };
+		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 		double[] periods = { 3, 5, 7.5, 10 };
 		CybershakeIM[] rd50_ims = new PeakAmplitudesFromDB(study.getDB()).getIMs(Doubles.asList(periods),
 				IMType.SA, CyberShakeComponent.RotD50).toArray(new CybershakeIM[0]);

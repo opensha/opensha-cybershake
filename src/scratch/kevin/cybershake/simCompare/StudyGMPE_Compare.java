@@ -555,8 +555,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		List<CyberShakeStudy> studies = new ArrayList<>();
 		List<Vs30_Source> vs30s = new ArrayList<>();
 		
-//		studies.add(CyberShakeStudy.STUDY_18_4_RSQSIM_2585);
-//		vs30s.add(Vs30_Source.Simulation);
+		studies.add(CyberShakeStudy.STUDY_18_4_RSQSIM_2585);
+		vs30s.add(Vs30_Source.Simulation);
 		
 //		studies.add(CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457);
 //		vs30s.add(Vs30_Source.Simulation);
@@ -568,8 +568,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_17_3_3D);
 //		vs30s.add(Vs30_Source.Wills2015);
 		
-		studies.add(CyberShakeStudy.STUDY_17_3_1D);
-		vs30s.add(Vs30_Source.Simulation);
+//		studies.add(CyberShakeStudy.STUDY_17_3_1D);
+//		vs30s.add(Vs30_Source.Simulation);
 		
 //		studies.add(CyberShakeStudy.STUDY_15_4);
 //		vs30s.add(Vs30_Source.Simulation);
@@ -582,10 +582,11 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 		
-		double[] periods = { 2, 3, 5 };
-		double[] rotDPeriods = { 2, 3, 5, 7.5, 10 };
-//		double[] periods = { 3, 5, 10 };
-//		double[] rotDPeriods = { 3, 5, 7.5, 10 };
+//		double[] periods = { 2, 3, 5 };
+//		double[] rotDPeriods = { 2, 3, 5, 7.5, 10 };
+		double[] periods = { 3, 5, 10 };
+//		double[] periods = { 3 };
+		double[] rotDPeriods = { 3, 5, 7.5, 10 };
 		double minMag = 6;
 		
 		boolean doGMPE = true;
@@ -619,11 +620,11 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 				highlightSiteNames.add("USC");
 				highlightSiteNames.add("SBSM");
 				highlightSiteNames.add("PAS");
-				highlightSiteNames.add("COO");
+//				highlightSiteNames.add("COO");
 				highlightSiteNames.add("WNGC");
 				highlightSiteNames.add("LAPD");
-				highlightSiteNames.add("SMCA");
-				highlightSiteNames.add("FIL");
+				highlightSiteNames.add("STNI");
+//				highlightSiteNames.add("FIL");
 			}
 			HashSet<String> limitSiteNames;
 			if (limitToHighlight)

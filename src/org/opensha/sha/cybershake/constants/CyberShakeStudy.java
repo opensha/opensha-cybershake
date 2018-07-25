@@ -273,6 +273,8 @@ public enum CyberShakeStudy {
 		Map<Vs30_Source, String> sourceSiteLinksMap = new HashMap<>();
 		String rotDDLink = null;
 		
+		String study_3d_vs_1d_link = null;
+		
 		File[] dirList = dir.listFiles();
 		Arrays.sort(dirList, new FileNameComparator());
 		for (File subDir : dirList) {
@@ -321,6 +323,8 @@ public enum CyberShakeStudy {
 				Preconditions.checkNotNull(vs30);
 				
 				sourceSiteLinksMap.put(vs30, name);
+			} else if (name.equals("3d_1d_comparison")) {
+				study_3d_vs_1d_link = name;
 			}
 		}
 		
@@ -380,6 +384,13 @@ public enum CyberShakeStudy {
 			lines.add(topLink);
 			lines.add("");
 			lines.add("[RotD100/RotD50 Ratios Plotted Here]("+rotDDLink+"/)");
+		}
+		if (study_3d_vs_1d_link != null) {
+			lines.add("");
+			lines.add("## 3-D vs 1-D Comparisons");
+			lines.add(topLink);
+			lines.add("");
+			lines.add("[3-D vs 1-D Comparisons Plotted Here]("+study_3d_vs_1d_link+"/)");
 		}
 		
 		File resourcesDir = new File(dir, "resources");

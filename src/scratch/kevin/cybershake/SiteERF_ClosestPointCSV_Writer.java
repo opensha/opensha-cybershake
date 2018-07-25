@@ -26,7 +26,7 @@ import org.opensha.sha.earthquake.ProbEqkSource;
 public class SiteERF_ClosestPointCSV_Writer {
 
 	public static void main(String[] args) throws IOException, InterruptedException, ExecutionException {
-		DBAccess db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME);
+		DBAccess db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
 		
 		SiteInfo2DB sites2db = new SiteInfo2DB(db);
 		List<CybershakeSite> sites = sites2db.getAllSitesFromDB();

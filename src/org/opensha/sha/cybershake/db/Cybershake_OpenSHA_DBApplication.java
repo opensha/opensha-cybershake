@@ -439,7 +439,7 @@ public class Cybershake_OpenSHA_DBApplication {
 		
 		// for RSQSim
 		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
-		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(localBaseDir);
+		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance(localBaseDir);
 		double minMag = 6.5;
 		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
 		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
@@ -508,6 +508,9 @@ public class Cybershake_OpenSHA_DBApplication {
 		sites.add(sites2db.getSiteFromDB("WNGC"));
 		sites.add(sites2db.getSiteFromDB("STNI"));
 		sites.add(sites2db.getSiteFromDB("LAPD"));
+		sites.add(sites2db.getSiteFromDB("s119"));
+		sites.add(sites2db.getSiteFromDB("s279"));
+		sites.add(sites2db.getSiteFromDB("s480"));
 //		sites.add(sites2db.getSiteFromDB("OSI"));
 //		sites.add(sites2db.getSiteFromDB("PARK"));
 		

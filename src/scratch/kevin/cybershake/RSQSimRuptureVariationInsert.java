@@ -21,13 +21,14 @@ public class RSQSimRuptureVariationInsert {
 
 	public static void main(String[] args) throws IOException {
 		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
-		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(localBaseDir);
+		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance(localBaseDir);
+		int erfID = 49; // THIS ID MUST MATCH!
+		
 		double minMag = 6.5;
 		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
 		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
 				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
 		
-		int erfID = 48;
 		int rupVarScenID = 8;
 		
 		erf.updateForecast();

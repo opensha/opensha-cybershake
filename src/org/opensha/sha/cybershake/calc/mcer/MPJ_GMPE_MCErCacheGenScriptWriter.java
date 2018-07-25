@@ -40,8 +40,8 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 	private static final String args_continue_newline = " "; // for MPJ Express
 
 	public static void main(String[] args) throws IOException {
-		int mins = 60*48;
-		int nodes = 16;
+		int mins = 60*48*5;
+		int nodes = 36;
 		int memGigs = 50;
 		String queue = "scec";
 		int ppn = 20;
@@ -54,10 +54,13 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 		
 		boolean fmpj = false;
 		
-		Map<String, Double> vs30Map = new HashMap<>(UGMS_WebToolCalc.vs30Map);
-		vs30Map.remove("D_default"); // calculated after the fact
+//		Map<String, Double> vs30Map = new HashMap<>(UGMS_WebToolCalc.vs30Map);
+//		double spacing = 0.02;
+		Map<String, Double> vs30Map = new HashMap<>();
+		vs30Map.put("Wills", UGMS_WebToolCalc.vs30Map.get("Wills"));
+		double spacing = 0.001;
 		
-		double spacing = 0.02;
+		vs30Map.remove("D_default"); // calculated after the fact
 		
 		GriddedRegion reg = new CaliforniaRegions.CYBERSHAKE_MAP_GRIDDED(spacing);
 		

@@ -71,6 +71,7 @@ import scratch.UCERF3.erf.ETAS.FaultSystemSolutionERF_ETAS;
 import scratch.UCERF3.erf.ETAS.IntegerPDF_FunctionSampler;
 import scratch.UCERF3.erf.ETAS.ETAS_Params.ETAS_ParameterList;
 import scratch.UCERF3.erf.ETAS.ETAS_Params.U3ETAS_ProbabilityModelOptions;
+import scratch.UCERF3.erf.ETAS.launcher.ETAS_Launcher;
 import scratch.UCERF3.erf.utils.ProbabilityModelsCalc;
 import scratch.UCERF3.griddedSeismicity.AbstractGridSourceProvider;
 import scratch.UCERF3.utils.FaultSystemIO;
@@ -1236,7 +1237,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		// the following makes me feel dirty and sad
 		GriddedRegion griddedRegion = RELM_RegionUtils.getGriddedRegionInstance();
 		double duration = timeSpan.getTimeYears();
-		FaultSystemSolutionERF_ETAS erf = MPJ_ETAS_Simulator.buildERF(sol, false, duration);
+		FaultSystemSolutionERF_ETAS erf = ETAS_Launcher.buildERF(sol, false, duration, 2014);
 		erf.updateForecast();
 		double sourceRates[] = new double[erf.getNumSources()];
 		for(int s=0;s<erf.getNumSources();s++) {

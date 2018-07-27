@@ -14,6 +14,7 @@ import scratch.UCERF3.erf.ETAS.ETAS_EqkRupture;
 import scratch.UCERF3.erf.ETAS.ETAS_Simulator;
 import scratch.UCERF3.erf.ETAS.FaultSystemSolutionERF_ETAS;
 import scratch.UCERF3.erf.ETAS.ETAS_Params.ETAS_ParameterList;
+import scratch.UCERF3.erf.ETAS.launcher.ETAS_Launcher;
 import scratch.UCERF3.erf.utils.ProbabilityModelsCalc;
 import scratch.UCERF3.griddedSeismicity.AbstractGridSourceProvider;
 import scratch.UCERF3.utils.FaultSystemIO;
@@ -26,7 +27,7 @@ public class ReproduceTest {
 		File csDir = new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/");
 		FaultSystemSolution fss = FaultSystemIO.loadSol(new File(csDir, "ucerf2_mapped_sol.zip"));
 		File resultsDir = new File("/tmp");
-		FaultSystemSolutionERF_ETAS erf = MPJ_ETAS_Simulator.buildERF(fss, false, 1d);
+		FaultSystemSolutionERF_ETAS erf = ETAS_Launcher.buildERF(fss, false, 1d, 2014);
 		GriddedRegion reg = new CaliforniaRegions.RELM_GRIDDED();
 		
 		long randSeed = 1408453138855l;

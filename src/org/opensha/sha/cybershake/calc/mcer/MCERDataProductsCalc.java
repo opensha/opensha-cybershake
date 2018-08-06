@@ -27,6 +27,7 @@ import org.apache.poi.ss.usermodel.FormulaEvaluator;
 import org.dom4j.DocumentException;
 import org.jfree.data.Range;
 import org.opensha.commons.data.CSVFile;
+import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
@@ -57,6 +58,8 @@ import org.opensha.sha.calc.mcer.MCErCalcUtils;
 import org.opensha.sha.calc.mcer.WeightProvider;
 import org.opensha.sha.calc.mcer.WeightedAverageMCErDeterministicCalc;
 import org.opensha.sha.calc.mcer.WeightedAverageMCErProbabilisticCalc;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.calc.HazardDecompositionPlotter;
 import org.opensha.sha.cybershake.calc.RupProbModERF;
@@ -313,17 +316,10 @@ public class MCERDataProductsCalc {
 		File runOutputDir = new File(outputDir, csSite.short_name+"_run"+run.getRunID());
 		Preconditions.checkState(runOutputDir.exists() && runOutputDir.isDirectory() || runOutputDir.mkdir());
 		
-		CyberShakeSiteRun site = new CyberShakeSiteRun(csSite, run);
+		Site gmpeSite = new CyberShakeSiteBuilder(Vs30_Source.Wills2015, run.getVelModelID()).buildSite(run, csSite);
 		
-		// load in site data
-		OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(run.getVelModelID());
-		ParameterList siteParams = getSiteParams(gmpes);
-		SiteTranslator siteTrans = new SiteTranslator();
-		List<SiteDataValue<?>> datas = provs.getBestAvailableData(site.getLocation());
-		for (Parameter<?> param : siteParams) {
-			siteTrans.setParameterValue(param, datas);
-			site.addParameter(param);
-		}
+		CyberShakeSiteRun site = new CyberShakeSiteRun(csSite, run);
+		site.addParameterList(gmpeSite);
 		
 		// calc CyberShake deterministic
 		System.out.println("Calculating CyberShake Values");

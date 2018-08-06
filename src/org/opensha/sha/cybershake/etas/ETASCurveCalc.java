@@ -11,6 +11,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -58,6 +59,8 @@ import org.opensha.sha.calc.hazardMap.BinaryHazardCurveReader;
 import org.opensha.sha.calc.hazardMap.BinaryHazardCurveWriter;
 import org.opensha.sha.calc.hazardMap.HazardCurveSetCalculator;
 import org.opensha.sha.calc.hazardMap.HazardDataSetLoader;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.HazardCurveFetcher;
 import org.opensha.sha.cybershake.ModProbConfig;
 import org.opensha.sha.cybershake.bombay.ModProbConfigFactory;
@@ -144,6 +147,7 @@ public class ETASCurveCalc {
 	
 	private List<CybershakeSite> sites;
 	private List<Integer> refCurveIDs;
+	private Map<CybershakeSite, CybershakeRun> siteRunMap;
 	
 	private HazardCurve2DB curve2db;
 	private Runs2DB runs2db;
@@ -265,6 +269,8 @@ public class ETASCurveCalc {
 		
 		List<CalcTask> calcTasks = Lists.newArrayList();
 		
+		siteRunMap = new HashMap<>();
+		
 		for (int i = 0; i < sites.size(); i++) {
 			CybershakeSite site = sites.get(i);
 			int refCurveID = refCurveIDs.get(i);
@@ -305,6 +311,7 @@ public class ETASCurveCalc {
 					}
 				}
 			}
+			siteRunMap.put(site, run);
 			if (func == null) {
 				// have to calculate
 				if (calc == null) {
@@ -504,6 +511,8 @@ public class ETASCurveCalc {
 			
 			String labelAdd = ", "+(float)val+"G "+imLabel;
 			
+			final CyberShakeSiteBuilder siteBuilder = new CyberShakeSiteBuilder(Vs30_Source.Wills2015, velModelID);
+			
 			final ERF gmpeERF = conf.getModERFforGMPE(gmpe_directivity);
 			
 			final List<Parameter<?>> siteParams = Lists.newArrayList();
@@ -511,9 +520,6 @@ public class ETASCurveCalc {
 				siteParams.add((Parameter<?>) param.clone());
 			
 			final DiscretizedFunc xVals = IMT_Info.getUSGS_SA_Function();
-			
-			final OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(velModelID);
-			final SiteTranslator trans = new SiteTranslator();
 			
 			final Map<Location, ArbitrarilyDiscretizedFunc> curvesToBeWritten = Maps.newHashMap();
 			
@@ -555,13 +561,7 @@ public class ETASCurveCalc {
 							} else {
 								System.out.println("Calculating GMPE for: "+site.name);
 								// create site with site params
-								Site gmpeSite = new Site(loc);
-								ArrayList<SiteDataValue<?>> datas = provs.getBestAvailableData(gmpeSite.getLocation());
-								for (Parameter<?> param : siteParams) {
-									param = (Parameter<?>) param.clone();
-									trans.setParameterValue(param, datas);
-									gmpeSite.addParameter(param);
-								}
+								Site gmpeSite = siteBuilder.buildSite(siteRunMap.get(site), site);
 								
 								// now calculate
 								func = HazardCurveSetCalculator.getLogFunction(xVals);
@@ -944,20 +944,10 @@ public class ETASCurveCalc {
 			gmpeCalc = new ScenarioShakeMapCalculator();
 			gmpeSites = Lists.newArrayList();
 			
-			List<Parameter<?>> siteParams = Lists.newArrayList();
-			for (Parameter<?> param : imr.getSiteParams())
-				siteParams.add((Parameter<?>) param.clone());
+			CyberShakeSiteBuilder siteBuilder = new CyberShakeSiteBuilder(Vs30_Source.Wills2015, velModelID);
 			
-			OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(velModelID);
-			SiteTranslator trans = new SiteTranslator();
 			for (CybershakeSite site : sites) {
-				Site gmpeSite = new Site(site.createLocation());
-				ArrayList<SiteDataValue<?>> datas = provs.getBestAvailableData(gmpeSite.getLocation());
-				for (Parameter<?> param : siteParams) {
-					param = (Parameter<?>) param.clone();
-					trans.setParameterValue(param, datas);
-					gmpeSite.addParameter(param);
-				}
+				Site gmpeSite = siteBuilder.buildSite(siteRunMap.get(site), site);
 				gmpeSites.add(gmpeSite);
 			}
 		}

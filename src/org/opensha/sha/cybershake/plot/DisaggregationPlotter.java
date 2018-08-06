@@ -39,6 +39,8 @@ import org.opensha.sha.calc.params.MaxDistanceParam;
 import org.opensha.sha.calc.params.NonSupportedTRT_OptionsParam;
 import org.opensha.sha.calc.params.PtSrcDistanceCorrectionParam;
 import org.opensha.sha.calc.params.SetTRTinIMR_FromSourceParam;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
@@ -233,7 +235,10 @@ public class DisaggregationPlotter {
 			imlLevels = new ArrayList<Double>();
 		this.imlLevels = imlLevels;
 		this.csSite = site2db.getSiteFromDB(run.getSiteID());
-		this.site = new Site(csSite.createLocation());
+		CyberShakeSiteBuilder siteBuilder = new CyberShakeSiteBuilder(Vs30_Source.Wills2015, run.getVelModelID());
+		if (!Double.isNaN(forceVs30))
+			siteBuilder.setForceVs30(forceVs30);
+		this.site = siteBuilder.buildSite(run, csSite);
 		
 		erf = new CyberShakeWrapper_ERF(run.getERFID(), rawERF);
 		erf.updateForecast();
@@ -265,8 +270,6 @@ public class DisaggregationPlotter {
 	}
 	
 	public void disaggregate() throws IOException {
-		
-		List<SiteDataValue<?>> datas = null; // for comparisons if needed
 		
 		for (CybershakeIM im : ims) {
 			imr.setIM(im);
@@ -312,26 +315,12 @@ public class DisaggregationPlotter {
 			
 			// set up GMPE comparisons
 			if (gmpeComparisons != null && !gmpeComparisons.isEmpty()) {
-				if (datas == null) {
-					OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(run.getVelModelID());
-					datas = provs.getBestAvailableData(csSite.createLocation());
-					if (!Double.isNaN(forceVs30)) {
-						for (int i=datas.size(); --i>=0;)
-							if (datas.get(i).getDataType() == SiteData.TYPE_VS30)
-								datas.remove(i);
-						datas.add(0, new SiteDataValue<Double>(SiteData.TYPE_VS30,
-								SiteData.TYPE_FLAG_INFERRED, forceVs30));
-					}
-					for (AttenuationRelationship attenRel : gmpeComparisons)
-						for (Parameter<?> siteParam : attenRel.getSiteParams())
-							if (!site.containsParameter(siteParam))
-								site.addParameter((Parameter<?>)siteParam.clone());
-					SiteTranslator trans = new SiteTranslator();
-					for (Parameter<?> siteParam : site)
-						trans.setParameterValue(siteParam, datas);
-				}
 				for (AttenuationRelationship attenRel : gmpeComparisons)
-					HazardCurvePlotter.setAttenRelParams(attenRel, im, run, csSite, datas);
+					for (Parameter<?> siteParam : attenRel.getSiteParams())
+						if (!site.containsParameter(siteParam))
+							site.addParameter((Parameter<?>)siteParam.clone());
+				for (AttenuationRelationship attenRel : gmpeComparisons)
+					HazardCurvePlotter.setAttenRelParams(attenRel, im);
 			}
 			
 			for (double iml : myIMLevels) {

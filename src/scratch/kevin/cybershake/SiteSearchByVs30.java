@@ -11,6 +11,9 @@ import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.Runs2DB;
 import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
+
+import com.google.common.base.Preconditions;
+
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeSite;
 
@@ -34,7 +37,12 @@ public class SiteSearchByVs30 {
 		
 		for (int runID : runIDs) {
 			CybershakeRun run = run2db.getRun(runID);
-			double vs30 = run.getVs30();
+			Double vs30 = run.getMeshVs30();
+			if (vs30 == null) {
+				System.err.println("Warning, mesh Vs30 not defined, using model Vs30");
+				vs30 = run.getModelVs30();
+				Preconditions.checkNotNull(vs30, "Neither mesh nor model Vs30 defined!");
+			}
 			if (vs30 >= minVs30 && vs30 <= maxVs30)
 				matches.put(sites2db.getSiteFromDB(run.getSiteID()), vs30);
 		}

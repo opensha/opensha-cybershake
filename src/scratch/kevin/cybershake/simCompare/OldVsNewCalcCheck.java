@@ -14,6 +14,7 @@ import org.opensha.commons.geo.Location;
 import org.opensha.commons.gui.plot.GraphWindow;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotLineType;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CybershakeIM;
@@ -23,7 +24,6 @@ import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
 
 import com.google.common.primitives.Doubles;
 
-import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare.Vs30_Source;
 import scratch.kevin.simCompare.SimulationHazardCurveCalc;
 
 public class OldVsNewCalcCheck {

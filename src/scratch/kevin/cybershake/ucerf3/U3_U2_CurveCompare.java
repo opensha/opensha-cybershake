@@ -31,6 +31,7 @@ import org.opensha.sha.calc.params.MaxDistanceParam;
 import org.opensha.sha.calc.params.NonSupportedTRT_OptionsParam;
 import org.opensha.sha.calc.params.PtSrcDistanceCorrectionParam;
 import org.opensha.sha.calc.params.SetTRTinIMR_FromSourceParam;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
@@ -72,7 +73,7 @@ public class U3_U2_CurveCompare {
 		
 		CybershakeSite[] csSites = { sites2db.getSiteFromDB("COO"), sites2db.getSiteFromDB("PAS"), sites2db.getSiteFromDB("SBSM") };
 		int velModelID = 5;
-		OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(velModelID);
+		OrderedSiteDataProviderList provs = CyberShakeSiteBuilder.getMapBasinProviders(velModelID);
 		SiteTranslator trans = new SiteTranslator();
 		
 		Site[] sites = new Site[csSites.length];

@@ -37,8 +37,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.Files;
 
 import scratch.UCERF3.analysis.FaultBasedMapGen;
-import scratch.kevin.util.MarkdownUtils;
-import scratch.kevin.util.MarkdownUtils.TableBuilder;
+import org.opensha.commons.util.MarkdownUtils;
+import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 
 public class BasinDepthCompare {
 	
@@ -46,42 +46,68 @@ public class BasinDepthCompare {
 	
 	public static void main(String[] args) throws IOException, GMT_MapException {
 		File mainOutputDir = new File("/home/kevin/git/misc-research/basin_depth_compare");
+		File dataDir = new File("/home/kevin/CyberShake/basin");
 		
 		FaultBasedMapGen.LOCAL_MAPGEN = true;
-		boolean generateKML = false;
-		
-		String type = CVM4i26BasinDepth.TYPE_DEPTH_TO_2_5;
-		
-		File dataDir = new File("/home/kevin/CyberShake/basin");
+		boolean generateKML = true;
 		
 		List<SiteData<Double>> dataProvs = new ArrayList<>();
 		List<String> modelNames = new ArrayList<>();
 		List<String> modelPrefixes = new ArrayList<>();
 		
-		File outputDir = new File(mainOutputDir, "cca_3d_z25");
+//		String type = CVM4i26BasinDepth.TYPE_DEPTH_TO_2_5;
+//		
+//		File outputDir = new File(mainOutputDir, "cca_3d_z25");
+//		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
+//		File resourcesDir = new File(outputDir, "resources");
+//		Preconditions.checkState(resourcesDir.exists() || resourcesDir.mkdir());
+//		
+//		String title = "CCA-06 Z2.5";
+//		double dataMin = 0d;
+//		double dataMax = 10d;
+//		
+//		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca06_z25_map_full.bin")));
+//		modelNames.add("CCA UCVM-Py, Scott");
+//		modelPrefixes.add("cca_25_ucvm_py_scott");
+//		
+//		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z2.5_nGTL.firstOrSecond")));
+//		modelNames.add("CCA UCVMC, First Or Second Crossing");
+//		modelPrefixes.add("cca_25_ucvmc_first_or_second");
+//		
+//		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z2.5_nGTL.last")));
+//		modelNames.add("CCA UCVMC, Last Crossing");
+//		modelPrefixes.add("cca_25_ucvmc_last");
+//		
+//		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z2.5_nGTL.first")));
+//		modelNames.add("CCA UCVMC, First Crossing");
+//		modelPrefixes.add("cca_25_ucvmc_first");
+		
+		String type = CVM4i26BasinDepth.TYPE_DEPTH_TO_1_0;
+		
+		File outputDir = new File(mainOutputDir, "cca_3d_z10");
 		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
 		File resourcesDir = new File(outputDir, "resources");
 		Preconditions.checkState(resourcesDir.exists() || resourcesDir.mkdir());
 		
-		String title = "CCA-06 Z2.5";
+		String title = "CCA-06 Z1.0";
 		double dataMin = 0d;
-		double dataMax = 10d;
+		double dataMax = 2d;
 		
-		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca06_z25_map_full.bin")));
+		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca06_z10_map_full.bin")));
 		modelNames.add("CCA UCVM-Py, Scott");
-		modelPrefixes.add("cca_25_ucvm_py_scott");
+		modelPrefixes.add("cca_10_ucvm_py_scott");
 		
-		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z2.5_nGTL.firstOrSecond")));
+		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z1.0_nGTL.firstOrSecond")));
 		modelNames.add("CCA UCVMC, First Or Second Crossing");
-		modelPrefixes.add("cca_25_ucvmc_first_or_second");
+		modelPrefixes.add("cca_10_ucvmc_first_or_second");
 		
-		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z2.5_nGTL.last")));
+		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z1.0_nGTL.last")));
 		modelNames.add("CCA UCVMC, Last Crossing");
-		modelPrefixes.add("cca_25_ucvmc_last");
+		modelPrefixes.add("cca_10_ucvmc_last");
 		
-		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z2.5_nGTL.first")));
+		dataProvs.add(new CVM_CCAi6BasinDepth(type, new File(dataDir, "cca_z1.0_nGTL.first")));
 		modelNames.add("CCA UCVMC, First Crossing");
-		modelPrefixes.add("cca_25_ucvmc_first");
+		modelPrefixes.add("cca_10_ucvmc_first");
 		
 //		String type = CVM4i26BasinDepth.TYPE_DEPTH_TO_1_0;
 ////		File dataDir = new File("/home/kevin/CyberShake/basin");
@@ -102,7 +128,7 @@ public class BasinDepthCompare {
 //		double dataMin = 0d;
 //		double dataMax = 2d;
 		
-		double fullDiscr = 0.01;
+		double fullDiscr = 0.005;
 		double zoomDiscr = dataProvs.get(0).getResolution();
 		
 //		String willsPrefix = "wills2015_vs30_cca";

@@ -16,6 +16,8 @@ import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.hazardMap.HazardCurveSetCalculator;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.CybershakeSiteInfo2DB;
@@ -71,23 +73,14 @@ public class GMPEBackSeisCompare {
 		DiscretizedFunc xVals = new IMT_Info().getDefaultHazardCurve(gmpe.getIntensityMeasure());
 		DiscretizedFunc logXVals = HazardCurveSetCalculator.getLogFunction(xVals.deepClone());
 		
-		SiteTranslator trans = new SiteTranslator();
-		
 		for (int runID : runIDs) {
 			CybershakeRun run = run2db.getRun(runID);
 			int siteID = run.getSiteID();
 			CybershakeSite csSite = site2db.getSiteFromDB(siteID);
-			Location loc = csSite.createLocation();
 			
 			System.out.println("Doing "+csSite.short_name);
 			
-			Site site = new Site(loc);
-			
-			OrderedSiteDataProviderList providers =
-					HazardCurvePlotter.createProviders(run.getVelModelID());
-			
-			trans.setAllSiteParams(gmpe, providers.getBestAvailableData(loc));
-			site.addParameterList(gmpe.getSiteParams());
+			Site site = new CyberShakeSiteBuilder(Vs30_Source.Wills2015, run.getVelModelID()).buildSite(run, csSite);
 			
 			DiscretizedFunc totalHazard = calc.getAnnualizedRates(
 					HazardCurveSetCalculator.unLogFunction(xVals,

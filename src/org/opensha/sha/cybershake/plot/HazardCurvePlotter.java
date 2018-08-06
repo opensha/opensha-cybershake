@@ -85,6 +85,8 @@ import org.opensha.commons.util.ClassUtils;
 import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.sha.calc.HazardCurveCalculator;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.db.CybershakeHazardCurveRecord;
 import org.opensha.sha.cybershake.db.CybershakeIM;
@@ -164,13 +166,9 @@ public class HazardCurvePlotter {
 	
 	protected static SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy_MM_dd");
 	
-	private double manualVs30  = -1;
-	
 	private double currentPeriod = -1;
 	
 	private HazardCurvePlotCharacteristics plotChars = HazardCurvePlotCharacteristics.createRobPlotChars();
-	
-	private OrderedSiteDataProviderList dataProviders;
 	
 	private String user = "";
 	private String pass = "";
@@ -179,8 +177,7 @@ public class HazardCurvePlotter {
 	
 	private static DecimalFormat period_format = new DecimalFormat("0.##");
 	
-	private boolean useCVMVs30 = false;
-	private ConstantValueDataProvider<Double> forcedVs30 = null;
+	private CyberShakeSiteBuilder siteBuilder;
 	
 	public HazardCurvePlotter(DBAccess db) {
 		this.db = db;
@@ -231,154 +228,6 @@ public class HazardCurvePlotter {
 		
 		calc = new HazardCurveCalculator();
 		calc.setMaxSourceDistance(maxSourceDistance);
-	}
-	
-	public static List<SiteData<?>> getBBP_1D_Providers() {
-		ArrayList<SiteData<?>> providers = new ArrayList<SiteData<?>>();
-		
-		// BBP LA 1D model.
-		providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_2_5,
-				SiteData.TYPE_FLAG_INFERRED, 0.0225d, "BBP 1-D LA model", "BBP-1D"));
-		providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_1_0,
-				SiteData.TYPE_FLAG_INFERRED, 3.500d, "BBP 1-D LA model", "BBP-1D"));
-		providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_VS30,
-				SiteData.TYPE_FLAG_INFERRED, 843.189d, "BBP 1-D LA model Vs30", "BBP-1D"));
-		
-		return providers;
-	}
-	
-	public static List<SiteData<?>> getCCA_1D_Providers() {
-		ArrayList<SiteData<?>> providers = new ArrayList<SiteData<?>>();
-		
-		// CCA LA 1D model, via e-mail from David Gill 9/22/16
-		providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_1_0,
-				SiteData.TYPE_FLAG_INFERRED, 0.0d, "CCA 1-D model", "CCA-1D"));
-		providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_2_5,
-				SiteData.TYPE_FLAG_INFERRED, 5.5001d, "CCA 1-D model", "CCA-1D"));
-		providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_VS30,
-				SiteData.TYPE_FLAG_INFERRED, 2101d, "CCA 1-D model Vs30", "CCA-1D"));
-		
-		return providers;
-	}
-	
-	private OrderedSiteDataProviderList getProviders(int velModelID) {
-		if (dataProviders == null) {
-			dataProviders = createProviders(velModelID, useCVMVs30);
-			if (forcedVs30 != null) {
-				for (int i=dataProviders.size(); --i>=0;)
-					if (dataProviders.getProvider(i).getDataType().equals(SiteData.TYPE_VS30))
-						dataProviders.remove(i);
-				dataProviders.add(0, forcedVs30);
-			}
-		}
-
-		return dataProviders;
-	}
-	
-	public static OrderedSiteDataProviderList createProviders(int velModelID) {
-		return createProviders(velModelID, false);
-	}
-	
-	public static OrderedSiteDataProviderList createProviders(int velModelID, boolean useCVMVs30) {
-		ArrayList<SiteData<?>> providers = new ArrayList<SiteData<?>>();
-
-		if (velModelID == 6) {
-			// Hadley-Kanamori 1D model. Set to 0KM (as per e-mail from David Gill 1/17/14)
-			providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_2_5,
-					SiteData.TYPE_FLAG_INFERRED, 0d, "Hadley-Kanamori 1D model", "HK-1D"));
-			providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_1_0,
-					SiteData.TYPE_FLAG_INFERRED, 0d, "Hadley-Kanamori 1D model", "HK-1D"));
-			providers.add(new ConstantValueDataProvider<Double>(SiteData.TYPE_VS30,
-					SiteData.TYPE_FLAG_INFERRED, 2886d, "Hadley-Kanamori 1D model Vs30", "HK-1D"));
-		} else if (velModelID == 8) {
-			providers.addAll(getBBP_1D_Providers());
-		} else if (velModelID == 9) {
-			providers.addAll(getCCA_1D_Providers());
-		} else {
-			if (useCVMVs30) {
-				if (velModelID == 5) {
-					try {
-						providers.add(new CachedSiteDataWrapper<Double>(new CVM_Vs30(CVM.CVMS4i26)));
-					} catch (IOException e1) {
-						ExceptionUtils.throwAsRuntimeException(e1);
-					}
-				} else {
-					throw new IllegalStateException("Velocity Model Vs30 not yet available for Vel_Model_ID="+velModelID);
-				}
-			} else {
-				try {
-					providers.add(new CachedSiteDataWrapper<Double>(new WillsMap2015()));
-				} catch (IOException e) {
-					ExceptionUtils.throwAsRuntimeException(e);
-				}
-			}
-			if (velModelID == 1) {
-				/*		CVM4 Depth to 2.5					 */
-				try {
-					providers.add(new CachedSiteDataWrapper<Double>(new CVM4BasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
-				} catch (IOException e) {
-					ExceptionUtils.throwAsRuntimeException(e);
-				}
-
-				/*		CVM4 Depth to 1.0					 */
-				try {
-					providers.add(new CachedSiteDataWrapper<Double>(new CVM4BasinDepth(SiteData.TYPE_DEPTH_TO_1_0)));
-				} catch (IOException e) {
-					ExceptionUtils.throwAsRuntimeException(e);
-				}
-			} else if (velModelID == 2 || velModelID == 4 || velModelID == 7) {
-				/*		CVMH Depth to 2.5					 */
-				boolean includeGTL = velModelID != 7;
-				try {
-					CVMHBasinDepth cvmh = new CVMHBasinDepth(SiteData.TYPE_DEPTH_TO_2_5);
-					cvmh.getAdjustableParameterList().setValue(CVMHBasinDepth.GTL_PARAM_NAME, includeGTL);
-					providers.add(new CachedSiteDataWrapper<Double>(cvmh));
-				} catch (IOException e) {
-					ExceptionUtils.throwAsRuntimeException(e);
-				}
-
-				/*		CVMH Depth to 1.0					 */
-				try {
-					CVMHBasinDepth cvmh = new CVMHBasinDepth(SiteData.TYPE_DEPTH_TO_1_0);
-					cvmh.getAdjustableParameterList().setValue(CVMHBasinDepth.GTL_PARAM_NAME, includeGTL);
-					providers.add(new CachedSiteDataWrapper<Double>(cvmh));
-				} catch (IOException e) {
-					ExceptionUtils.throwAsRuntimeException(e);
-				}
-			} else if (velModelID == 5) {
-				/*		CVM4i26 Depth to 2.5					 */
-				try {
-					providers.add(new CachedSiteDataWrapper<Double>(new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
-				} catch (IOException e) {
-					ExceptionUtils.throwAsRuntimeException(e);
-				}
-
-				/*		CVM4i26 Depth to 1.0					 */
-				try {
-					providers.add(new CachedSiteDataWrapper<Double>(new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0)));
-				} catch (IOException e) {
-					ExceptionUtils.throwAsRuntimeException(e);
-				}
-			} else if (velModelID == 10) {
-				/*		CVM4i26 Depth to 2.5					 */
-				try {
-					providers.add(new CachedSiteDataWrapper<Double>(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
-				} catch (IOException e) {
-					ExceptionUtils.throwAsRuntimeException(e);
-				}
-
-				/*		CVM4i26 Depth to 1.0					 */
-				try {
-					providers.add(new CachedSiteDataWrapper<Double>(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0)));
-				} catch (IOException e) {
-					ExceptionUtils.throwAsRuntimeException(e);
-				}
-			} else {
-				System.err.println("Unknown Velocity Model ID: "+velModelID);
-				System.exit(1);
-			}
-		}
-		return new OrderedSiteDataProviderList(providers);
 	}
 	
 	protected static int getRunIDFromOptions(
@@ -462,13 +311,15 @@ public class HazardCurvePlotter {
 			}
 		}
 		
-		useCVMVs30 = cmd.hasOption("cvm-vs30");
+		boolean useCVMVs30 = cmd.hasOption("cvm-vs30");
+		if (useCVMVs30)
+			siteBuilder = new CyberShakeSiteBuilder(Vs30_Source.Simulation, run.getVelModelID());
+		else
+			siteBuilder = new CyberShakeSiteBuilder(Vs30_Source.Wills2015, run.getVelModelID());
 		if (cmd.hasOption("force-vs30")) {
 			double value = Double.parseDouble(cmd.getOptionValue("force-vs30"));
-			forcedVs30 = new ConstantValueDataProvider<Double>(SiteData.TYPE_VS30, SiteData.TYPE_FLAG_INFERRED, value);
 			System.out.println("Forcing GMPEs to use specified Vs30 value: "+value);
-		} else {
-			forcedVs30 = null;
+			siteBuilder.setForceVs30(value);
 		}
 		
 		String siteName = site2db.getSiteFromDB(run.getSiteID()).short_name;
@@ -518,7 +369,6 @@ public class HazardCurvePlotter {
 				e.printStackTrace();
 				System.err.println("WARNING: Unable to load comparison ERF, not plotting comparison curves!");
 			} catch (MalformedURLException e) {
-				// TODO Auto-generated catch block
 				System.err.println("WARNING: Unable to load comparison ERF, not plotting comparison curves!");
 			}
 		}
@@ -536,11 +386,6 @@ public class HazardCurvePlotter {
 			}
 			if (!outDir.endsWith(File.separator))
 				outDir += File.separator;
-		}
-		
-		if (cmd.hasOption("vs30")) {
-			String vsStr = cmd.getOptionValue("vs30");
-			manualVs30 = Double.parseDouble(vsStr);
 		}
 		
 		List<PlotType> types;
@@ -1274,6 +1119,10 @@ public class HazardCurvePlotter {
 		
 		int i = 0;
 		ArrayList<Color> colors = plotChars.getAttenRelColors();
+		
+		System.out.println("Building GMPE site");
+		Site site = siteBuilder.buildSite(run, csSite);
+		
 		for (AttenuationRelationship attenRel : attenRels) {
 			Color color;
 			if (i >= colors.size())
@@ -1284,7 +1133,10 @@ public class HazardCurvePlotter {
 					plotChars.getAttenRelSymbol(), plotChars.getAttenRelLineWidth()*4f, color));
 			
 			System.out.println("Setting params for Attenuation Relationship: " + attenRel.getName());
-			Site site = this.setAttenRelParams(attenRel, im, run);
+			setAttenRelParams(attenRel, im);
+			for (Parameter<?> param : attenRel.getSiteParams())
+				if (!site.containsParameter(param))
+					site.addParameter(param);
 			
 			System.out.print("Calculating comparison curve for " + site.getLocation().getLatitude() + "," + site.getLocation().getLongitude() + "...");
 			DiscretizedFunc curve = plotChars.getHazardFunc();
@@ -1367,30 +1219,16 @@ public class HazardCurvePlotter {
 	}
 
 	private void setERFParams() {
-//		this.erf = MeanUCERF2_ToDB.setMeanUCERF_CyberShake_Settings(this.erf);
 		this.erf.updateForecast();
 	}
 	
-	private Site setAttenRelParams(AttenuationRelationship attenRel, CybershakeIM im, CybershakeRun run) {
-		OrderedSiteDataProviderList providers = getProviders(run.getVelModelID());
-		ArrayList<SiteDataValue<?>> datas = providers.getBestAvailableData(csSite.createLocation());
-		
-		if (manualVs30 > 0) {
-			datas.add(new SiteDataValue<Double>(SiteData.TYPE_VS30, SiteData.TYPE_FLAG_INFERRED, manualVs30,
-					"Manually Set Vs30 Value"));
-		}
-		return setAttenRelParams(attenRel, im, run, csSite, datas);
-	}
-	
-	public static Site setAttenRelParams(AttenuationRelationship attenRel, CybershakeIM im, CybershakeRun run,
-			CybershakeSite csSite, List<SiteDataValue<?>> datas) {
+	public static void setAttenRelParams(AttenuationRelationship attenRel, CybershakeIM im) {
 		CyberShakeComponent comp = im.getComponent();
 		double period = im.getVal();
-		return setAttenRelParams(attenRel, comp, period, run, csSite, datas);
+		setAttenRelParams(attenRel, comp, period);
 	}
 	
-	public static Site setAttenRelParams(AttenuationRelationship attenRel, CyberShakeComponent comp, double period,
-			CybershakeRun run, CybershakeSite csSite, List<SiteDataValue<?>> datas) {
+	public static void setAttenRelParams(AttenuationRelationship attenRel, CyberShakeComponent comp, double period) {
 //		// set 1 sided truncation
 //		StringParameter truncTypeParam = (StringParameter)attenRel.getParameter(SigmaTruncTypeParam.NAME);
 //		truncTypeParam.setValue(SigmaTruncTypeParam.SIGMA_TRUNC_TYPE_1SIDED);
@@ -1448,55 +1286,6 @@ public class HazardCurvePlotter {
 		Preconditions.checkState(attenRel.getIntensityMeasure() instanceof SA_Param
 				&& ((Double)attenRel.getIntensityMeasure().getIndependentParameter(PeriodParam.NAME).getValue()).floatValue()
 						== (float)closestPeriod);
-//		attenRel.setIntensityMeasure(intensityMeasure)
-		
-		LocationList locList = new LocationList();
-		Location loc = new Location(csSite.lat, csSite.lon);
-		locList.add(loc);
-		
-		Site site = new Site(loc);
-		
-		SiteTranslator siteTranslator = new SiteTranslator();
-		
-		try{
-			Iterator<Parameter<?>> it = attenRel.getSiteParamsIterator(); // get site params for this IMR
-			while(it.hasNext()) {
-				Parameter tempParam = it.next();
-				if(!site.containsParameter(tempParam))
-					site.addParameter(tempParam);
-				//adding the site Params from the CVM, if site is out the range of CVM then it
-				//sets the site with whatever site Parameter Value user has choosen in the application
-				boolean flag = siteTranslator.setParameterValue(tempParam, datas);
-				if( !flag ) {
-					System.err.println("Param " + tempParam.getName() + " not set for site! Not available from web service.");
-					if (tempParam.getName().equals(Vs30_Param.NAME)) {
-						BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-						System.out.print("Enter Vs30 value (or hit enter for default, " + tempParam.getValue() + "): ");
-						String line = in.readLine();
-						line = line.trim();
-						if (line.length() > 0) {
-							try {
-								double val = Double.parseDouble(line);
-								tempParam.setValue(val);
-								System.out.println(tempParam.getName() + " set to: " + tempParam.getValue());
-							} catch (Exception e) {
-								System.out.println("Using default value: " + tempParam.getValue());
-							}
-						} else {
-							System.out.println("Using default value: " + tempParam.getValue());
-						}
-//						manualVs30 = (Double)tempParam.getValue();
-					} else {
-						System.out.println("Using default value: " + tempParam.getValue());
-					}
-				} else {
-//					System.out.println("Param: "+tempParam.getName() + ", Value: " + tempParam.getValue());
-				}
-			}
-		}catch(Exception e){
-			e.printStackTrace();
-		}
-		return site;
 	}
 	
 	public static boolean SCALE_PRINT_SUCCESS = true;
@@ -1743,9 +1532,9 @@ public class HazardCurvePlotter {
 		Option height = new Option("h", "height", true, "Plot height (default = " + PLOT_HEIGHT_DEFAULT + ")");
 		ops.addOption(height);
 		
-		Option vs30 = new Option("v", "vs30", true, "Specify default Vs30 for sites with no Vs30 data, or leave blank " + 
-				"for default value. Otherwise, you will be prompted to enter vs30 interactively if needed.");
-		ops.addOption(vs30);
+//		Option vs30 = new Option("v", "vs30", true, "Specify default Vs30 for sites with no Vs30 data, or leave blank " + 
+//				"for default value. Otherwise, you will be prompted to enter vs30 interactively if needed.");
+//		ops.addOption(vs30);
 		
 		Option cvmVs30 = new Option("cvmvs", "cvm-vs30", false, "Option to use Vs30 value from the velocity model itself"
 				+ " in GMPE calculations rather than, for example, the Wills 2006 value.");
@@ -1801,14 +1590,16 @@ public class HazardCurvePlotter {
 	}
 
 	public static void main(String args[]) throws DocumentException, InvocationTargetException {
-//		String confDir = "src/org/opensha/sha/cybershake/conf/";
-//		String[] newArgs = { "-R", "789",
-//				"--output-dir", "/tmp", "--type", "pdf,png",
-//				"--erf-file", confDir+"MeanUCERF.xml",
-//				"--atten-rel-file", confDir+"cb2008.xml,"
-//				+confDir+"ba2008.xml,"+confDir+"cy2008.xml,"+confDir+"as2008.xml"
-//				, "--plot-chars-file", confDir+"tomPlot.xml"};
-//		args = newArgs;
+		if (args.length == 1 && args[0].equals("--hardcoded")) {
+			String confDir = "src/org/opensha/sha/cybershake/conf/";
+			String[] newArgs = { "-R", "5837",
+					"--output-dir", "/tmp", "--type", "pdf,png",
+					"--erf-file", confDir+"MeanUCERF.xml",
+					"--atten-rel-file", confDir+"cb2014.xml,"
+					+confDir+"bssa2014.xml,"+confDir+"cy2014.xml,"+confDir+"ask2014.xml"
+					, "--plot-chars-file", confDir+"tomPlot.xml"};
+			args = newArgs;
+		}
 		Stopwatch watch = Stopwatch.createStarted();
 		try {
 			Options options = createOptions();

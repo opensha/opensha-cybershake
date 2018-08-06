@@ -35,7 +35,9 @@ import org.opensha.sha.calc.mcer.MCErMapGenerator;
 import org.opensha.sha.calc.mcer.WeightProvider;
 import org.opensha.sha.calc.mcer.WeightedAverageMCErDeterministicCalc;
 import org.opensha.sha.calc.mcer.WeightedAverageMCErProbabilisticCalc;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.HazardCurveFetcher;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.RupProbModERF;
 import org.opensha.sha.cybershake.calc.RuptureProbabilityModifier;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
@@ -256,6 +258,11 @@ public class CyberShakeMCErMapGenerator {
 		
 		Runs2DB runs2db = new Runs2DB(fetcher.getDBAccess());
 		
+		List<CybershakeSite> mapSites = new ArrayList<>();
+		List<CybershakeRun> mapRuns = new ArrayList<>();
+		
+		int velModelID = -1;
+		
 		for (int i=0; i<csSites.size(); i++) {
 			CybershakeSite csSite = csSites.get(i);
 			if (csSite.type_id == CybershakeSite.TYPE_TEST_SITE)
@@ -266,22 +273,15 @@ public class CyberShakeMCErMapGenerator {
 
 			int runID = runIDs.get(i);
 			CybershakeRun run = runs2db.getRun(runID);
+			if (velModelID < 0)
+				velModelID = run.getVelModelID();
+			else
+				Preconditions.checkState(velModelID == run.getVelModelID());
 			
-			if (provs == null)
-				provs = HazardCurvePlotter.createProviders(run.getVelModelID());
-			
-			CyberShakeSiteRun site = new CyberShakeSiteRun(csSite, run);
-			ArrayList<SiteDataValue<?>> datas = provs.getBestAvailableData(site.getLocation());
-			for (Parameter<?> param : siteParams) {
-				param = (Parameter<?>)param.clone();
-				siteTrans.setParameterValue(param, datas);
-				site.addParameter(param);
-			}
-			sites.add(site);
-			
-			locs.add(loc);
+			mapSites.add(csSite);
+			mapRuns.add(run);
 		}
-		return sites;
+		return new CyberShakeSiteBuilder(Vs30_Source.Wills2015, velModelID).buildSites(mapRuns, mapSites);
 	}
 	
 	static void writeSitesFile(File file, List<Site> sites) throws IOException {

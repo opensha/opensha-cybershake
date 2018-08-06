@@ -33,6 +33,8 @@ import org.opensha.commons.util.ComparablePairing;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.hazardMap.HazardCurveSetCalculator;
 import org.opensha.sha.calc.hazardMap.HazardDataSetLoader;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
@@ -122,6 +124,8 @@ public class HazardDecompositionPlotter {
 		
 		HazardCurvePlotter.SCALE_PRINT_SUCCESS = false;
 		
+		Vs30_Source vs30Source = Vs30_Source.Wills2015;
+		
 		for (int runID : runIDs) {
 			if (gmpe instanceof CachedGMPE)
 				((CachedGMPE)gmpe).clearCache();
@@ -133,14 +137,7 @@ public class HazardDecompositionPlotter {
 			
 			System.out.println("Doing "+csSite.short_name);
 			
-			Site site = new Site(loc);
-			
-			OrderedSiteDataProviderList providers =
-					HazardCurvePlotter.createProviders(run.getVelModelID());
-			
-			trans.setAllSiteParams(gmpe, providers.getBestAvailableData(loc));
-			site.addParameterList(gmpe.getSiteParams());
-			site.setName(csSite.short_name);
+			Site site = new CyberShakeSiteBuilder(vs30Source, run.getVelModelID()).buildSite(run, csSite);
 			
 			String prefix = csSite.short_name+"_decomposition_"+periodFileStr;
 			

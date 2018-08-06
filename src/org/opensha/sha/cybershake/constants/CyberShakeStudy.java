@@ -33,6 +33,7 @@ import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.util.ComparablePairing;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.FileNameComparator;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.RuptureProbabilityModifier;
 import org.opensha.sha.cybershake.calc.UCERF2_AleatoryMagVarRemovalMod;
 import org.opensha.sha.cybershake.db.CybershakeVelocityModel;
@@ -56,15 +57,14 @@ import com.google.common.collect.Table.Cell;
 import com.google.common.primitives.Doubles;
 
 import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare;
-import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare.Vs30_Source;
 import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
 import scratch.kevin.simulators.plots.AbstractPlot;
 import scratch.kevin.simulators.plots.MFDPlot;
 import scratch.kevin.simulators.plots.MagAreaScalingPlot;
 import scratch.kevin.simulators.plots.RuptureVelocityPlot;
-import scratch.kevin.util.MarkdownUtils;
-import scratch.kevin.util.MarkdownUtils.TableBuilder;
+import org.opensha.commons.util.MarkdownUtils;
+import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 
 public enum CyberShakeStudy {
 	

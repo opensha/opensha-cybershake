@@ -19,6 +19,8 @@ import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.param.Parameter;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.hazardMap.HazardCurveSetCalculator;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.calc.UCERF2_AleatoryMagVarRemovalMod;
 import org.opensha.sha.cybershake.db.CybershakeIM;
@@ -178,22 +180,8 @@ public class AleatoryMagVariabilitiyTest {
 		List<DiscretizedFunc> origCurves = Lists.newArrayList();
 		List<DiscretizedFunc> newCurves = Lists.newArrayList();
 
-		OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(velModelID);
-		SiteTranslator trans = new SiteTranslator();
-		List<Site> sites = Lists.newArrayList();
-		// create sites with site data
-		for (CybershakeSite csSite : curveSites) {
-			Site site = new Site(csSite.createLocation());
-
-			ArrayList<SiteDataValue<?>> datas = provs.getBestAvailableData(site.getLocation());
-
-			for (Parameter<?> param : gmpe.getSiteParams()) {
-				param = (Parameter<?>) param.clone();
-				trans.setParameterValue(param, datas);
-				site.addParameter(param);
-			}
-			sites.add(site);
-		}
+		CyberShakeSiteBuilder siteBuilder = new CyberShakeSiteBuilder(Vs30_Source.Wills2015, velModelID);
+		List<Site> sites = siteBuilder.buildSites(runs, curveSites);
 		
 		System.out.println("Calculating original curves");
 		for (Site site : sites) {

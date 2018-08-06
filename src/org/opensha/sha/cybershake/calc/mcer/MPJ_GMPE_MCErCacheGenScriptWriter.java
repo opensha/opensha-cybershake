@@ -15,6 +15,7 @@ import org.opensha.commons.data.region.CaliforniaRegions;
 import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
 import org.opensha.commons.data.siteData.SiteDataValue;
 import org.opensha.commons.data.siteData.SiteDataValueList;
+import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.LocationList;
 import org.opensha.commons.hpc.JavaShellScriptWriter;
@@ -25,6 +26,7 @@ import org.opensha.commons.hpc.pbs.USC_HPCC_ScriptWriter;
 import org.opensha.commons.param.Parameter;
 import org.opensha.commons.param.ParameterList;
 import org.opensha.sha.calc.mcer.TLDataLoader;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
 import org.opensha.sha.imr.attenRelImpl.ngaw2.NGAW2_Wrappers.BSSA_2014_Wrapper;
 import org.opensha.sha.imr.param.OtherParams.Component;
@@ -173,7 +175,8 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 	
 	private static List<Site> getSites(GriddedRegion reg, int velModelID, ParameterList siteParams) throws IOException {
 		// ParameterList siteParams = MCERDataProductsCalc.getSiteParams(gmpes);
-		OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(velModelID);
+		OrderedSiteDataProviderList provs = CyberShakeSiteBuilder.getMapBasinProviders(velModelID);
+		provs.add(0, new WillsMap2015());
 		
 		List<Site> sites = Lists.newArrayList();
 		

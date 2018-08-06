@@ -25,6 +25,8 @@ import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.param.Parameter;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeSite;
@@ -35,6 +37,7 @@ import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.Runs2DB;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
+import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.plot.HazardCurvePlotCharacteristics;
 import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
 import org.opensha.sha.earthquake.ERF;
@@ -59,6 +62,8 @@ public class GMPE_CS_DistributionComparisonPlotter {
 		
 		List<Double> periods = Lists.newArrayList(0.2, 0.5, 2d, 3d, 5d);
 		CyberShakeComponent comp = CyberShakeComponent.RotD50;
+		
+		Vs30_Source vs30Source = Vs30_Source.Simulation;
 		
 		int datasetID = 61;
 		String csSiteName = "PAS";
@@ -99,20 +104,9 @@ public class GMPE_CS_DistributionComparisonPlotter {
 			System.out.println("CS Site: "+csSite+", run "+runID);
 			Location loc = csSite.createLocation();
 			
-			int velModelID = runs2db.getRun(runID).getVelModelID();
-			Site site = new Site(loc);
-			for (ScalarIMR gmpe : gmpes) {
-				gmpe.setParamDefaults();
-				for (Parameter<?> param : gmpe.getSiteParams())
-					if (!site.containsParameter(param))
-						site.addParameter((Parameter<?>)param.clone());
-				gmpe.setIntensityMeasure(SA_Param.NAME);
-			}
-			OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(velModelID);
-			List<SiteDataValue<?>> datas = provs.getAllAvailableData(site.getLocation());
-			SiteTranslator trans = new SiteTranslator();
-			for (Parameter<?> param : site)
-				trans.setParameterValue(param, datas);
+			CybershakeRun run = runs2db.getRun(runID);
+			int velModelID = run.getVelModelID();
+			Site site = new CyberShakeSiteBuilder(vs30Source, velModelID).buildSite(run, csSite);
 			
 			for (int p=0; p<periods.size(); p++) {
 				double period = periods.get(p);

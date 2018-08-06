@@ -13,6 +13,7 @@ import java.util.Map;
 import org.opensha.commons.data.NamedComparator;
 import org.opensha.commons.data.Site;
 import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
@@ -34,7 +35,6 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 
 import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare.CSRuptureComparison;
-import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare.Vs30_Source;
 import scratch.kevin.simCompare.RuptureComparison;
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simCompare.SourceSiteDistPageGen;

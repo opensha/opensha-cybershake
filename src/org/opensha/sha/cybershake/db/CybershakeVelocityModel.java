@@ -26,6 +26,10 @@ public class CybershakeVelocityModel {
 		public CybershakeVelocityModel instance() {
 			return model;
 		}
+		
+		public int getID() {
+			return model.getID();
+		}
 	}
 	
 	private int id;

@@ -33,10 +33,13 @@ import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.ComparablePairing;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
+import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
 import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
@@ -172,8 +175,8 @@ public class NorthridgeCSComparison {
 					continue;
 				}
 				
-				int velModelID = runs2db.getRun(runID).getVelModelID();
-				Site site = new Site(loc);
+				CybershakeRun run = runs2db.getRun(runID);
+				Site site = new CyberShakeSiteBuilder(Vs30_Source.Simulation, run.getVelModelID()).buildSite(run, csSite);
 				for (ScalarIMR gmpe : gmpes) {
 					gmpe.setParamDefaults();
 					for (Parameter<?> param : gmpe.getSiteParams())
@@ -181,11 +184,6 @@ public class NorthridgeCSComparison {
 							site.addParameter((Parameter<?>)param.clone());
 					gmpe.setIntensityMeasure(SA_Param.NAME);
 				}
-				OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(velModelID);
-				List<SiteDataValue<?>> datas = provs.getAllAvailableData(site.getLocation());
-				SiteTranslator trans = new SiteTranslator();
-				for (Parameter<?> param : site)
-					trans.setParameterValue(param, datas);
 				
 				for (int p=0; p<periods.size(); p++) {
 					double period = periods.get(p);

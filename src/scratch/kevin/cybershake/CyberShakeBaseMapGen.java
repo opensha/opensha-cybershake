@@ -33,6 +33,7 @@ import org.opensha.sha.calc.hazardMap.components.CalculationSettings;
 import org.opensha.sha.calc.hazardMap.components.CurveResultsArchiver;
 import org.opensha.sha.calc.hazardMap.mpj.MPJHazardCurveDriver;
 import org.opensha.sha.calc.hazus.parallel.HazusJobWriter;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
 import org.opensha.sha.earthquake.ERF;
@@ -134,7 +135,7 @@ public class CyberShakeBaseMapGen {
 			provs.add(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5));
 			provs.add(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0));
 		} else if (cvmName.toLowerCase().equals("cca1d")) {
-			provs = HazardCurvePlotter.getCCA_1D_Providers();
+			provs = CyberShakeSiteBuilder.getCCA_1D_Providers();
 		} else if (cvmName.toLowerCase().equals("cvmh")) {
 			provs.add(new CVMHBasinDepth(SiteData.TYPE_DEPTH_TO_2_5));
 			provs.add(new CVMHBasinDepth(SiteData.TYPE_DEPTH_TO_1_0));
@@ -147,7 +148,7 @@ public class CyberShakeBaseMapGen {
 			provs.add(z10);
 		} else if (cvmName.toLowerCase().equals("bbp")) {
 			// this will also clear Wills 2006 from the list
-			provs = HazardCurvePlotter.getBBP_1D_Providers();
+			provs = CyberShakeSiteBuilder.getBBP_1D_Providers();
 		} else if (cvmName.toLowerCase().equals("null")){
 			nullBasin = true;
 		} else {

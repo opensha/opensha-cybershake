@@ -24,6 +24,8 @@ import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.ExceptionUtils;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.HazardCurveFetcher;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
@@ -63,7 +65,7 @@ import scratch.kevin.bbp.BBP_Module.VelocityModel;
 import scratch.kevin.simCompare.MultiRupGMPE_ComparePageGen;
 import scratch.kevin.simCompare.RuptureComparison;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
-import scratch.kevin.util.MarkdownUtils;
+import org.opensha.commons.util.MarkdownUtils;
 
 public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	
@@ -90,59 +92,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	
 	private static double MAX_DIST = 200d;
 	private static boolean DIST_JB = true;
-
-	private static WillsMap2015 wills2015;
-	private static WaldAllenGlobalVs30 wald2008;
-	private Vs30_Source vs30Source;
 	
-	public static enum Vs30_Source {
-		Wills2015("Wills 2015"),
-		WaldAllen2008("Wald & Allen 2008"),
-		Simulation("Simulation Value");
-		
-		private String name;
-		
-		private Vs30_Source(String name) {
-			this.name = name;
-		}
-		
-		public synchronized double getVs30(CybershakeRun run, Location siteLoc) {
-			if (this == Wills2015) {
-				try {
-					if (wills2015 == null)
-						wills2015 = new WillsMap2015();
-					Double val = wills2015.getValue(siteLoc);
-					if (!wills2015.isValueValid(val)) {
-						System.out.println("Wills 2015 Vs30 is "+val+" for run "+run.getRunID()+" at "
-								+siteLoc.getLatitude()+", "+siteLoc.getLongitude()+". Defaulting to Wald Allen 2008");
-						val = WaldAllen2008.getVs30(run, siteLoc);
-					}
-					return val;
-				} catch (IOException e) {
-					throw ExceptionUtils.asRuntimeException(e);
-				}
-			} else if (this == WaldAllen2008) {
-				try {
-					if (wald2008 == null)
-						wald2008 = new WaldAllenGlobalVs30();
-					return wald2008.getValue(siteLoc);
-				} catch (IOException e) {
-					throw ExceptionUtils.asRuntimeException(e);
-				}
-			} else if (this == Vs30_Source.Simulation) {
-				double vs30 = run.getVs30();
-				Preconditions.checkState(Double.isFinite(vs30), "Vs30 is null for run %s", run.getRunID());
-				return vs30;
-			} else {
-				throw new IllegalStateException("Unknown Vs30_Source: "+this);
-			}
-		}
-		
-		@Override
-		public String toString() {
-			return name;
-		}
-	}
+	private Vs30_Source vs30Source;
 	
 	public StudyGMPE_Compare(CyberShakeStudy study, AbstractERF erf, DBAccess db, File ampsCacheDir, double[] periods,
 			double minMag, HashSet<String> limitSiteNames, HashSet<String> highlightSiteNames, boolean doRotD,
@@ -215,26 +166,6 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 		prov = new StudyRotDProvider(amps2db, runIDsMap, siteRupsMap, periods, rd50_ims, rd100_ims, study.getName());
 		
-		OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(study.getVelocityModelID());
-		for (int i=0; i<provs.size(); i++)
-			// disable Vs30 providers
-			if (provs.getProvider(i).getDataType().equals(SiteData.TYPE_VS30))
-				provs.setEnabled(i, false);
-		
-		System.out.println("Fetching site datas");
-		ArrayList<SiteDataValueList<?>> datas = provs.getAllAvailableData(sites);
-		System.out.println("Setting site params");
-		SiteTranslator trans = new SiteTranslator();
-		for (int i=0; i<sites.size(); i++) {
-			List<SiteDataValue<?>> vals = new ArrayList<>();
-			for (SiteDataValueList<?> list : datas)
-				vals.add(list.getValue(i));
-			Site site = sites.get(i);
-			Double oldVs30 = site.getParameter(Double.class, Vs30_Param.NAME).getValue();
-			for (Parameter<?> param : sites.get(i))
-				trans.setParameterValue(param, vals);
-			Preconditions.checkNotNull(sites.get(i).getValue(Vs30_Param.NAME), "Vs30 Null! Old: %s", oldVs30);
-		}
 		System.out.println("Done with setup");
 		
 		init(prov, sites, DIST_JB, MAX_DIST, minMag, 8.5);
@@ -252,45 +183,14 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	static List<Site> buildSites(List<CybershakeSite> csSites, List<Integer> runIDs,
 			CyberShakeStudy study, Vs30_Source vs30Source, DBAccess db) throws IOException {
 		Preconditions.checkState(csSites.size() == runIDs.size());
-		List<Site> sites = new ArrayList<>();
 		Runs2DB runs2db = new Runs2DB(db);
-		for (int i=0; i<csSites.size(); i++) {
-			CybershakeSite csSite = csSites.get(i);
-			int runID = runIDs.get(i);
-			Site site = new Site(csSite.createLocation());
-			site.setName(csSite.short_name);
-			double vs30 = vs30Source.getVs30(runs2db.getRun(runID), site.getLocation());
-			Preconditions.checkState(Double.isFinite(vs30),
-					"Bad Vs30=%s for site %s at %s, %s", vs30, csSite.short_name, csSite.lat, csSite.lon);
-			site.addParameter(new Vs30_Param(vs30));
-			site.addParameter(new Vs30_TypeParam());
-			site.addParameter(new DepthTo1pt0kmPerSecParam(null, true));
-			site.addParameter(new DepthTo2pt5kmPerSecParam(null, true));
-			for (Parameter<?> param : site)
-				param.setValueAsDefault();
-			sites.add(site);
-		}
 		
-		OrderedSiteDataProviderList provs = HazardCurvePlotter.createProviders(study.getVelocityModelID());
-		for (int i=0; i<provs.size(); i++)
-			// disable Vs30 providers
-			if (provs.getProvider(i).getDataType().equals(SiteData.TYPE_VS30))
-				provs.setEnabled(i, false);
+		List<CybershakeRun> runs = new ArrayList<>();
+		for (int i=0; i<csSites.size(); i++)
+			runs.add(runs2db.getRun(runIDs.get(i)));
 		
-		System.out.println("Fetching site datas");
-		ArrayList<SiteDataValueList<?>> datas = provs.getAllAvailableData(sites);
-		System.out.println("Setting site params");
-		SiteTranslator trans = new SiteTranslator();
-		for (int i=0; i<sites.size(); i++) {
-			List<SiteDataValue<?>> vals = new ArrayList<>();
-			for (SiteDataValueList<?> list : datas)
-				vals.add(list.getValue(i));
-			Site site = sites.get(i);
-			Double oldVs30 = site.getParameter(Double.class, Vs30_Param.NAME).getValue();
-			for (Parameter<?> param : sites.get(i))
-				trans.setParameterValue(param, vals);
-			Preconditions.checkNotNull(sites.get(i).getValue(Vs30_Param.NAME), "Vs30 Null! Old: %s", oldVs30);
-		}
+		CyberShakeSiteBuilder siteBuilder = new CyberShakeSiteBuilder(vs30Source, study.getVelocityModelID());
+		List<Site> sites = siteBuilder.buildSites(runs, csSites);
 		
 		return sites;
 	}
@@ -479,7 +379,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		lines.add("");
 		lines.add("**GMPE: "+gmpeRef.getName()+"**");
 		lines.add("");
-		lines.add("**Vs30 Source: "+vs30Source.name+"**");
+		lines.add("**Vs30 Source: "+vs30Source+"**");
 		lines.add("");
 		lines.add("**Study Details**");
 		lines.add("");

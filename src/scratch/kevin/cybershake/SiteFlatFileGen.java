@@ -118,11 +118,29 @@ public class SiteFlatFileGen {
 				Preconditions.checkState(runID >= 0);
 				
 				CybershakeRun run = run2db.getRun(runID);
-				double vs30 = run.getVs30();
+				Double vs30 = run.getMeshVs30();
+				if (vs30 == null) {
+					System.err.println("Warning, mesh Vs30 not defined, using model Vs30");
+					vs30 = run.getModelVs30();
+					Preconditions.checkNotNull(vs30, "Neither mesh nor model Vs30 defined!");
+				}
 				System.out.println("Vs30: "+vs30+" ("+run.getVs30Source()+")");
+
+				Double z10 = run.getZ10();
+				if (z10 == null) {
+					System.err.println("Warning, Z10 not defined in database, using web service");
+					z10 = z10fetch.getValue(siteLoc);
+				} else {
+					z10 /= 1000d; // convert to km
+				}
 				
-				double z10 = z10fetch.getValue(siteLoc);
-				double z25 = z25fetch.getValue(siteLoc);
+				Double z25 = run.getZ25();
+				if (z25 == null) {
+					System.err.println("Warning, Z25 not defined in database, using web service");
+					z25 = z25fetch.getValue(siteLoc);
+				} else {
+					z25 /= 1000d; // convert to km
+				}
 				
 				CSVFile<String> csv = new CSVFile<>(true);
 				List<String> header = Lists.newArrayList("Site Name", "Site Lat", "Site Lon", "Site Vs30 (m/s)",
@@ -182,9 +200,9 @@ public class SiteFlatFileGen {
 							line.add(siteName);
 							line.add((float)siteLoc.getLatitude()+"");
 							line.add((float)siteLoc.getLongitude()+"");
-							line.add((float)vs30+"");
-							line.add((float)z10+"");
-							line.add((float)z25+"");
+							line.add(vs30.floatValue()+"");
+							line.add(z10.floatValue()+"");
+							line.add(z25.floatValue()+"");
 							line.add(sourceID+"");
 							line.add(rupID+"");
 							line.add(rv+"");

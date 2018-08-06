@@ -32,6 +32,7 @@ import org.opensha.commons.gui.plot.jfreechart.xyzPlot.XYZGraphPanel;
 import org.opensha.commons.gui.plot.jfreechart.xyzPlot.XYZPlotSpec;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
 import org.opensha.commons.util.cpt.CPT;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
@@ -56,14 +57,13 @@ import com.google.common.primitives.Doubles;
 
 import scratch.kevin.bbp.BBP_Site;
 import scratch.kevin.bbp.SpectraPlotter;
-import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare.Vs30_Source;
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
 import scratch.kevin.simulators.ruptures.BBP_CatalogSimZipLoader;
-import scratch.kevin.util.MarkdownUtils;
-import scratch.kevin.util.MarkdownUtils.TableBuilder;
+import org.opensha.commons.util.MarkdownUtils;
+import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 
 public class Study3Dvs1DCompare {
 	

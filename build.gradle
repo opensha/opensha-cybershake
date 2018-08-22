@@ -7,7 +7,6 @@ apply from: '../opensha-commons/build-common.gradle'
 dependencies {
 
     /* no remote repo */
-    compile files('lib/EventWebService.jar')
     compileAndResource files('lib/mysql-connector-java-5.1.16-bin.jar')
     
     compileOnly project(path: ':opensha-dev', configuration: 'compileOnly')

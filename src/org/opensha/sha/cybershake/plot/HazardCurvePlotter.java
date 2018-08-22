@@ -1592,12 +1592,14 @@ public class HazardCurvePlotter {
 	public static void main(String args[]) throws DocumentException, InvocationTargetException {
 		if (args.length == 1 && args[0].equals("--hardcoded")) {
 			String confDir = "src/org/opensha/sha/cybershake/conf/";
-			String[] newArgs = { "-R", "5837",
-					"--output-dir", "/tmp", "--type", "pdf,png",
+			File outputDir = new File("/tmp/cs_test");
+			Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
+			String[] newArgs = { "-R", "5816",
+					"--output-dir", outputDir.getAbsolutePath(), "--type", "pdf,png",
 					"--erf-file", confDir+"MeanUCERF.xml",
 					"--atten-rel-file", confDir+"cb2014.xml,"
 					+confDir+"bssa2014.xml,"+confDir+"cy2014.xml,"+confDir+"ask2014.xml"
-					, "--plot-chars-file", confDir+"tomPlot.xml"};
+					, "--plot-chars-file", confDir+"tomPlot.xml", "--component", "RotD50", "--period", "3", "--cvm-vs30"};
 			args = newArgs;
 		}
 		Stopwatch watch = Stopwatch.createStarted();

@@ -62,6 +62,7 @@ import scratch.UCERF3.FaultSystemRupSet;
 import scratch.UCERF3.FaultSystemSolution;
 import scratch.UCERF3.enumTreeBranches.FaultModels;
 import scratch.UCERF3.erf.ETAS.ETAS_CatalogIO;
+import scratch.UCERF3.erf.ETAS.ETAS_CubeDiscretizationParams;
 import scratch.UCERF3.erf.ETAS.ETAS_EqkRupture;
 import scratch.UCERF3.erf.ETAS.ETAS_MultiSimAnalysisTools;
 import scratch.UCERF3.erf.ETAS.ETAS_PrimaryEventSampler;
@@ -1260,8 +1261,9 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		List<float[]> fractionSrcAtPointList = MatrixIO.floatArraysListFromFile(fractionSrcAtPointListFile);
 		List<int[]> srcAtPointList = MatrixIO.intArraysListFromFile(srcAtPointListFile);
 		int[] isCubeInsideFaultPolygon = MatrixIO.intArrayFromFile(isCubeInsideFaultPolygonFile);
-		ETAS_PrimaryEventSampler sampler = new ETAS_PrimaryEventSampler(griddedRegion, erf, sourceRates,
-				gridSeisDiscr, null, etasParams, etas_utils, fractionSrcAtPointList, srcAtPointList, isCubeInsideFaultPolygon);
+		ETAS_CubeDiscretizationParams cubeParams = new ETAS_CubeDiscretizationParams(griddedRegion);
+		ETAS_PrimaryEventSampler sampler = new ETAS_PrimaryEventSampler(cubeParams, erf, sourceRates,
+				null, etasParams, etas_utils, fractionSrcAtPointList, srcAtPointList, isCubeInsideFaultPolygon);
 		
 		ETAS_EqkRupture rupture = scenario.getRupture(ot, sol.getRupSet(), fm);
 		long ot = Math.round((2014.0-1970.0)*ProbabilityModelsCalc.MILLISEC_PER_YEAR);

@@ -97,7 +97,7 @@ public enum CyberShakeStudy {
 	},
 	STUDY_18_4_RSQSIM_PROTOTYPE_2457(cal(2018, 4), 82, "RSQSim 2457",
 			"study_18_4_rsqsim_prototype_2457", "RSQSim prototype with catalog 2457", 5,
-			new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION(),
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
 		AbstractERF buildERF() {
@@ -106,11 +106,20 @@ public enum CyberShakeStudy {
 	},
 	STUDY_18_4_RSQSIM_2585(cal(2018, 4), 83, "RSQSim 2585",
 			"study_18_4_rsqsim_2585", "RSQSim prototype with catalog 2585 (1myr)", 5,
-			new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION(),
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
 		AbstractERF buildERF() {
 			return getRSQSimERF("rundir2585_1myr");
+		}
+	},
+	STUDY_18_9_RSQSIM_2740(cal(2018, 9), 85, "RSQSim 2740",
+			"study_18_9_rsqsim_2740", "RSQSim prototype with catalog 2740 (259kyr)", 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		AbstractERF buildERF() {
+			return getRSQSimERF("rundir2740");
 		}
 	};
 	
@@ -692,12 +701,17 @@ public enum CyberShakeStudy {
 		boolean replot = true;
 		
 		for (CyberShakeStudy study : CyberShakeStudy.values()) {
+			System.out.println("Processing "+study.getName());
 			File studyDir = new File(gitDir, study.getDirName());
 			if (studyDir.exists())
 				study.writeMarkdownSummary(studyDir, replot);
 		}
 		
+		System.out.println("Writing index");
+		
 		writeStudiesIndex(gitDir);
+		
+		System.out.println("DONE");
 		
 		for (CyberShakeStudy study : CyberShakeStudy.values())
 			study.getDB().destroy();

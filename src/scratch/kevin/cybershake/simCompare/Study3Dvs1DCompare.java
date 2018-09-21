@@ -104,6 +104,8 @@ public class Study3Dvs1DCompare {
 			mySites.add(null); // all sites
 			if (highlightSites != null)
 				mySites.addAll(highlightSites);
+			else if (sites.size() <= 5)
+				mySites.addAll(sites);
 		} else {
 			mySites = sites;
 		}
@@ -143,7 +145,7 @@ public class Study3Dvs1DCompare {
 			lines.add("### "+siteName+" 3-D Mag/Distance Gain Plots");
 			lines.add(topLink); lines.add("");
 			System.out.println("Plotting Mag/Dist gains for "+siteName);
-			File[] magDistPots = plotMagDist(resourcesDir, siteName+"_mag_dist_gains", site, periods, gains, dists);
+			File[] magDistPots = plotMagDist(resourcesDir, sitePrefix+"_mag_dist_gains", site, periods, gains, dists);
 			
 			TableBuilder table = MarkdownUtils.tableBuilder().initNewLine();
 			for (double period : periods)
@@ -340,7 +342,10 @@ public class Study3Dvs1DCompare {
 		for (Site compSite : mySites) {
 			Map<CSRupture, AmpComparison> compsMap = comps.row(compSite);
 			for (CSRupture rup : compsMap.keySet()) {
-				double dist = dists.get(site, rup);
+				Preconditions.checkNotNull(rup, "Null rupture?");
+				Preconditions.checkNotNull(compSite, "Null site?");
+				Double dist = dists.get(compSite, rup);
+				Preconditions.checkNotNull(dist, "no distance for site "+compSite.getName()+", rupture "+rup.getSourceID()+","+rup.getRupID());
 				if (dist < distThreshold)
 					continue;
 				double mag = rup.getRup().getMag();
@@ -377,6 +382,7 @@ public class Study3Dvs1DCompare {
 		double maxGain = 0d;
 		for (EvenlyDiscrXYZ_DataSet xyz : xyzs)
 			maxGain = Math.max(maxGain, Math.max(Math.abs(xyz.getMinZ()), Math.abs(xyz.getMaxZ())));
+		Preconditions.checkState(maxGain > 0, "Bad max gain: %s", maxGain);
 		CPT gainCPT = GMT_CPT_Files.GMT_POLAR.instance().rescale(-maxGain, maxGain);
 		
 		PlotPreferences plotPrefs = PlotPreferences.getDefault();
@@ -458,12 +464,20 @@ public class Study3Dvs1DCompare {
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		File rsqsimCatalogBaseDir = new File("/data/kevin/simulators/catalogs");
 		
-		CyberShakeStudy study3D = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
+//		CyberShakeStudy study3D = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
+//		CyberShakeStudy study1D = null;
+//		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(rsqsimCatalogBaseDir);
+//		double catalogMinMag = 6.5;
+//		File bbpFile1D = new File("/data/kevin/bbp/parallel/2018_04_13-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-csLASites/results_rotD.zip");
+//		String[] siteNames = { "PAS" };
+//		double[] periods = {3d, 5d, 7.5, 10d};
+		
+		CyberShakeStudy study3D = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
 		CyberShakeStudy study1D = null;
-		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(rsqsimCatalogBaseDir);
+		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance(rsqsimCatalogBaseDir);
 		double catalogMinMag = 6.5;
-		File bbpFile1D = new File("/data/kevin/bbp/parallel/2018_04_13-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-csLASites/results_rotD.zip");
-		String[] siteNames = { "PAS" };
+		File bbpFile1D = new File("/data/kevin/bbp/parallel/2018_09_10-rundir2740-all-m6.5-skipYears5000-noHF-csLASites/results_rotD.zip");
+		String[] siteNames = { "PAS", "s279", "s119", "s480" };
 		double[] periods = {3d, 5d, 7.5, 10d};
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;

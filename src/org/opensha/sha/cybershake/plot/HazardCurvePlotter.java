@@ -1537,7 +1537,7 @@ public class HazardCurvePlotter {
 //		ops.addOption(vs30);
 		
 		Option cvmVs30 = new Option("cvmvs", "cvm-vs30", false, "Option to use Vs30 value from the velocity model itself"
-				+ " in GMPE calculations rather than, for example, the Wills 2006 value.");
+				+ " in GMPE calculations rather than, for example, the Wills 2015 value.");
 		ops.addOption(cvmVs30);
 		
 		Option forceVs30 = new Option("fvs", "force-vs30", true, "Option to force the given Vs30 value to be used"

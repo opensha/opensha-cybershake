@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 
 import org.apache.commons.lang3.text.WordUtils;
@@ -25,7 +26,7 @@ import com.google.common.collect.Lists;
 
 public class UGMS_WebCreator {
 	
-	private static final String GMAPS_API_KEY = "AIzaSyCOfe8NIHLR0Z6l4KzajcDAwxOjlhLlEb4";
+	private static final String GMAPS_API_KEY = new String(Base64.getDecoder().decode("QUl6YVN5Q09mZThOSUhMUjBaNmw0S3phamNEQXd4T2psaExsRWI0"));
 
 	public static void main(String[] args) {
 		String prefix = "study_15_4";

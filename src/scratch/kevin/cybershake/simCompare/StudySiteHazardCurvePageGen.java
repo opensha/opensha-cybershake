@@ -40,6 +40,7 @@ import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
 import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
+import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
@@ -302,11 +303,13 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 //		String[] siteNames = { "USC" };
 		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
-//		String[] siteNames = { "STNI" };
+//		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
+//		String[] siteNames = { "s119", "s279", "s480" };
+//		String[] siteNames = { "LAPD" };
 //		String[] siteNames = { "WNGC" };
 		
-		boolean replotCurves = false;
-		boolean replotDisaggs = false;
+		boolean replotCurves = true;
+		boolean replotDisaggs = true;
 		
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };

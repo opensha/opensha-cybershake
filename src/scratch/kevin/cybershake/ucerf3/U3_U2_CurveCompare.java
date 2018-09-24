@@ -25,18 +25,11 @@ import org.opensha.commons.util.cpt.CPT;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculator;
 import org.opensha.sha.calc.hazardMap.HazardDataSetLoader;
-import org.opensha.sha.calc.params.IncludeMagDistFilterParam;
-import org.opensha.sha.calc.params.MagDistCutoffParam;
-import org.opensha.sha.calc.params.MaxDistanceParam;
-import org.opensha.sha.calc.params.NonSupportedTRT_OptionsParam;
-import org.opensha.sha.calc.params.PtSrcDistanceCorrectionParam;
-import org.opensha.sha.calc.params.SetTRTinIMR_FromSourceParam;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.SiteInfo2DB;
-import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
 import org.opensha.sha.earthquake.param.IncludeBackgroundOption;
 import org.opensha.sha.earthquake.param.IncludeBackgroundParam;
 import org.opensha.sha.earthquake.param.ProbabilityModelOptions;
@@ -118,13 +111,7 @@ public class U3_U2_CurveCompare {
 			logXVals.set(Math.log(pt.getX()), 1);
 		
 		DisaggregationCalculator disaggCalc = new DisaggregationCalculator();
-		ParameterList disaggParams = new ParameterList();
-		disaggParams.addParameter(new MaxDistanceParam());
-		disaggParams.addParameter(new IncludeMagDistFilterParam());
-		disaggParams.addParameter(new MagDistCutoffParam());
-		disaggParams.addParameter(new SetTRTinIMR_FromSourceParam());
-		disaggParams.addParameter(new NonSupportedTRT_OptionsParam());
-		disaggParams.addParameter(new PtSrcDistanceCorrectionParam());
+		ParameterList disaggParams = DisaggregationCalculator.getDefaultParams();
 
 		// disagg plot settings
 		double minMag = 5;

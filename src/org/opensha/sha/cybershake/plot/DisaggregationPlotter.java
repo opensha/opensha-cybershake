@@ -3,7 +3,6 @@ package org.opensha.sha.cybershake.plot;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -20,25 +19,16 @@ import org.dom4j.DocumentException;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
-import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
-import org.opensha.commons.data.siteData.SiteData;
-import org.opensha.commons.data.siteData.SiteDataValue;
 import org.opensha.commons.param.Parameter;
 import org.opensha.commons.param.ParameterList;
 import org.opensha.commons.util.ClassUtils;
 import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.FileUtils;
-import org.opensha.commons.util.ListUtils;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculator;
 import org.opensha.sha.calc.hazardMap.HazardCurveSetCalculator;
-import org.opensha.sha.calc.params.IncludeMagDistFilterParam;
-import org.opensha.sha.calc.params.MagDistCutoffParam;
 import org.opensha.sha.calc.params.MaxDistanceParam;
-import org.opensha.sha.calc.params.NonSupportedTRT_OptionsParam;
-import org.opensha.sha.calc.params.PtSrcDistanceCorrectionParam;
-import org.opensha.sha.calc.params.SetTRTinIMR_FromSourceParam;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
@@ -61,9 +51,7 @@ import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.gui.infoTools.DisaggregationPlotViewerWindow;
 import org.opensha.sha.gui.infoTools.IMT_Info;
 import org.opensha.sha.imr.AttenuationRelationship;
-import org.opensha.sha.imr.ScalarIMR;
 import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
-import org.opensha.sha.util.SiteTranslator;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -258,13 +246,7 @@ public class DisaggregationPlotter {
 		disaggCalc = new DisaggregationCalculator();
 		gmpeCurveCalc = new HazardCurveCalculator();
 		
-		disaggParams = new ParameterList();
-		disaggParams.addParameter(new MaxDistanceParam());
-		disaggParams.addParameter(new IncludeMagDistFilterParam());
-		disaggParams.addParameter(new MagDistCutoffParam());
-		disaggParams.addParameter(new SetTRTinIMR_FromSourceParam());
-		disaggParams.addParameter(new NonSupportedTRT_OptionsParam());
-		disaggParams.addParameter(new PtSrcDistanceCorrectionParam());
+		disaggParams = DisaggregationCalculator.getDefaultParams();
 		
 		this.outputDir = outputDir;
 	}

@@ -63,13 +63,18 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		for (String siteName : siteNames) {
 			CybershakeSite csSite = sites2db.getSiteFromDB(siteName);
 			
-			System.out.println("Finding Run_ID for study "+study);
-			String sql = "SELECT C.Run_ID FROM Hazard_Curves C JOIN CyberShake_Runs R ON R.Run_ID=C.Run_ID\n" + 
-					"WHERE R.Site_ID="+csSite.id+" AND C.Hazard_Dataset_ID="+study.getDatasetID()+" ORDER BY C.Curve_Date DESC LIMIT 1";
-			System.out.println(sql);
-			ResultSet rs = db.selectData(sql);
-			Preconditions.checkState(rs.first());
-			int runID = rs.getInt(1);
+			int runID = -1;
+			for (int datasetID : study.getDatasetIDs()) {
+				System.out.println("Finding Run_ID for study "+study+", site "+siteName);
+				String sql = "SELECT C.Run_ID FROM Hazard_Curves C JOIN CyberShake_Runs R ON R.Run_ID=C.Run_ID\n" + 
+						"WHERE R.Site_ID="+csSite.id+" AND C.Hazard_Dataset_ID="+datasetID+" ORDER BY C.Curve_Date DESC LIMIT 1";
+				System.out.println(sql);
+				ResultSet rs = db.selectData(sql);
+				if (!rs.first())
+					// doesn't exist for this ID
+					continue;
+				runID = rs.getInt(1);
+			}
 			
 			System.out.println("Detected Run_ID="+runID);
 			

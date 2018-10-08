@@ -31,6 +31,8 @@ import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.gui.plot.jfreechart.xyzPlot.XYZGraphPanel;
 import org.opensha.commons.gui.plot.jfreechart.xyzPlot.XYZPlotSpec;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
+import org.opensha.commons.param.Parameter;
+import org.opensha.commons.param.impl.DoubleParameter;
 import org.opensha.commons.util.cpt.CPT;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
@@ -46,6 +48,8 @@ import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.faultSurface.RuptureSurface;
+import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
+import org.opensha.sha.imr.param.SiteParams.Vs30_TypeParam;
 import org.opensha.sha.simulators.RSQSimEvent;
 
 import com.google.common.base.Preconditions;
@@ -57,6 +61,7 @@ import com.google.common.primitives.Doubles;
 
 import scratch.kevin.bbp.BBP_Site;
 import scratch.kevin.bbp.SpectraPlotter;
+import scratch.kevin.bbp.BBP_Module.VelocityModel;
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
@@ -70,14 +75,18 @@ public class Study3Dvs1DCompare {
 	private SimulationRotDProvider<CSRupture> prov3D;
 	private SimulationRotDProvider<CSRupture> prov1D;
 	private List<Site> sites;
+	private double vs30_1d;
+	private double similarDeltaVs30;
 	
 	private static boolean DIST_JB = false; // else dist rup
 
 	public Study3Dvs1DCompare(SimulationRotDProvider<CSRupture> prov3D, SimulationRotDProvider<CSRupture> prov1D,
-			List<Site> sites) {
+			List<Site> sites, double vs30_1d, double similarDeltaVs30) {
 		this.prov3D = prov3D;
 		this.prov1D = prov1D;
 		this.sites = sites;
+		this.vs30_1d = vs30_1d;
+		this.similarDeltaVs30 = similarDeltaVs30;
 	}
 	
 	public void generatePage(File outputDir, List<String> headerLines, double[] periods, Collection<Site> highlightSites) throws IOException {
@@ -93,7 +102,7 @@ public class Study3Dvs1DCompare {
 		lines.add("## 3-D vs 1-D Comparisons");
 		lines.add("");
 		lines.add("* 3-D Model: "+prov3D.getName());
-		lines.add("* 1-D Model: "+prov1D.getName());
+		lines.add("* 1-D Model: "+prov1D.getName()+" (Vs30="+optionalDigitDF.format(vs30_1d)+" m/s)");
 		lines.add("");
 		
 		int tocIndex = lines.size();
@@ -104,7 +113,7 @@ public class Study3Dvs1DCompare {
 			mySites.add(null); // all sites
 			if (highlightSites != null)
 				mySites.addAll(highlightSites);
-			else if (sites.size() <= 5)
+			else if (sites.size() <= 10)
 				mySites.addAll(sites);
 		} else {
 			mySites = sites;
@@ -119,20 +128,70 @@ public class Study3Dvs1DCompare {
 		System.out.println("DONE.");
 		
 		for (Site site : mySites) {
+			List<Site> siteBundle;
 			Collection<AmpComparison> comps;
 			String siteName;
 			String sitePrefix;
+			int numSimilarSites = 0;
 			if (site == null) {
-				comps = gains.values();
-				siteName = "All Sites";
-				sitePrefix = "all_sites";
+				comps = new ArrayList<>();
+				siteBundle = new ArrayList<>();
+				for (Site s2 : sites) {
+					double vs30 = s2.getParameter(Double.class, Vs30_Param.NAME).getValue();
+					double diff = Math.abs(vs30 - vs30_1d);
+					if (diff < similarDeltaVs30) {
+						comps.addAll(gains.row(s2).values());
+						siteBundle.add(s2);
+						numSimilarSites++;
+					}
+				}
+				if (comps.isEmpty())
+					continue;
+				siteName = numSimilarSites+" Similar Vs Sites";
+				sitePrefix = "similar_sites";
 			} else {
 				comps = gains.row(site).values();
+				siteBundle = new ArrayList<>();
+				siteBundle.add(site);
 				siteName = site.getName();
 				sitePrefix = site.getName().replaceAll(" ", "_");
 			}
 			lines.add("## "+siteName);
 			lines.add(topLink); lines.add("");
+			
+			if (site == null) {
+				lines.add("Results for all "+numSimilarSites+" with Vs30 within "+optionalDigitDF.format(similarDeltaVs30)
+					+" m/s of 1-D Vs30="+optionalDigitDF.format(vs30_1d)+" m/s");
+				lines.add("");
+				TableBuilder table = MarkdownUtils.tableBuilder();
+				table.addLine("**Name**", "**Vs30**");
+				for (Site s2 : siteBundle) {
+					double vs30 = s2.getParameter(Double.class, Vs30_Param.NAME).getValue();
+					table.addLine(s2.getName(), optionalDigitDF.format(vs30)+" m/s");
+				}
+				lines.addAll(table.build());
+				lines.add("");
+			} else {
+				TableBuilder table = MarkdownUtils.tableBuilder();
+				table.addLine("**Name**", site.getName());
+				table.addLine("**Latitude**", (float)site.getLocation().getLatitude()+"");
+				table.addLine("**Longitude**", (float)site.getLocation().getLongitude()+"");
+				table.addLine("**Site Parameters**", "");
+				for (Parameter<?> param : site) {
+					if (param.getName().equals(Vs30_TypeParam.NAME))
+						continue;
+					String name = "**"+param.getName()+"**";
+					String units = param.getUnits();
+					if (units != null && !units.isEmpty())
+						name += " (*"+units+"*)";
+					if (param instanceof DoubleParameter)
+						table.addLine(name, ((Double)param.getValue()).floatValue()+"");
+					else
+						table.addLine(name, param.getValue().toString());
+				}
+				lines.addAll(table.build());
+				lines.add("");
+			}
 			
 			lines.add("### "+siteName+" 3-D Gain Spectra");
 			lines.add(topLink); lines.add("");
@@ -145,7 +204,7 @@ public class Study3Dvs1DCompare {
 			lines.add("### "+siteName+" 3-D Mag/Distance Gain Plots");
 			lines.add(topLink); lines.add("");
 			System.out.println("Plotting Mag/Dist gains for "+siteName);
-			File[] magDistPots = plotMagDist(resourcesDir, sitePrefix+"_mag_dist_gains", site, periods, gains, dists);
+			File[] magDistPots = plotMagDist(resourcesDir, sitePrefix+"_mag_dist_gains", siteBundle, periods, gains, dists);
 			
 			TableBuilder table = MarkdownUtils.tableBuilder().initNewLine();
 			for (double period : periods)
@@ -305,7 +364,7 @@ public class Study3Dvs1DCompare {
 		gp.saveAsPDF(file.getAbsolutePath()+".pdf");
 	}
 	
-	private File[] plotMagDist(File resourcesDir, String prefix, Site site, double[] periods,
+	private File[] plotMagDist(File resourcesDir, String prefix, List<Site> sites, double[] periods,
 			Table<Site, CSRupture, AmpComparison> comps, Table<Site, CSRupture, Double> dists) throws IOException {
 		SummaryStatistics magStats = new SummaryStatistics();
 		for (CSRupture rup : comps.columnKeySet())
@@ -331,15 +390,7 @@ public class Study3Dvs1DCompare {
 		EvenlyDiscrXYZ_DataSet counts = new EvenlyDiscrXYZ_DataSet(numDist, numMag, Math.log10(distThreshold)+0.5*distSpacing,
 				minMag+0.5*magSpacing, distSpacing, magSpacing);
 		
-		List<Site> mySites;
-		if (site == null) {
-			mySites = new ArrayList<>(comps.rowKeySet());
-		} else {
-			mySites = new ArrayList<>();
-			mySites.add(site);
-		}
-		
-		for (Site compSite : mySites) {
+		for (Site compSite : sites) {
 			Map<CSRupture, AmpComparison> compsMap = comps.row(compSite);
 			for (CSRupture rup : compsMap.keySet()) {
 				Preconditions.checkNotNull(rup, "Null rupture?");
@@ -432,13 +483,19 @@ public class Study3Dvs1DCompare {
 		for (String siteName : siteNames) {
 			CybershakeSite csSite = sites2db.getSiteFromDB(siteName);
 			
-			System.out.println("Finding Run_ID for study "+study+", site "+siteName);
-			String sql = "SELECT C.Run_ID FROM Hazard_Curves C JOIN CyberShake_Runs R ON R.Run_ID=C.Run_ID\n" + 
-					"WHERE R.Site_ID="+csSite.id+" AND C.Hazard_Dataset_ID="+study.getDatasetID()+" ORDER BY C.Curve_Date DESC LIMIT 1";
-			System.out.println(sql);
-			ResultSet rs = db.selectData(sql);
-			Preconditions.checkState(rs.first());
-			int runID = rs.getInt(1);
+			int runID = -1;
+			for (int datasetID : study.getDatasetIDs()) {
+				System.out.println("Finding Run_ID for study "+study+", site "+siteName);
+				String sql = "SELECT C.Run_ID FROM Hazard_Curves C JOIN CyberShake_Runs R ON R.Run_ID=C.Run_ID\n" + 
+						"WHERE R.Site_ID="+csSite.id+" AND C.Hazard_Dataset_ID="+datasetID+" ORDER BY C.Curve_Date DESC LIMIT 1";
+				System.out.println(sql);
+				ResultSet rs = db.selectData(sql);
+				if (!rs.first())
+					// doesn't exist for this ID
+					continue;
+				runID = rs.getInt(1);
+			}
+			Preconditions.checkState(runID >= 0, "No runID found for site %s, study %s", siteName, study);
 			
 			System.out.println("Detected Run_ID="+runID);
 			
@@ -477,7 +534,9 @@ public class Study3Dvs1DCompare {
 		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance(rsqsimCatalogBaseDir);
 		double catalogMinMag = 6.5;
 		File bbpFile1D = new File("/data/kevin/bbp/parallel/2018_09_10-rundir2740-all-m6.5-skipYears5000-noHF-csLASites/results_rotD.zip");
-		String[] siteNames = { "PAS", "s279", "s119", "s480" };
+		double vs30_1d = VelocityModel.LA_BASIN.getVs30();
+//		String[] siteNames = { "PAS", "s279", "s119", "s480" };
+		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
 		double[] periods = {3d, 5d, 7.5, 10d};
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
@@ -525,7 +584,7 @@ public class Study3Dvs1DCompare {
 			throw new IllegalStateException("not yet implemented"); //TODO
 		}
 		
-		Study3Dvs1DCompare comp = new Study3Dvs1DCompare(prov3D, prov1D, sites);
+		Study3Dvs1DCompare comp = new Study3Dvs1DCompare(prov3D, prov1D, sites, vs30_1d, 150);
 		
 		File studyDir = new File(mainOutputDir, study3D.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());

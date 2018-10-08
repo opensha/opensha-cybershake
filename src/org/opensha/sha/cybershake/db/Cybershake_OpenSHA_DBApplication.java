@@ -449,6 +449,7 @@ public class Cybershake_OpenSHA_DBApplication {
 		erf.updateForecast();
 		ERF2DB erfDB = new ERF2DB(db, erf);
 		
+		
 		ERF forecast = erfDB.getERF_Instance();
 		System.out.println("ERF NAME: " + erfName);
 		int erfID = erfDB.getInserted_ERF_ID(erfName);
@@ -473,13 +474,12 @@ public class Cybershake_OpenSHA_DBApplication {
 //		double gridSpacing = 0.2;
 //		region = new GriddedRegion(corners, gridSpacing);
 		
-		// this inserts it
-		// TODO deal with rakes along strike before inserting UCERF3
-		// COMMENT OUT AFTER, will insert with new ID if duplicate
-		Preconditions.checkState(erfID < 0, "ERF ID is positive but you're trying to insert: %s", erfID);
-		erfDB.insertForecaseInDB(erfName, erfDescription, region);
-		erfID = erfDB.getInserted_ERF_ID(erfName);
-		System.out.println("Inserted ERF ID: "+erfID);
+//		// this inserts it
+//		// COMMENT THIS OUT AFTER INSERTING!!!! will insert with new ID if duplicate
+//		Preconditions.checkState(erfID < 0, "ERF ID is positive but you're trying to insert: %s", erfID);
+//		erfDB.insertForecaseInDB(erfName, erfDescription, region);
+//		erfID = erfDB.getInserted_ERF_ID(erfName);
+//		System.out.println("Inserted ERF ID: "+erfID);
 		
 		
 		// if you have to reinsert a rupture surface for some reason, do this
@@ -502,15 +502,18 @@ public class Cybershake_OpenSHA_DBApplication {
 //		sites.add(sites2db.getSiteFromDB("s778"));
 //		sites.add(sites2db.getSiteFromDB("STNI"));
 		
-		sites.add(sites2db.getSiteFromDB("USC"));
-		sites.add(sites2db.getSiteFromDB("PAS"));
-		sites.add(sites2db.getSiteFromDB("SBSM"));
-		sites.add(sites2db.getSiteFromDB("WNGC"));
-		sites.add(sites2db.getSiteFromDB("STNI"));
-		sites.add(sites2db.getSiteFromDB("LAPD"));
-		sites.add(sites2db.getSiteFromDB("s119"));
-		sites.add(sites2db.getSiteFromDB("s279"));
-		sites.add(sites2db.getSiteFromDB("s480"));
+//		sites.add(sites2db.getSiteFromDB("TEST"));
+		
+//		sites.add(sites2db.getSiteFromDB("USC"));
+//		sites.add(sites2db.getSiteFromDB("PAS"));
+//		sites.add(sites2db.getSiteFromDB("SBSM"));
+//		sites.add(sites2db.getSiteFromDB("WNGC"));
+//		sites.add(sites2db.getSiteFromDB("STNI"));
+//		sites.add(sites2db.getSiteFromDB("LAPD"));
+//		sites.add(sites2db.getSiteFromDB("s119"));
+//		sites.add(sites2db.getSiteFromDB("s279"));
+//		sites.add(sites2db.getSiteFromDB("s480"));
+		sites.add(sites2db.getSiteFromDB("SMCA"));
 //		sites.add(sites2db.getSiteFromDB("OSI"));
 //		sites.add(sites2db.getSiteFromDB("PARK"));
 		

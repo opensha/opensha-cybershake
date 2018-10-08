@@ -15,7 +15,14 @@ public abstract class CurveBasedMCErProbabilisitCalc extends
 
 	@Override
 	public DiscretizedFunc calc(Site site, Collection<Double> periods) {
+		return calc(site, periods, null);
+	}
+	
+	public DiscretizedFunc calc(Site site, Collection<Double> periods, Map<Double, DiscretizedFunc> curvesMapToFillIn) {
 		Map<Double, DiscretizedFunc> curves = calcHazardCurves(site, periods);
+		
+		if (curvesMapToFillIn != null)
+			curvesMapToFillIn.putAll(curves);
 		
 		Preconditions.checkArgument(!curves.isEmpty(), "curves map empty!");
 		ArbitrarilyDiscretizedFunc spectrum = new ArbitrarilyDiscretizedFunc();

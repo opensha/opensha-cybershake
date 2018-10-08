@@ -119,10 +119,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 //		HazardCurveFetcher fetcher = new HazardCurveFetcher(db, datasetID, rd50_ims[0].getID());
 		System.out.println("TODO: hardcoded to using im=21 for curve/site discovery");
-		HazardCurveFetcher fetcher = new HazardCurveFetcher(db, study.getDatasetID(), 21); // TODO
+		HazardCurveFetcher fetcher = new HazardCurveFetcher(db, study.getDatasetIDs(), 21); // TODO
 		csSites = fetcher.getCurveSites();
 		csRuns = fetcher.getRunIDs();
-		System.out.println("Loaded "+csRuns.size()+" runs for "+study.getName()+" (dataset "+study.getDatasetID()+")");
+		System.out.println("Loaded "+csRuns.size()+" runs for "+study.getName()+" (dataset "+study.getDatasetIDs()+")");
 		Preconditions.checkState(!csSites.isEmpty());
 		Preconditions.checkState(csSites.size() == csRuns.size());
 		

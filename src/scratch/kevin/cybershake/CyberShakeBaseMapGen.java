@@ -12,6 +12,7 @@ import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.region.CaliforniaRegions;
 import org.opensha.commons.data.siteData.SiteData;
+import org.opensha.commons.data.siteData.impl.CS_Study18_8_BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVMHBasinDepth;
@@ -60,7 +61,7 @@ public class CyberShakeBaseMapGen {
 	public static void main(String[] args) throws IOException {
 		if (args.length < 9 || args.length > 11) {
 			System.out.println("USAGE: "+ClassUtils.getClassNameWithoutPackage(CyberShakeBaseMapGen.class)
-					+" <IMRs> <SA period> <spacing> <CVM4/CVMH/CVMHnGTL/BBP/CVM4i26/CCAi6/CCA1D/null> <constrainBasinMin>"
+					+" <IMRs> <SA period> <spacing> <CVM4/CVMH/CVMHnGTL/BBP/CVM4i26/CCAi6/CCA1D/CS18_8/null> <constrainBasinMin>"
 					+" <jobName> <minutes> <nodes> <queue> [<LA/CCA/CA> OR minLat/minLon/maxLat/maxLon] ['Include'/'Exclude' background]");
 			System.exit(2);
 		}
@@ -149,6 +150,9 @@ public class CyberShakeBaseMapGen {
 		} else if (cvmName.toLowerCase().equals("bbp")) {
 			// this will also clear Wills 2006 from the list
 			provs = CyberShakeSiteBuilder.getBBP_1D_Providers();
+		} else if (cvmName.toLowerCase().equals("cs18_8")) {
+			provs.add(new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5));
+			provs.add(new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0));
 		} else if (cvmName.toLowerCase().equals("null")){
 			nullBasin = true;
 		} else {

@@ -27,7 +27,7 @@ public class SiteSearchByVs30 {
 		Runs2DB run2db = new Runs2DB(study.getDB());
 		SiteInfo2DB sites2db = new SiteInfo2DB(study.getDB());
 		
-		HazardCurveFetcher curveFetch = new HazardCurveFetcher(study.getDB(), study.getDatasetID(),
+		HazardCurveFetcher curveFetch = new HazardCurveFetcher(study.getDB(), study.getDatasetIDs(),
 				CybershakeIM.getSA(CyberShakeComponent.RotD100, 3d).getID());
 		
 		List<Integer> runIDs = curveFetch.getRunIDs();

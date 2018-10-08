@@ -82,12 +82,15 @@ public class CyberShakeSiteBuilder {
 					throw ExceptionUtils.asRuntimeException(e);
 				}
 			} else if (this == Vs30_Source.Simulation) {
-				Double vs30 = run.getMeshVs30();
-				if (vs30 == null) {
-					System.err.println("Warning, mesh Vs30 not defined, using model Vs30");
-					vs30 = run.getModelVs30();
-					Preconditions.checkNotNull(vs30, "Neither mesh nor model Vs30 defined!");
-				}
+//				Double vs30 = run.getMeshVs30();
+//				if (vs30 == null) {
+//					System.err.println("Warning, mesh Vs30 not defined, using model Vs30");
+//					vs30 = run.getModelVs30();
+//					Preconditions.checkNotNull(vs30, "Neither mesh nor model Vs30 defined!");
+//				}
+				// TODO reverting to model Vs30 until Mesh Vs30 is fixed
+				Double vs30 = run.getModelVs30();
+				Preconditions.checkNotNull(vs30, "No model Vs30 defined!");
 				Preconditions.checkState(Double.isFinite(vs30), "Vs30 is null for run %s", run.getRunID());
 				return vs30;
 			} else {

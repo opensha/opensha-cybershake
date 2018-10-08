@@ -5,7 +5,12 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 
+import org.opensha.commons.calc.magScalingRelations.MagAreaRelationship;
+import org.opensha.commons.calc.magScalingRelations.magScalingRelImpl.HanksBakun2002_MagAreaRel;
+import org.opensha.commons.calc.magScalingRelations.magScalingRelImpl.Somerville_2006_MagAreaRel;
 import org.opensha.commons.data.CSVFile;
+import org.opensha.commons.data.TimeSpan;
+import org.opensha.commons.eq.MagUtils;
 import org.opensha.commons.util.ClassUtils;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.earthquake.ERF;
@@ -59,35 +64,36 @@ public class UCERF2_AleatoryMagVarRemovalMod implements RuptureProbabilityModifi
 		if (rupID < startRupID)
 			return origProb;
 		// find the mode of the distribution
-		int maxProbID = -1;
-		double maxProb = 0d;
+		// dist is moment rate balance, so look for max mo rate
+		double totMoRate = 0d;
+		double maxMoRate = 0d;
+		int maxMoRateID = -1;
+		
+		double erfDuration = erf.getTimeSpan().getDuration(TimeSpan.YEARS);
+		
 		for (int testRupID=startRupID; testRupID<source.getNumRuptures(); testRupID++) {
-			double prob = source.getRupture(testRupID).getProbability();
-			if (prob >= maxProb) {
-				maxProb = prob;
-				maxProbID = testRupID;
+			ProbEqkRupture rup = source.getRupture(testRupID);
+			double rate = rup.getMeanAnnualRate(erfDuration);
+			double moment = MagUtils.magToMoment(rup.getMag());
+			double moRate = moment*rate;
+			totMoRate += moRate;
+			if (moRate >= maxMoRate) {
+				maxMoRate = moRate;
+				maxMoRateID = testRupID;
 			}
 		}
 		// make probability zero if not the most probable rupture
-		if (maxProbID != rupID)
+		if (maxMoRateID != rupID)
 			return 0;
 		// return the total source probability if it is
-		double totProb = 0;
-		for(int i=startRupID; i<source.getNumRuptures(); i++) {
-			double prob = source.getRupture(i).getProbability();
-			if (source.isSourcePoissonian())
-				totProb += Math.log(1-prob);
-			else
-				totProb += prob;
-		}
-		double totProbBefore = totProb;
-		if (source.isSourcePoissonian())
-			totProb = 1 - Math.exp(totProb);
-		Preconditions.checkState(totProb > origProb, "Didn't increase...? %s <= %s. Before=%s. ID=%s, name=%s, class=%s",
-				totProb, origProb, totProbBefore, sourceID, source.getName(),
+		double rupMoment = MagUtils.magToMoment(source.getRupture(maxMoRateID).getMag());
+		double newRate = totMoRate / rupMoment;
+		double newProb = 1d - Math.exp(-newRate*erfDuration);
+		Preconditions.checkState(newProb > origProb, "Didn't increase...? %s <= %s. ID=%s, name=%s, class=%s",
+				newProb, origProb, sourceID, source.getName(),
 				ClassUtils.getClassNameWithoutPackage(source.getClass()));
 		
-		return totProb;
+		return newProb;
 	}
 	
 	private boolean isAleatory(ProbEqkSource source) {
@@ -159,12 +165,15 @@ public class UCERF2_AleatoryMagVarRemovalMod implements RuptureProbabilityModifi
 		
 		ScalingRelationships[] scalars =  { ScalingRelationships.AVE_UCERF2, ScalingRelationships.MEAN_UCERF3,
 				ScalingRelationships.ELLSWORTH_B, ScalingRelationships.HANKS_BAKUN_08, ScalingRelationships.SHAW_2009_MOD };
+		MagAreaRelationship[] extraMAs = { new HanksBakun2002_MagAreaRel(), new Somerville_2006_MagAreaRel() };
 		
 		List<String> header = Lists.newArrayList("Source ID", "Rupture ID", "Type", "Area (km^2)",
-				"Length (km)", "DDW (km)", "UCERF2 Mod Mag");
+				"Length (km)", "DDW (km)", "UCERF2 Mag");
 		
 		for (ScalingRelationships scalar : scalars)
 			header.add(scalar.getShortName());
+		for (MagAreaRelationship ma : extraMAs)
+			header.add(ma.getName());
 		
 		csv.addLine(header);
 		
@@ -193,12 +202,17 @@ public class UCERF2_AleatoryMagVarRemovalMod implements RuptureProbabilityModifi
 					type = "REGULAR";
 				}
 				
-				List<String> line = Lists.newArrayList(sourceID+"", rupID+"", type, area+"", len+"", ddw+"", mag+"");
+				List<String> line = Lists.newArrayList(sourceID+"", rupID+"", type, (float)area+"", (float)len+"", (float)ddw+"", (float)mag+"");
 				
 				for (ScalingRelationships scalar : scalars) {
 					double scalarMag = scalar.getMag(area * 1000000, ddw * 1000); // in S-I units
 					
-					line.add(scalarMag+"");
+					line.add((float)scalarMag+"");
+				}
+				for (MagAreaRelationship ma : extraMAs) {
+					double scalarMag = ma.getMedianMag(area);
+					
+					line.add((float)scalarMag+"");
 				}
 				
 				csv.addLine(line);

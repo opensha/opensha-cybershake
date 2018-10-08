@@ -84,13 +84,18 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		SiteInfo2DB sites2db = new SiteInfo2DB(db);
 		CybershakeSite csSite = sites2db.getSiteFromDB(siteName);
 		
-		System.out.println("Finding Run_ID for study "+study);
-		String sql = "SELECT C.Run_ID FROM Hazard_Curves C JOIN CyberShake_Runs R ON R.Run_ID=C.Run_ID\n" + 
-				"WHERE R.Site_ID="+csSite.id+" AND C.Hazard_Dataset_ID="+study.getDatasetID()+" ORDER BY C.Curve_Date DESC LIMIT 1";
-		System.out.println(sql);
-		ResultSet rs = db.selectData(sql);
-		Preconditions.checkState(rs.first());
-		int runID = rs.getInt(1);
+		int runID = -1;
+		for (int datasetID : study.getDatasetIDs()) {
+			System.out.println("Finding Run_ID for study "+study+", site "+siteName);
+			String sql = "SELECT C.Run_ID FROM Hazard_Curves C JOIN CyberShake_Runs R ON R.Run_ID=C.Run_ID\n" + 
+					"WHERE R.Site_ID="+csSite.id+" AND C.Hazard_Dataset_ID="+datasetID+" ORDER BY C.Curve_Date DESC LIMIT 1";
+			System.out.println(sql);
+			ResultSet rs = db.selectData(sql);
+			if (!rs.first())
+				// doesn't exist for this ID
+				continue;
+			runID = rs.getInt(1);
+		}
 		
 		System.out.println("Detected Run_ID="+runID);
 		
@@ -270,46 +275,47 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		/*
 		 * For RSQSim studies
 		 */
-////		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457;
-////		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_12-rundir2457-all-m6.5-skipYears5000-noHF-standardSites");
-////		RSQSimCatalog catalog = Catalogs.BRUCE_2457.instance(new File("/data/kevin/simulators/catalogs"));
-//		
-////		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
-////		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_13-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-csLASites");
-////		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(new File("/data/kevin/simulators/catalogs"));
-//		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
-//		File bbpDir = new File("/data/kevin/bbp/parallel/2018_09_10-rundir2740-all-m6.5-skipYears5000-noHF-csLASites");
-//		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance(new File("/data/kevin/simulators/catalogs"));
-//		
-//		Vs30_Source vs30Source = Vs30_Source.Simulation;
-////		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
-//		CyberShakeStudy[] compStudies = {  };
-//		double catDurationYears = catalog.getDurationYears() - 5000d;
-//		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457;
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_12-rundir2457-all-m6.5-skipYears5000-noHF-standardSites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_2457.instance(new File("/data/kevin/simulators/catalogs"));
+		
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_13-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-csLASites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(new File("/data/kevin/simulators/catalogs"));
+		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
+		File bbpDir = new File("/data/kevin/bbp/parallel/2018_09_10-rundir2740-all-m6.5-skipYears5000-noHF-csLASites");
+		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance(new File("/data/kevin/simulators/catalogs"));
+		
+		Vs30_Source vs30Source = Vs30_Source.Simulation;
+//		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
+		CyberShakeStudy[] compStudies = {  };
+		double catDurationYears = catalog.getDurationYears() - 5000d;
+		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
 		
 		/*
 		 * For regular studies
 		 */
-		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
-		Vs30_Source vs30Source = Vs30_Source.Simulation;
-		CyberShakeStudy[] compStudies = { };
-		
-		RSQSimCatalog catalog = null;
-		File bbpDir = null;
-		double catDurationYears = -1;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+//		Vs30_Source vs30Source = Vs30_Source.Simulation;
+//		CyberShakeStudy[] compStudies = { };
+//		
+//		RSQSimCatalog catalog = null;
+//		File bbpDir = null;
+//		double catDurationYears = -1;
 		
 		boolean includeAleatoryStrip = true;
 		
 //		String[] siteNames = { "USC" };
-		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
+//		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
+//		String[] siteNames = { "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "s119", "s279", "s480" };
 //		String[] siteNames = { "LAPD" };
-//		String[] siteNames = { "WNGC" };
+		String[] siteNames = { "SMCA" };
 		
-		boolean replotCurves = true;
-		boolean replotDisaggs = true;
+		boolean replotCurves = false;
+		boolean replotDisaggs = false;
 		
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };
@@ -321,70 +327,85 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		File studyDir = new File(mainOutputDir, study.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
 		
-		for (String siteName : siteNames) {
-			StudyRotDProvider mainProv = getSimProv(study, siteName, ampsCacheDir, periods, rd50_ims, vs30Source);
-			
-			Site site = mainProv.getAvailableSites().iterator().next();
-			
-			List<SimulationRotDProvider<?>> compSimProvs = new ArrayList<>();
-			
-			if (includeAleatoryStrip && study.getERF() instanceof MeanUCERF2)
-				compSimProvs.add(new StudyModifiedProbRotDProvider(
-						mainProv, new UCERF2_AleatoryMagVarRemovalMod(study.getERF()), study.getName()+" w/o Aleatory Mag"));
-			
-			Table<String, CSRupture, Double> sourceContribFracts =
-					getSourceContribFracts(study.getERF(), mainProv.getRupturesForSite(site), catalog);
-			
-			for (CyberShakeStudy compStudy : compStudies) {
-				StudyRotDProvider compProv = getSimProv(compStudy, siteName, ampsCacheDir, periods, rd50_ims, site);
-				compSimProvs.add(compProv);
-				if (includeAleatoryStrip && compStudy.getERF() instanceof MeanUCERF2)
+		try {
+			for (String siteName : siteNames) {
+				StudyRotDProvider mainProv = getSimProv(study, siteName, ampsCacheDir, periods, rd50_ims, vs30Source);
+				
+				Site site = mainProv.getAvailableSites().iterator().next();
+				
+				List<SimulationRotDProvider<?>> compSimProvs = new ArrayList<>();
+				
+				if (includeAleatoryStrip && study.getERF() instanceof MeanUCERF2)
 					compSimProvs.add(new StudyModifiedProbRotDProvider(
-							compProv, new UCERF2_AleatoryMagVarRemovalMod(compStudy.getERF()), compStudy.getName()+" w/o Aleatory Mag"));
+							mainProv, new UCERF2_AleatoryMagVarRemovalMod(study.getERF()), study.getName()+" w/o Aleatory Mag"));
+				
+				Table<String, CSRupture, Double> sourceContribFracts =
+						getSourceContribFracts(study.getERF(), mainProv.getRupturesForSite(site), catalog);
+				
+				for (CyberShakeStudy compStudy : compStudies) {
+					StudyRotDProvider compProv = getSimProv(compStudy, siteName, ampsCacheDir, periods, rd50_ims, site);
+					compSimProvs.add(compProv);
+					if (includeAleatoryStrip && compStudy.getERF() instanceof MeanUCERF2)
+						compSimProvs.add(new StudyModifiedProbRotDProvider(
+								compProv, new UCERF2_AleatoryMagVarRemovalMod(compStudy.getERF()), compStudy.getName()+" w/o Aleatory Mag"));
+				}
+				
+				LightweightBBP_CatalogSimZipLoader bbpCompProv = null;
+				if (bbpDir != null) {
+					try {
+						bbpCompProv = loadBBP(bbpDir, site, catDurationYears);
+						compSimProvs.add(bbpCompProv);
+					} catch (IllegalStateException e) {
+						System.err.println("BBP load error for site "+siteName+": "+e.getMessage());
+					}
+				}
+				
+				StudySiteHazardCurvePageGen pageGen = new StudySiteHazardCurvePageGen(mainProv, study.getName(), compSimProvs);
+				pageGen.setReplotCurves(replotCurves);
+				pageGen.setReplotDisaggs(replotDisaggs);
+				pageGen.setSourceRupContributionFractions(sourceContribFracts, 4e-4, 10);
+				if (bbpCompProv != null)
+					pageGen.setCustomPlotColors(bbpCompProv, new PlotCurveCharacterstics(PlotLineType.SOLID, 2f, Color.ORANGE));
+				
+				for (AttenRelRef gmpeRef : gmpeRefs) {
+					File outputDir = new File(studyDir, "site_hazard_"+siteName+"_"+gmpeRef.getShortName()+"_Vs30"+vs30Source.name());
+					Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
+					
+					List<CSRuptureComparison> comps = calcComps(mainProv, site, gmpeRef, periods);
+					
+					List<String> headerLines = new ArrayList<>();
+					headerLines.add("# "+study.getName()+" "+siteName+" Hazard Curves");
+					headerLines.add("");
+					headerLines.add("**GMPE: "+gmpeRef.getName()+", Vs30 Source: "+vs30Source+"**");
+					headerLines.add("");
+					headerLines.add("**Study Details**");
+					headerLines.add("");
+					headerLines.addAll(study.getMarkdownMetadataTable());
+					headerLines.add("");
+					
+					pageGen.generateSitePage(site, comps, outputDir, headerLines, periods, gmpeRef);
+				}
 			}
 			
-			LightweightBBP_CatalogSimZipLoader bbpCompProv = null;
-			if (bbpDir != null) {
-				bbpCompProv = loadBBP(bbpDir, site, catDurationYears);
-				compSimProvs.add(bbpCompProv);
-			}
-			
-			StudySiteHazardCurvePageGen pageGen = new StudySiteHazardCurvePageGen(mainProv, study.getName(), compSimProvs);
-			pageGen.setReplotCurves(replotCurves);
-			pageGen.setReplotDisaggs(replotDisaggs);
-			pageGen.setSourceRupContributionFractions(sourceContribFracts, 4e-4, 10);
-			if (bbpCompProv != null)
-				pageGen.setCustomPlotColors(bbpCompProv, new PlotCurveCharacterstics(PlotLineType.SOLID, 2f, Color.ORANGE));
-			
-			for (AttenRelRef gmpeRef : gmpeRefs) {
-				File outputDir = new File(studyDir, "site_hazard_"+siteName+"_"+gmpeRef.getShortName()+"_Vs30"+vs30Source.name());
-				Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
-				
-				List<CSRuptureComparison> comps = calcComps(mainProv, site, gmpeRef, periods);
-				
-				List<String> headerLines = new ArrayList<>();
-				headerLines.add("# "+study.getName()+" "+siteName+" Hazard Curves");
-				headerLines.add("");
-				headerLines.add("**GMPE: "+gmpeRef.getName()+", Vs30 Source: "+vs30Source+"**");
-				headerLines.add("");
-				headerLines.add("**Study Details**");
-				headerLines.add("");
-				headerLines.addAll(study.getMarkdownMetadataTable());
-				headerLines.add("");
-				
-				pageGen.generateSitePage(site, comps, outputDir, headerLines, periods, gmpeRef);
-			}
+			System.out.println("Done, writing summary");
+			study.writeMarkdownSummary(studyDir);
+			System.out.println("Writing studies index");
+			CyberShakeStudy.writeStudiesIndex(mainOutputDir);
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 		
-		study.writeMarkdownSummary(studyDir);
-		CyberShakeStudy.writeStudiesIndex(mainOutputDir);
+		System.out.println("Shutting down DB connections");
 		
 		study.getDB().destroy();
 		for (CyberShakeStudy compStudy : compStudies)
 			compStudy.getDB().destroy();
 		
+		System.out.println("Shutting down executor");
+		
 		getExec().shutdown();
 		
+		System.out.println("Exiting");
 		System.exit(0);
 	}
 

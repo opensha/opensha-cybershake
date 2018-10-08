@@ -42,6 +42,7 @@ import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.HazardCurve2DB;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 public class HazardCurveFetcher {
@@ -60,8 +61,16 @@ public class HazardCurveFetcher {
 	private CybershakeIM im;
 	
 	public HazardCurveFetcher(DBAccess db, int datasetID, int imTypeID) {
+		this(db, new int[] {datasetID}, imTypeID);
+	}
+	
+	public HazardCurveFetcher(DBAccess db, int[] datasetIDs, int imTypeID) {
 		this.initDBConnections(db);
-		init(curve2db.getAllHazardCurveIDsForDataset(datasetID, imTypeID), imTypeID);
+		Preconditions.checkArgument(datasetIDs.length > 0);
+		ArrayList<Integer> curveIDs = new ArrayList<>();
+		for (int datasetID : datasetIDs)
+			curveIDs.addAll(curve2db.getAllHazardCurveIDsForDataset(datasetID, imTypeID));
+		init(curveIDs, imTypeID);
 	}
 	
 	public HazardCurveFetcher(DBAccess db, int erfID, int rupVarScenarioID, int sgtVarID, int velModelID, int imTypeID) {

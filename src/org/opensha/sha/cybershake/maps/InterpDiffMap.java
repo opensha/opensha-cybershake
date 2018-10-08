@@ -10,22 +10,28 @@ import org.opensha.commons.util.cpt.CPT;
 public class InterpDiffMap extends GMT_Map {
 	
 	public enum InterpDiffMapType {
-		BASEMAP("basemap", null),
-		INTERP_NOMARKS("interpolated", null),
-		INTERP_MARKS("interpolated_marks", Color.WHITE),
-		DIFF("diff", Color.BLACK),
-		RATIO("ratio", Color.BLACK);
+		BASEMAP("basemap", "GMPE Basemap", null),
+		INTERP_NOMARKS("interpolated", "Interpolated CyberShake Map", null),
+		INTERP_MARKS("interpolated_marks", "Interpolated CyberShake Map w/ Sites Marked", Color.WHITE),
+		DIFF("diff", "Difference: CyberShake - GMPE Basemap", Color.BLACK),
+		RATIO("ratio", "Ratio: CyberShake / GMPE Basemap", Color.BLACK);
 		
 		private String prefix;
+		private String name;
 		private Color markerColor;
 		
-		private InterpDiffMapType(String prefix, Color markerColor) {
+		private InterpDiffMapType(String prefix, String name, Color markerColor) {
 			this.prefix = prefix;
+			this.name = name;
 			this.markerColor = markerColor;
 		}
 		
 		public String getPrefix() {
 			return prefix;
+		}
+		
+		public String getName() {
+			return name;
 		}
 		
 		public Color getMarkerColor() {

@@ -42,11 +42,13 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 	private static final String args_continue_newline = " "; // for MPJ Express
 
 	public static void main(String[] args) throws IOException {
-		int mins = 60*48*5;
-		int nodes = 36;
+		int mins = 60*24*1;
+		int nodes = 32;
 		int memGigs = 50;
 		String queue = "scec";
 		int ppn = 20;
+//		String dateStr = new SimpleDateFormat("yyyy_MM_dd").format(new Date());
+		String dateStr = "2018_10_03";
 		
 //		int mins = 60*24;
 //		int nodes = 24;
@@ -56,13 +58,16 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 		
 		boolean fmpj = false;
 		
-//		Map<String, Double> vs30Map = new HashMap<>(UGMS_WebToolCalc.vs30Map);
+		Map<String, Double> vs30Map = new HashMap<>(UGMS_WebToolCalc.vs30Map);
 //		double spacing = 0.02;
-		Map<String, Double> vs30Map = new HashMap<>();
-		vs30Map.put("Wills", UGMS_WebToolCalc.vs30Map.get("Wills"));
-		double spacing = 0.001;
+		double spacing = 0.01;
+//		Map<String, Double> vs30Map = new HashMap<>();
+//		vs30Map.put("Wills", UGMS_WebToolCalc.vs30Map.get("Wills"));
+//		double spacing = 0.001;
 		
 		vs30Map.remove("D_default"); // calculated after the fact
+		
+		boolean storeProbCurves = true;
 		
 		GriddedRegion reg = new CaliforniaRegions.CYBERSHAKE_MAP_GRIDDED(spacing);
 		
@@ -85,7 +90,10 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 		System.out.println(sites.size()+" sites after TL filter");
 		
 		for (String vsModel : vs30Map.keySet()) {
-			String jobName = "ucerf3_downsampled_ngaw2_binary_"+(float)spacing;
+			String jobName = "ucerf3_downsampled_ngaw2_binary_";
+			if (storeProbCurves)
+				jobName += "curves_";
+			jobName += (float)spacing+"";
 			
 //			String erfFileName = "MeanUCERF3_full.xml";
 			String erfFileName = "MeanUCERF3_downsampled2.xml";
@@ -114,7 +122,7 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 			
 			Component comp = Component.RotD100;
 			
-			jobName = new SimpleDateFormat("yyyy_MM_dd").format(new Date())+"-"+jobName;
+			jobName = dateStr+"-"+jobName;
 			
 			BatchScriptWriter pbsWrite;
 			
@@ -163,6 +171,8 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 			argz += args_continue_newline+"--sites "+remoteJobDir.getAbsolutePath()+"/"+sitesFileName;
 			argz += args_continue_newline+"--component "+comp.name();
 			argz += args_continue_newline+"--period "+periods;
+			if (storeProbCurves)
+				argz += args_continue_newline+"--curves";
 			
 			File pbsFile = new File(localJobDir, jobName+".pbs");
 			

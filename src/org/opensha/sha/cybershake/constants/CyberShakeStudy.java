@@ -20,10 +20,12 @@ import java.util.Map;
 
 import org.dom4j.DocumentException;
 import org.jfree.data.Range;
+import org.opensha.commons.calc.FaultMomentCalc;
 import org.opensha.commons.data.function.DefaultXY_DataSet;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.function.EvenlyDiscretizedFunc;
 import org.opensha.commons.data.region.CaliforniaRegions;
+import org.opensha.commons.eq.MagUtils;
 import org.opensha.commons.geo.Region;
 import org.opensha.commons.gui.plot.HeadlessGraphPanel;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
@@ -113,7 +115,16 @@ public enum CyberShakeStudy {
 			return getRSQSimERF("rundir2585_1myr");
 		}
 	},
-	STUDY_18_9_RSQSIM_2740(cal(2018, 9), 85, "RSQSim 2740",
+	STUDY_18_8(cal(2018, 8), 84, "Study 18.8", "study_18_8",
+			"Northern California with Bay Area, CCA, and CVM-S4.26 Velocity Models, 1hz", 11,
+			new CaliforniaRegions.CYBERSHAKE_BAY_AREA_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		AbstractERF buildERF() {
+			return MeanUCERF2_ToDB.createUCERF2ERF();
+		}
+	},
+	STUDY_18_9_RSQSIM_2740(cal(2018, 9), new int[] { 85, 86}, "RSQSim 2740",
 			"study_18_9_rsqsim_2740", "RSQSim prototype with catalog 2740 (259kyr)", 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
@@ -144,7 +155,7 @@ public enum CyberShakeStudy {
 		return erf;
 	}
 	
-	private int datasetID;
+	private int[] datasetIDs;
 	private String name;
 	private String dirName;
 	private String description;
@@ -158,8 +169,14 @@ public enum CyberShakeStudy {
 	
 	private CyberShakeStudy(GregorianCalendar date, int datasetID, String name, String dirName, String description,
 			int velocityModelID, Region region, String dbHost) {
+		this(date, new int[] {datasetID}, name, dirName, description, velocityModelID, region, dbHost);
+	}
+	
+	private CyberShakeStudy(GregorianCalendar date, int[] datasetIDs, String name, String dirName, String description,
+			int velocityModelID, Region region, String dbHost) {
 		this.date = date;
-		this.datasetID = datasetID;
+		Preconditions.checkState(datasetIDs.length > 0);
+		this.datasetIDs = datasetIDs;
 		this.name = name;
 		this.dirName = dirName;
 		this.description = description;
@@ -174,8 +191,8 @@ public enum CyberShakeStudy {
 	
 	private static DateFormat dateFormat = new SimpleDateFormat("MMM yyyy");
 
-	public int getDatasetID() {
-		return datasetID;
+	public int[] getDatasetIDs() {
+		return datasetIDs;
 	}
 
 	public String getName() {
@@ -215,7 +232,7 @@ public enum CyberShakeStudy {
 	}
 	
 	private int getERF_ID(DBAccess db) {
-		String sql = "SELECT ERF_ID FROM Hazard_Datasets WHERE Hazard_Dataset_ID="+getDatasetID();
+		String sql = "SELECT ERF_ID FROM Hazard_Datasets WHERE Hazard_Dataset_ID="+getDatasetIDs()[0];
 		
 		try {
 			ResultSet rs = db.selectData(sql);
@@ -227,7 +244,7 @@ public enum CyberShakeStudy {
 	}
 	
 	private int getRupVarScenarioID(DBAccess db) {
-		String sql = "SELECT Rup_Var_Scenario_ID FROM Hazard_Datasets WHERE Hazard_Dataset_ID="+getDatasetID();
+		String sql = "SELECT Rup_Var_Scenario_ID FROM Hazard_Datasets WHERE Hazard_Dataset_ID="+getDatasetIDs()[0];
 		
 		try {
 			ResultSet rs = db.selectData(sql);
@@ -284,6 +301,8 @@ public enum CyberShakeStudy {
 		
 		String study_3d_vs_1d_link = null;
 		
+		String hazardMapLink = null;
+		
 		File[] dirList = dir.listFiles();
 		Arrays.sort(dirList, new FileNameComparator());
 		for (File subDir : dirList) {
@@ -334,7 +353,17 @@ public enum CyberShakeStudy {
 				sourceSiteLinksMap.put(vs30, name);
 			} else if (name.equals("3d_1d_comparison")) {
 				study_3d_vs_1d_link = name;
+			} else if (name.equals("hazard_maps")) {
+				hazardMapLink = name;
 			}
+		}
+		
+		if (hazardMapLink != null) {
+			lines.add("");
+			lines.add("## Hazard Maps");
+			lines.add(topLink);
+			lines.add("");
+			lines.add("[Hazard Maps Plotted Here]("+hazardMapLink+"/)");
 		}
 		
 		if (!gmpeLinksMap.isEmpty()) {
@@ -435,8 +464,9 @@ public enum CyberShakeStudy {
 		lines.add("");
 		lines.add("![RV Count]("+outputDir.getName()+"/rv_count.png)");
 		
-		if (replot || !new File(outputDir, "mag_area_hist2D.png").exists()) {
-			writeMagAreaPlot(outputDir, "mag_area", null);
+		if (replot || !new File(outputDir, "mag_area_hist2D.png").exists()
+				|| !new File(outputDir, "slip_area_hist2D.png").exists()) {
+			writeMagSlipAreaPlots(outputDir, "", null);
 		}
 		lines.add("### Magnitude-Area Plots");
 		lines.add(topLink);
@@ -446,6 +476,17 @@ public enum CyberShakeStudy {
 		table.initNewLine();
 		table.addColumn("![MFD Scatter]("+outputDir.getName()+"/mag_area.png)");
 		table.addColumn("![MFD Hist]("+outputDir.getName()+"/mag_area_hist2D.png)");
+		table.finalizeLine();
+		lines.addAll(table.build());
+
+		lines.add("### Slip-Area Plots");
+		lines.add(topLink);
+		lines.add("");
+		table = MarkdownUtils.tableBuilder();
+		table.addLine("Scatter", "2-D Hist");
+		table.initNewLine();
+		table.addColumn("![Slip Scatter]("+outputDir.getName()+"/slip_area.png)");
+		table.addColumn("![Slip Hist]("+outputDir.getName()+"/slip_area_hist2D.png)");
 		table.finalizeLine();
 		lines.addAll(table.build());
 		
@@ -458,7 +499,7 @@ public enum CyberShakeStudy {
 			if (replot || !new File(outputDir, "mfd_no_aleatory.png").exists()) {
 				writeMFD(outputDir, "mfd_no_aleatory", probMod);
 			}
-			lines.add("#### Magnitude-Frequency Plot");
+			lines.add("#### No-Aleatory Magnitude-Frequency Plot");
 			lines.add(topLink);
 			lines.add("");
 			lines.add("![MFD]("+outputDir.getName()+"/mfd_no_aleatory.png)");
@@ -466,15 +507,16 @@ public enum CyberShakeStudy {
 			if (replot || !new File(outputDir, "rv_count_no_aleatory.png").exists()) {
 				writeRVCount(outputDir, "rv_count_no_aleatory", probMod);
 			}
-			lines.add("#### Rupture Variation Count Plot");
+			lines.add("#### No-Aleatory Rupture Variation Count Plot");
 			lines.add(topLink);
 			lines.add("");
 			lines.add("![RV Count]("+outputDir.getName()+"/rv_count_no_aleatory.png)");
 			
-			if (replot || !new File(outputDir, "mag_area_no_aleatory_hist2D.png").exists()) {
-				writeMagAreaPlot(outputDir, "mag_area_no_aleatory", probMod);
+			if (replot || !new File(outputDir, "mag_area_no_aleatory_hist2D.png").exists()
+					|| !new File(outputDir, "slip_area_no_aleatory_hist2D.png").exists()) {
+				writeMagSlipAreaPlots(outputDir, "_no_aleatory", probMod);
 			}
-			lines.add("#### Magnitude-Area Plots");
+			lines.add("#### No-Aleatory Magnitude-Area Plots");
 			lines.add(topLink);
 			lines.add("");
 			table = MarkdownUtils.tableBuilder();
@@ -484,13 +526,25 @@ public enum CyberShakeStudy {
 			table.addColumn("![MFD Hist]("+outputDir.getName()+"/mag_area_no_aleatory_hist2D.png)");
 			table.finalizeLine();
 			lines.addAll(table.build());
+			
+			lines.add("#### No-Aleatory Slip-Area Plots");
+			lines.add(topLink);
+			lines.add("");
+			table = MarkdownUtils.tableBuilder();
+			table.addLine("Scatter", "2-D Hist");
+			table.initNewLine();
+			table.addColumn("![Slip Scatter]("+outputDir.getName()+"/slip_area_no_aleatory.png)");
+			table.addColumn("![Slip Hist]("+outputDir.getName()+"/slip_area_no_aleatory_hist2D.png)");
+			table.finalizeLine();
+			lines.addAll(table.build());
 		}
 		
 		return lines;
 	}
 	
-	private void writeMagAreaPlot(File outputDir, String prefix, RuptureProbabilityModifier probMod) throws IOException {
-		DefaultXY_DataSet scatter = new DefaultXY_DataSet();
+	private void writeMagSlipAreaPlots(File outputDir, String prefixAdd, RuptureProbabilityModifier probMod) throws IOException {
+		DefaultXY_DataSet maScatter = new DefaultXY_DataSet();
+		DefaultXY_DataSet slipScatter = new DefaultXY_DataSet();
 		AbstractERF erf = getERF();
 		for (int sourceID=0; sourceID<erf.getNumSources(); sourceID++) {
 			ProbEqkSource source = erf.getSource(sourceID);
@@ -508,10 +562,14 @@ public enum CyberShakeStudy {
 				} else {
 					area = rup.getRuptureSurface().getArea();
 				}
-				scatter.set(area, rup.getMag());
+				maScatter.set(area, rup.getMag());
+				double moment = MagUtils.magToMoment(rup.getMag());
+				double meanSlip = FaultMomentCalc.getSlip(area*1e6, moment);
+				slipScatter.set(area, meanSlip);
 			}
 		}
-		MagAreaScalingPlot.writeScatterPlots(scatter, getName(), outputDir, prefix, 650, 600);
+		MagAreaScalingPlot.writeScatterPlots(maScatter, false, getName(), outputDir, "mag_area"+prefixAdd, 650, 600);
+		MagAreaScalingPlot.writeScatterPlots(slipScatter, true, getName(), outputDir, "slip_area"+prefixAdd, 650, 600);
 	}
 	
 	private void writeMFD(File outputDir, String prefix, RuptureProbabilityModifier probMod) throws IOException {
@@ -698,13 +756,13 @@ public enum CyberShakeStudy {
 	public static void main(String[] args) throws IOException {
 		File gitDir = new File("/home/kevin/git/cybershake-analysis");
 		
-		boolean replot = true;
+		boolean replot = false;
 		
 		for (CyberShakeStudy study : CyberShakeStudy.values()) {
 			System.out.println("Processing "+study.getName());
 			File studyDir = new File(gitDir, study.getDirName());
-			if (studyDir.exists())
-				study.writeMarkdownSummary(studyDir, replot);
+			Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
+			study.writeMarkdownSummary(studyDir, replot);
 		}
 		
 		System.out.println("Writing index");

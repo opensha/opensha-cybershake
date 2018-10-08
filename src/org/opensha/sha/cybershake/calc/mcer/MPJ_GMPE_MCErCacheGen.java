@@ -8,6 +8,7 @@ import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -75,6 +76,7 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 	
 	private static final boolean duplicateERF = false;
 	
+	private boolean storeCurves;
 	private BinaryCurveArchiver archiver;
 	private Map<String, BinaryGeoDatasetRandomAccessFile> pgaFiles;
 	
@@ -171,6 +173,8 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 		Map<String, DiscretizedFunc> xValsMap = Maps.newHashMap();
 		pgaFiles = Maps.newHashMap();
 		
+		storeCurves = cmd.hasOption("curves");
+		
 		for (int t=0; t<numThreads; t++) {
 			List<AttenuationRelationship> attenRels = attenRelsList.get(t);
 			GMPE_MCErDeterministicCalc[] detCalcs = new GMPE_MCErDeterministicCalc[attenRels.size()];
@@ -185,6 +189,10 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 					xValsMap.put(cachePrefixes[i]+"_det", periodsFunc);
 					xValsMap.put(cachePrefixes[i]+"_prob", periodsFunc);
 					xValsMap.put(cachePrefixes[i]+"_mcer", periodsFunc);
+					
+					if (storeCurves)
+						for (double period : periods)
+							xValsMap.put(cachePrefixes[i]+"_sa_"+(float)period+"s", xVals);
 					
 					pgaFiles.put(cachePrefixes[i]+"_pga_det",
 							new BinaryGeoDatasetRandomAccessFile(new File(outputDir, cachePrefixes[i]+"_pga_det.bin"),
@@ -324,7 +332,8 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 				debug("Calculating MCEr deterministic, site "+name);
 				DiscretizedFunc det = AbstractMCErDeterministicCalc.toSpectrumFunc(detCalcs[gmpeIndex].calc(site, periods));
 				debug("Calculating MCEr probabilistic, site "+name);
-				DiscretizedFunc prob = probCalcs[gmpeIndex].calc(site, periods);
+				Map<Double, DiscretizedFunc> probCurves = new HashMap<>();
+				DiscretizedFunc prob = probCalcs[gmpeIndex].calc(site, periods, probCurves);
 				DiscretizedFunc asceDeterm = null;
 				try {
 					asceDeterm = ASCEDetLowerLimitCalc.calc(
@@ -339,6 +348,9 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 					archiver.archiveCurve(det, new CurveMetadata(site, siteIndex, null, cachePrefix+"_det"));
 					archiver.archiveCurve(prob, new CurveMetadata(site, siteIndex, null, cachePrefix+"_prob"));
 					archiver.archiveCurve(mcer, mcerMetadata);
+					if (storeCurves)
+						for (double period : periods)
+							archiver.archiveCurve(probCurves.get(period), new CurveMetadata(site, siteIndex, null, cachePrefix+"_sa_"+(float)period+"s"));
 				} catch (IOException e) {
 					ExceptionUtils.throwAsRuntimeException(e);
 				}
@@ -440,6 +452,10 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 				+ "Options: "+Joiner.on(",").join(CybershakeIM.getShortNames(CyberShakeComponent.class)));
 		component.setRequired(true);
 		ops.addOption(component);
+		
+		Option curves = new Option("c", "curves", false, "Flag to store probabilistic hazard curves (otherwise only spectra stored)");
+		curves.setRequired(false);
+		ops.addOption(curves);
 		
 		return ops;
 	}

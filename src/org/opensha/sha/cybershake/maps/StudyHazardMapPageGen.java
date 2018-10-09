@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import org.opensha.commons.data.xyz.AbstractGeoDataSet;
@@ -17,12 +18,14 @@ import org.opensha.commons.util.FileUtils;
 import org.opensha.commons.util.MarkdownUtils;
 import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 import org.opensha.commons.util.cpt.CPT;
+import org.opensha.sha.cybershake.HazardCurveFetcher;
 import org.opensha.sha.cybershake.ModProbConfig;
 import org.opensha.sha.cybershake.bombay.ModProbConfigFactory;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
+import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.maps.InterpDiffMap.InterpDiffMapType;
 import org.opensha.sha.cybershake.maps.servlet.CS_InterpDiffMapServletAccessor;
 import org.opensha.sha.imr.AttenRelRef;
@@ -39,15 +42,26 @@ public class StudyHazardMapPageGen {
 	public static void main(String[] args) throws IOException {
 		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
-		double[] periods = { 2d, 3d, 5d, 10d };
-		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
-		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+		double[] periods = { 2d };
+//		double[] periods = { 2d, 3d, 5d, 10d };
+		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
+		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
 		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_17_3_3D;
 //		double[] periods = { 2d, 3d, 5d, 10d };
 //		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+		
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_17_3_1D;
+//		double[] periods = { 2d, 3d, 5d, 10d };
+//		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
+//		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+		
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+//		double[] periods = { 2d, 3d, 5d, 10d };
+//		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
+//		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
 		
 		boolean replot = false;
 		
@@ -87,17 +101,17 @@ public class StudyHazardMapPageGen {
 		File studyDir = new File(mainOutputDir, study.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
 		
-		File mapDir = new File(studyDir, "hazard_maps");
-		Preconditions.checkState(mapDir.exists() || mapDir.mkdir());
+		File mapsDir = new File(studyDir, "hazard_maps");
+		Preconditions.checkState(mapsDir.exists() || mapsDir.mkdir());
 		
-		File resourcesDir = new File(mapDir, "resources");
+		File resourcesDir = new File(mapsDir, "resources");
 		Preconditions.checkState(resourcesDir.exists() || resourcesDir.mkdir());
 		
 		List<String> lines = new ArrayList<>();
 		lines.add("# "+study.getName()+" Hazard Maps");
 		lines.add("");
 		if (baseMapGMPE != null)
-			lines.add("**Basemap GMPE: "+baseMapGMPE.getName());
+			lines.add("**Basemap GMPE:** "+baseMapGMPE.getName());
 		lines.add("");
 		lines.add("**Study Details**");
 		lines.add("");
@@ -116,10 +130,15 @@ public class StudyHazardMapPageGen {
 			mapTypes = new InterpDiffMapType [] { InterpDiffMapType.INTERP_NOMARKS, InterpDiffMapType.INTERP_MARKS,
 					InterpDiffMapType.BASEMAP, InterpDiffMapType.DIFF, InterpDiffMapType.RATIO};
 		
+		HashSet<InterpDiffMapType> psSaveTypes = new HashSet<>();
+		psSaveTypes.add(InterpDiffMapType.INTERP_NOMARKS);
+		
 		HardCodedInterpDiffMapCreator.cs_db = study.getDB();
 		HardCodedInterpDiffMapCreator.gmpe_db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
 		
-		List<Integer> datasetIDs = Ints.asList(study.getDatasetIDs());
+		List<CybershakeRun> runs = study.runFetcher().fetch();
+		Preconditions.checkState(!runs.isEmpty(), "no runs found!");
+		System.out.println(runs.size()+" runs found");
 		
 		try {
 			for (double period : periods) {
@@ -133,6 +152,8 @@ public class StudyHazardMapPageGen {
 						lines.add("## "+periodLabel);
 					
 					System.out.println("Doing "+periodLabel);
+					
+					HazardCurveFetcher fetch = null;
 					
 					for (int i=0; i<probLevels.size(); i++) {
 						double probLevel = probLevels.get(i);
@@ -160,8 +181,10 @@ public class StudyHazardMapPageGen {
 								baseMap = HardCodedInterpDiffMapCreator.loadBaseMap(
 										baseMapGMPE, isProbAt_IML, probLevel, study.getVelocityModelID(),im.getID(), region);
 							}
+							if (fetch == null)
+								fetch = new HazardCurveFetcher(study.getDB(), runs, im.getID());
 							GeoDataSet scatterData = HardCodedInterpDiffMapCreator.getMainScatter(
-									isProbAt_IML, probLevel, datasetIDs, im.getID(), null);
+									isProbAt_IML, probLevel, fetch, im.getID(), null);
 							
 							System.out.println("Creating map instance...");
 							GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
@@ -206,14 +229,17 @@ public class StudyHazardMapPageGen {
 									File inFile = new File(addr, pngFile.getName());
 									Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
 									Files.copy(inFile, pngFile);
-									inFile = new File(addr, psFile.getName());
-									Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
-									Files.copy(inFile, psFile);
+									if (psSaveTypes.contains(type)) {
+										inFile = new File(addr, psFile.getName());
+										Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
+										Files.copy(inFile, psFile);
+									}
 								} else {
 									if (!addr.endsWith("/"))
 										addr += "/";
 									FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
-									FileUtils.downloadURL(addr+type.getPrefix()+".ps", psFile);
+									if (psSaveTypes.contains(type))
+										FileUtils.downloadURL(addr+type.getPrefix()+".ps", psFile);
 								}
 							}
 						}
@@ -243,7 +269,7 @@ public class StudyHazardMapPageGen {
 			lines.add(tocIndex, "## Table Of Contents");
 
 			// write markdown
-			MarkdownUtils.writeReadmeAndHTML(lines, studyDir);
+			MarkdownUtils.writeReadmeAndHTML(lines, mapsDir);
 			
 			System.out.println("Done, writing summary");
 			study.writeMarkdownSummary(studyDir);

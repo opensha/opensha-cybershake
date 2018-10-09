@@ -56,6 +56,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
+import com.google.common.primitives.Ints;
 
 public class HardCodedInterpDiffMapCreator {
 	
@@ -75,31 +76,39 @@ public class HardCodedInterpDiffMapCreator {
 	public static ArbDiscrGeoDataSet getMainScatter(boolean isProbAt_IML, double val,
 			List<Integer> datasetIDs, int imTypeID, Collection<Integer> siteTypes) {
 		Preconditions.checkArgument(!datasetIDs.isEmpty(), "Must supply at least one dataset ID");
+		HazardCurveFetcher fetcher = new HazardCurveFetcher(cs_db, Ints.toArray(datasetIDs), imTypeID);
+		return getMainScatter(isProbAt_IML, val, fetcher, imTypeID, siteTypes);
+	}
+	
+	public static ArbDiscrGeoDataSet getMainScatter(boolean isProbAt_IML, double val,
+			HazardCurveFetcher fetcher, int imTypeID, Collection<Integer> siteTypes) {
+		
 		ArbDiscrGeoDataSet scatterData = new ArbDiscrGeoDataSet(true);
-		for (int datasetID : datasetIDs) {
-			HazardCurveFetcher fetcher = new HazardCurveFetcher(cs_db, datasetID, imTypeID);
-			List<CybershakeSite> sites = fetcher.getCurveSites();
-			List<Double> vals = fetcher.getSiteValues(isProbAt_IML, val);
-			
-			for (int i=0; i<sites.size(); i++) {
-				CybershakeSite site = sites.get(i);
-				if (siteTypes == null) {
-					if (site.type_id == CybershakeSite.TYPE_TEST_SITE)
-						continue;
-				} else {
-					if (!siteTypes.contains(site.type_id)) {
-//						System.out.println("Removing: "+site);
-						continue;
-					}
-				}
-				Location loc = site.createLocation();
-				if (scatterData.contains(loc))
+		List<CybershakeSite> sites = fetcher.getCurveSites();
+		List<Double> vals = fetcher.getSiteValues(isProbAt_IML, val);
+		
+		int duplicates = 0;
+		
+		for (int i=0; i<sites.size(); i++) {
+			CybershakeSite site = sites.get(i);
+			if (siteTypes == null) {
+				if (site.type_id == CybershakeSite.TYPE_TEST_SITE)
 					continue;
-				double siteVal = vals.get(i);
-				scatterData.set(loc, siteVal);
+			} else {
+				if (!siteTypes.contains(site.type_id)) {
+//					System.out.println("Removing: "+site);
+					continue;
+				}
 			}
-			System.out.println("Kept "+scatterData.size()+"/"+sites.size()+" sites for dataset "+datasetID);
+			Location loc = site.createLocation();
+			if (scatterData.contains(loc)) {
+				duplicates++;
+				continue;
+			}
+			double siteVal = vals.get(i);
+			scatterData.set(loc, siteVal);
 		}
+		System.out.println("Kept "+scatterData.size()+"/"+sites.size()+" sites ("+duplicates+" duplicates)");
 		return scatterData;
 	}
 	

@@ -42,6 +42,7 @@ import org.opensha.sha.cybershake.db.CybershakeVelocityModel;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
+import org.opensha.sha.cybershake.db.RunIDFetcher;
 import org.opensha.sha.cybershake.db.Runs2DB;
 import org.opensha.sha.cybershake.gui.util.ERFSaver;
 import org.opensha.sha.earthquake.AbstractERF;
@@ -78,6 +79,10 @@ public enum CyberShakeStudy {
 		AbstractERF buildERF() {
 			return MeanUCERF2_ToDB.createUCERF2ERF();
 		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forStudyID(6).hasHazardCurves(this.getDatasetIDs());
+		}
 	},
 	STUDY_17_3_1D(cal(2017, 3), 80, "Study 17.3 1-D",
 			"study_17_3_1d", "Central California with CCA-1D Velocity Model, 1hz", 9,
@@ -86,6 +91,10 @@ public enum CyberShakeStudy {
 		@Override
 		AbstractERF buildERF() {
 			return MeanUCERF2_ToDB.createUCERF2ERF();
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forStudyID(8).hasHazardCurves(this.getDatasetIDs());
 		}
 	},
 	STUDY_17_3_3D(cal(2017, 3), 81, "Study 17.3 3-D",
@@ -96,6 +105,10 @@ public enum CyberShakeStudy {
 		AbstractERF buildERF() {
 			return MeanUCERF2_ToDB.createUCERF2ERF();
 		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forStudyID(8).hasHazardCurves(this.getDatasetIDs());
+		}
 	},
 	STUDY_18_4_RSQSIM_PROTOTYPE_2457(cal(2018, 4), 82, "RSQSim 2457",
 			"study_18_4_rsqsim_prototype_2457", "RSQSim prototype with catalog 2457", 5,
@@ -104,6 +117,10 @@ public enum CyberShakeStudy {
 		@Override
 		AbstractERF buildERF() {
 			return getRSQSimERF("rundir2457");
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
 		}
 	},
 	STUDY_18_4_RSQSIM_2585(cal(2018, 4), 83, "RSQSim 2585",
@@ -114,14 +131,22 @@ public enum CyberShakeStudy {
 		AbstractERF buildERF() {
 			return getRSQSimERF("rundir2585_1myr");
 		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
+		}
 	},
-	STUDY_18_8(cal(2018, 8), 84, "Study 18.8", "study_18_8",
-			"Northern California with Bay Area, CCA, and CVM-S4.26 Velocity Models, 1hz", 11,
+	STUDY_18_8(cal(2018, 8), 81, "Study 18.8", "study_18_8", // TODO dataset IDs will change
+			"Northern California with Bay Area, CCA, and CVM-S4.26 Velocity Models, 1hz", 12,
 			new CaliforniaRegions.CYBERSHAKE_BAY_AREA_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
 		AbstractERF buildERF() {
 			return MeanUCERF2_ToDB.createUCERF2ERF();
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forStudyID(9).hasHazardCurves(this.getDatasetIDs());
 		}
 	},
 	STUDY_18_9_RSQSIM_2740(cal(2018, 9), new int[] { 85, 86}, "RSQSim 2740",
@@ -131,6 +156,10 @@ public enum CyberShakeStudy {
 		@Override
 		AbstractERF buildERF() {
 			return getRSQSimERF("rundir2740");
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
 		}
 	};
 	
@@ -752,6 +781,8 @@ public enum CyberShakeStudy {
 			erf = buildERF();
 		return erf;
 	}
+	
+	public abstract RunIDFetcher runFetcher();
 	
 	public static void main(String[] args) throws IOException {
 		File gitDir = new File("/home/kevin/git/cybershake-analysis");

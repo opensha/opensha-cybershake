@@ -31,6 +31,42 @@ public class CybershakeRun {
 	
 	public static final DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	
+	public enum Status {
+		INITIAL("Initial"),
+		SGT_STARTED("SGT Started"),
+		SGT_ERROR("SGT Error"),
+		SGT_GENERATED("SGT Generated"),
+		PP_STARTED("PP Started"),
+		PP_ERROR("PP Error"),
+		CURVES_GENERATED("Curves Generated"),
+		VERIFIED("Verified"),
+		VERIFY_ERROR("Verify Error"),
+		DELETE("Delete"),
+		DELETED("Deleted");
+		
+		private String name;
+		
+		private Status(String name) {
+			this.name = name;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public static Status forName(String name) {
+			for (Status status : values())
+				if (status.name.equals(name))
+					return status;
+			return null;
+		}
+		
+		@Override
+		public String toString() {
+			return name;
+		}
+	}
+	
 	private int runID;
 	private int siteID;
 	private int erfID;
@@ -39,6 +75,8 @@ public class CybershakeRun {
 	private int velModelID;
 	private Timestamp sgtTime;
 	private Timestamp ppTime;
+	private Status status;
+	private Timestamp statusTime;
 	private String sgtHost;
 	private String ppHost;
 	private double maxFreq;
@@ -50,8 +88,8 @@ public class CybershakeRun {
 	private Double z25; // m
 	
 	public CybershakeRun(int runID, int siteID, int erfID, int sgtVarID, int rupVarScenID, int velModelID,
-			Timestamp sgtTime, Timestamp ppTime, String sgtHost, String ppHost, double maxFreq, double lowFreqCutoff,
-			Double modelVs30, Double meshVs30, String vs30Source, Double z10, Double z25) {
+			Timestamp sgtTime, Timestamp ppTime, String sgtHost, String ppHost, Status status, Timestamp statusTime,
+			double maxFreq, double lowFreqCutoff, Double modelVs30, Double meshVs30, String vs30Source, Double z10, Double z25) {
 		this.runID = runID;
 		this.siteID = siteID;
 		this.erfID = erfID;
@@ -105,6 +143,14 @@ public class CybershakeRun {
 
 	public String getPPHost() {
 		return ppHost;
+	}
+	
+	public Status getStatus() {
+		return status;
+	}
+	
+	public Timestamp getStatusTimestamp() {
+		return statusTime;
 	}
 	
 	public int getVelModelID() {
@@ -162,39 +208,58 @@ public class CybershakeRun {
 		return "ID: " + getRunID() + ", Site_ID: " + getSiteID() + ", ERF_ID: " + getERFID() +
 				", SGT Var ID: " + getSgtVarID() + ", Rup Var Scen ID: " + getRupVarScenID() +
 				", Vel Model ID: " + getVelModelID() +
-				", SGT Time: " + format.format(getSGTTimestamp()) + ", SGT Host: " + sgtHost +
-				", PP Time: " + format.format(getPPTimestamp()) + ", PP Host: " + ppHost;
+				", SGT Time: " + format(getSGTTimestamp()) + ", SGT Host: " + sgtHost +
+				", PP Time: " + format(getPPTimestamp()) + ", PP Host: " + ppHost +
+				", Status: " + status + ", Status Time: " + format(getStatusTimestamp());
+	}
+	
+	private String format(Timestamp timestamp) {
+		if (timestamp == null)
+			return "NULL";
+		return format.format(timestamp);
 	}
 	
 	public static CybershakeRun fromResultSet(ResultSet rs) throws SQLException {
-		int runID = rs.getInt("Run_ID");
-		int siteID = rs.getInt("Site_ID");
-		int erfID = rs.getInt("ERF_ID");
-		int sgtVarID = rs.getInt("SGT_Variation_ID");
-		int rupVarScenID = rs.getInt("Rup_Var_Scenario_ID");
-		int velModelID = rs.getInt("Velocity_Model_ID");
-		Timestamp sgtTime = rs.getTimestamp("SGT_Time");
-		Timestamp ppTime = rs.getTimestamp("PP_Time");
-		String sgtHost = rs.getString("SGT_Host");
-		String ppHost = rs.getString("PP_Host");
-		double maxFreq = rs.getDouble("Max_Frequency");
-		double lowFreqCutoff = rs.getDouble("Low_Frequency_Cutoff");
-		Double modelVs30 = rs.getDouble("Model_Vs30");
+		return fromResultSet(rs, "");
+	}
+	
+	static CybershakeRun fromResultSet(ResultSet rs, String prefix) throws SQLException {
+		int runID = rs.getInt(prefix+"Run_ID");
+		int siteID = rs.getInt(prefix+"Site_ID");
+		int erfID = rs.getInt(prefix+"ERF_ID");
+		int sgtVarID = rs.getInt(prefix+"SGT_Variation_ID");
+		int rupVarScenID = rs.getInt(prefix+"Rup_Var_Scenario_ID");
+		int velModelID = rs.getInt(prefix+"Velocity_Model_ID");
+		Timestamp sgtTime = rs.getTimestamp(prefix+"SGT_Time");
+		Timestamp ppTime = rs.getTimestamp(prefix+"PP_Time");
+		String sgtHost = rs.getString(prefix+"SGT_Host");
+		String ppHost = rs.getString(prefix+"PP_Host");
+		String statusStr = rs.getString(prefix+"Status");
+		Status status = Status.forName(statusStr);
+		Timestamp statusTime;
+		try {
+			statusTime = rs.getTimestamp(prefix+"Status_Time");
+		} catch (Exception e) {
+			statusTime = null;
+		}
+		double maxFreq = rs.getDouble(prefix+"Max_Frequency");
+		double lowFreqCutoff = rs.getDouble(prefix+"Low_Frequency_Cutoff");
+		Double modelVs30 = rs.getDouble(prefix+"Model_Vs30");
 		if (rs.wasNull())
 			modelVs30 = null;
-		Double meshVs30 = rs.getDouble("Mesh_Vs30");
+		Double meshVs30 = rs.getDouble(prefix+"Mesh_Vs30");
 		if (rs.wasNull())
 			meshVs30 = null;
-		String vs30Source = rs.getString("Vs30_Source");
-		Double z10 = rs.getDouble("Z1_0");
+		String vs30Source = rs.getString(prefix+"Vs30_Source");
+		Double z10 = rs.getDouble(prefix+"Z1_0");
 		if (rs.wasNull())
 			z10 = null;
-		Double z25 = rs.getDouble("Z2_5");
+		Double z25 = rs.getDouble(prefix+"Z2_5");
 		if (rs.wasNull())
 			z25 = null;
 		
 		return new CybershakeRun(runID, siteID, erfID, sgtVarID, rupVarScenID, velModelID,
-				sgtTime, ppTime, sgtHost, ppHost, maxFreq, lowFreqCutoff,
+				sgtTime, ppTime, sgtHost, ppHost, status, statusTime, maxFreq, lowFreqCutoff,
 				modelVs30, meshVs30, vs30Source, z10, z25);
 	}
 

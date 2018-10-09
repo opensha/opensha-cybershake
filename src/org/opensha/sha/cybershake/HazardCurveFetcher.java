@@ -36,6 +36,7 @@ import org.opensha.sha.calc.hazardMap.HazardDataSetLoader;
 import org.opensha.sha.calc.mcer.AbstractMCErProbabilisticCalc;
 import org.opensha.sha.cybershake.calc.mcer.CyberShakeMCErDeterministicCalc;
 import org.opensha.sha.cybershake.db.CybershakeIM;
+import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.CybershakeSiteInfo2DB;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
@@ -79,8 +80,16 @@ public class HazardCurveFetcher {
 		init(curve2db.getAllHazardCurveIDs(erfID, rupVarScenarioID, sgtVarID, velModelID, imTypeID), imTypeID);
 	}
 	
-	private void init(ArrayList<Integer> ids, int imTypeID) {
-		this.curveIDs = ids;
+	public HazardCurveFetcher(DBAccess db, List<CybershakeRun> runs, int imTypeID) {
+		this.initDBConnections(db);
+		List<Integer> curveIDs = new ArrayList<>();
+		for (CybershakeRun run : runs)
+			curveIDs.addAll(curve2db.getAllHazardCurveIDs(run.getRunID(), imTypeID));
+		init(curveIDs, imTypeID);
+	}
+	
+	private void init(List<Integer> curveIDs, int imTypeID) {
+		this.curveIDs = curveIDs;
 		this.im = curve2db.getIMFromID(imTypeID);
 		sites = new ArrayList<CybershakeSite>();
 		funcs = new ArrayList<DiscretizedFunc>();
@@ -90,8 +99,8 @@ public class HazardCurveFetcher {
 		HashSet<Integer> siteIDs = new HashSet<Integer>();
 		List<Integer> duplicateCurveIDs = Lists.newArrayList();
 		System.out.println("Start loop...");
-		for (int i=0; i<ids.size(); i++) {
-			int id = ids.get(i);
+		for (int i=0; i<curveIDs.size(); i++) {
+			int id = curveIDs.get(i);
 			int siteID = curve2db.getSiteIDFromCurveID(id);
 			if (siteIDs.contains(siteID)) {
 //				System.out.println("Removing duplicate for site "+siteID+". Deleting curve ID "+id);
@@ -107,7 +116,7 @@ public class HazardCurveFetcher {
 		}
 		for (int id : duplicateCurveIDs)
 			// use indexof because remove(int) will do index not object
-			ids.remove(ids.indexOf(id));
+			curveIDs.remove(curveIDs.indexOf(id));
 	}
 	
 	private void initDBConnections(DBAccess db) {

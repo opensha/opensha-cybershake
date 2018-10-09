@@ -16,7 +16,8 @@ public class CybershakeVelocityModel {
 		CVM_H_11_9_NO_GTL(7, "CVM-H_no_GTL", "11.9"),
 		BBP_1D(8, "BBP 1D", "13.9.0"),
 		CCA_1D(9, "CCA 1D", "1.0"),
-		CCA_06(10, "CCA", "iteration 6");
+		CCA_06(10, "CCA", "iteration 6"),
+		STUDY_18_8(12, "Study 18.8 Stitched", "");
 		
 		private CybershakeVelocityModel model;
 		private Models(int id, String name, String version) {

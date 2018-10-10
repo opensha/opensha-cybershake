@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -14,6 +15,7 @@ import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CybershakeRun.Status;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 
 public class RunIDFetcher {
@@ -138,9 +140,11 @@ public class RunIDFetcher {
 	}
 	
 	public List<CybershakeRun> fetch() {
-		Map<Integer, CybershakeRun> runsMap = new HashMap<>();
-		
 		String sql = buildSelectSQL();
+		
+		List<CybershakeRun> runs = new ArrayList<>();
+		
+		HashSet<Integer> runIDs = new HashSet<>();
 		
 		try {
 			ResultSet rs = db.selectData(sql);
@@ -148,8 +152,9 @@ public class RunIDFetcher {
 			
 			while (valid) {
 				CybershakeRun run = CybershakeRun.fromResultSet(rs, "R.");
-				if (!runsMap.containsKey(run.getRunID()))
-					runsMap.put(run.getRunID(), run);
+				Preconditions.checkState(!runIDs.contains(run.getRunID()), "Duplicate runID=%s. SQL:%s", run.getRunID(), sql);
+				runs.add(run);
+				runIDs.add(run.getRunID());
 				
 				valid = rs.next();
 			}
@@ -160,19 +165,11 @@ public class RunIDFetcher {
 			return null;
 		}
 		
-		List<Integer> runIDs = new ArrayList<>(runsMap.keySet());
-		Collections.sort(runIDs);
-		
-		List<CybershakeRun> runs = new ArrayList<>();
-		
-		for (Integer runID : runIDs)
-			runs.add(runsMap.get(runID));
-		
 		return runs;
 	}
 	
 	public String buildSelectSQL() {
-		String sql = "SELECT * FROM CyberShake_Runs R";
+		String sql = "SELECT DISTINCT R.* FROM CyberShake_Runs R";
 		if (hasCurves)
 			sql += " JOIN Hazard_Curves C ON R.Run_ID=C.Run_ID";
 		List<String> wheres = new ArrayList<>();

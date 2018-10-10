@@ -129,7 +129,7 @@ public class ARCurveInserter {
 //		String dir = "/home/kevin/CyberShake/baseMaps/2018_04_05-cca1d-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 //		String dir = "/home/kevin/CyberShake/baseMaps/2018_04_05-cca1d-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 //		String dir = "/home/kevin/CyberShake/baseMaps/2018_04_05-cca1d-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
-		String dir = "/home/kevin/CyberShake/baseMaps/2018_10_09-cs18_8-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+		String dir = "/home/kevin/CyberShake/baseMaps/2018_10_09-cs18_8-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 		// UPDATE IM TYPE AND DATE BELOW!!!!!!!!!!!!!!!!!!!!!!!
 		boolean deleteOld = false;
 		ScalarIMR imr = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
@@ -142,7 +142,7 @@ public class ARCurveInserter {
 		int erfID = 36;
 		/*		UPDATE THESE		*/
 		int velModelID = CybershakeVelocityModel.Models.STUDY_18_8.instance().getID();
-		int imTypeID = CybershakeIM.getSA(CyberShakeComponent.RotD50, 5d).getID();
+		int imTypeID = CybershakeIM.getSA(CyberShakeComponent.RotD50, 10d).getID();
 //		int velModelID = -1; // Vs30 only
 		Calendar cal = GregorianCalendar.getInstance();
 		cal.set(2018, 9, 9); // month is 0-based, 3=April

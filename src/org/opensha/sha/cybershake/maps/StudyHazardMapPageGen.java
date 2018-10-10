@@ -8,6 +8,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
+import org.opensha.commons.data.siteData.SiteData;
+import org.opensha.commons.data.siteData.impl.CS_Study18_8_BasinDepth;
+import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
+import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
+import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.data.xyz.AbstractGeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSet;
 import org.opensha.commons.geo.Location;
@@ -35,6 +40,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
 
+import scratch.kevin.cybershake.BatchBaseMapPlot;
+
 public class StudyHazardMapPageGen {
 	
 	private static final boolean LOCAL_MAPGEN = false;
@@ -43,25 +50,31 @@ public class StudyHazardMapPageGen {
 		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
 		
 		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
-		double[] periods = { 2d };
-//		double[] periods = { 2d, 3d, 5d, 10d };
+		double[] periods = { 2d, 3d, 5d, 10d };
 		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
 		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+		SiteData<?>[] siteDatas = { new WillsMap2015(), new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+				new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_17_3_3D;
 //		double[] periods = { 2d, 3d, 5d, 10d };
 //		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+//		SiteData<?>[] siteDatas = { new WillsMap2015(), new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+//				new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_17_3_1D;
 //		double[] periods = { 2d, 3d, 5d, 10d };
 //		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+//		SiteData<?>[] siteDatas = null;
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
 //		double[] periods = { 2d, 3d, 5d, 10d };
 //		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
+//		SiteData<?>[] siteDatas = { new WillsMap2015(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+//				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 		
 		boolean replot = false;
 		
@@ -110,13 +123,20 @@ public class StudyHazardMapPageGen {
 		List<String> lines = new ArrayList<>();
 		lines.add("# "+study.getName()+" Hazard Maps");
 		lines.add("");
-		if (baseMapGMPE != null)
-			lines.add("**Basemap GMPE:** "+baseMapGMPE.getName());
-		lines.add("");
 		lines.add("**Study Details**");
 		lines.add("");
 		lines.addAll(study.getMarkdownMetadataTable());
 		lines.add("");
+		if (baseMapGMPE != null) {
+			lines.add("**Basemap GMPE:** "+baseMapGMPE.getName());
+			lines.add("");
+			lines.add("These are interpolated difference maps, where the differences between CyberShake and the GMPE basemap "
+					+ "are interpolated and then added to the GMPE basemap. This results in a map which matches the CyberShake "
+					+ "values exactly at each CyberShake site, but retains the detail (largely due to inclusion of site effects) "
+					+ "of the GMPE basemap.");
+		} else {
+			lines.add("These are diretly interpolated CyberShake maps (without a GMPE basemap)");
+		}
 		
 		int tocIndex = lines.size();
 		String topLink = "*[(top)](#table-of-contents)*";
@@ -124,11 +144,20 @@ public class StudyHazardMapPageGen {
 		Region region = study.getRegion();
 		double baseMapRes = 0.005;
 		InterpDiffMapType[] mapTypes;
-		if (baseMapGMPE == null)
+		InterpDiffMapType[][] typeTable;
+		if (baseMapGMPE == null) {
 			mapTypes = new InterpDiffMapType [] { InterpDiffMapType.INTERP_NOMARKS, InterpDiffMapType.INTERP_MARKS};
-		else
+			typeTable = new InterpDiffMapType[2][1];
+			typeTable[0][0] = InterpDiffMapType.INTERP_NOMARKS;
+			typeTable[1][0] = InterpDiffMapType.INTERP_MARKS;
+		} else {
 			mapTypes = new InterpDiffMapType [] { InterpDiffMapType.INTERP_NOMARKS, InterpDiffMapType.INTERP_MARKS,
 					InterpDiffMapType.BASEMAP, InterpDiffMapType.DIFF, InterpDiffMapType.RATIO};
+			typeTable = new InterpDiffMapType[3][];
+			typeTable[0] = new InterpDiffMapType[] { InterpDiffMapType.INTERP_NOMARKS, InterpDiffMapType.BASEMAP };
+			typeTable[1] = new InterpDiffMapType[] { InterpDiffMapType.INTERP_MARKS, InterpDiffMapType.BASEMAP };
+			typeTable[2] = new InterpDiffMapType[] { InterpDiffMapType.DIFF, InterpDiffMapType.RATIO };
+		}
 		
 		HashSet<InterpDiffMapType> psSaveTypes = new HashSet<>();
 		psSaveTypes.add(InterpDiffMapType.INTERP_NOMARKS);
@@ -252,15 +281,40 @@ public class StudyHazardMapPageGen {
 						lines.add(topLink); lines.add("");
 						
 						TableBuilder table = MarkdownUtils.tableBuilder();
-						table.addLine("**Map Type**", "**Map**");
-						for (InterpDiffMapType type : mapTypes) {
-							File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
-							Preconditions.checkState(pngFile.exists(), "Map doesn't exist: %s", pngFile.getAbsolutePath());
-							table.addLine("**"+type.getName()+"**", "!["+type.getName()+"](resources/"+pngFile.getName()+")");
+						for (InterpDiffMapType[] row : typeTable) {
+							table.initNewLine();
+							for (InterpDiffMapType type : row)
+								table.addColumn("<p align=\"center\">**"+type.getName()+"**</p>");
+							table.finalizeLine();
+							table.initNewLine();
+							for (InterpDiffMapType type : row) {
+								File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
+								Preconditions.checkState(pngFile.exists(), "Map doesn't exist: %s", pngFile.getAbsolutePath());
+								table.addColumn("!["+type.getName()+"](resources/"+pngFile.getName()+")");
+							}
+							table.finalizeLine();
 						}
+//						table.addLine("**Map Type**", "**Map**");
+//						for (InterpDiffMapType type : mapTypes) {
+//							File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
+//							Preconditions.checkState(pngFile.exists(), "Map doesn't exist: %s", pngFile.getAbsolutePath());
+//							table.addLine("**"+type.getName()+"**", "!["+type.getName()+"](resources/"+pngFile.getName()+")");
+//						}
 						lines.addAll(table.build());
 						lines.add("");
 					}
+				}
+			}
+			
+			if (siteDatas != null && siteDatas.length > 0) {
+				lines.add("## Site Data Maps");
+				for (SiteData<?> siteData : siteDatas) {
+					System.out.println("Site data: "+siteData.getDataType()+": "+siteData.getName());
+					lines.add("### "+siteData.getDataType()+": "+siteData.getName());
+					lines.add("");
+					File pngFile = BatchBaseMapPlot.checkMakeSiteDataPlot(
+							(SiteData<Double>)siteData, region, resourcesDir, replot);
+					lines.add("!["+siteData.getName()+"](resources/"+pngFile.getName()+")");
 				}
 			}
 			

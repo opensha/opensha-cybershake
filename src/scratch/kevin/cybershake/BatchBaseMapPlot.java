@@ -209,7 +209,7 @@ public class BatchBaseMapPlot {
 		
 		// now site data
 		for (SiteData<Double> data : siteDatas)
-			checkMakeSiteDataPlot(data, region, dir);
+			checkMakeSiteDataPlot(data, region, dir, false);
 		
 		if (ratios && maps.size() > 1) {
 			for (int i=0; i<maps.size(); i++) {
@@ -311,7 +311,7 @@ public class BatchBaseMapPlot {
 //		FileUtils.downloadURL(url+"/basemap.150.png", outputFile);
 	}
 	
-	private static void checkMakeSiteDataPlot(SiteData<Double> prov, Region region, File dir)
+	public static File checkMakeSiteDataPlot(SiteData<Double> prov, Region region, File dir, boolean replot)
 			throws IOException, ClassNotFoundException, GMT_MapException {
 		String shortType;
 		Double customMin, customMax;
@@ -333,8 +333,8 @@ public class BatchBaseMapPlot {
 		
 		String prefix = prov.getShortName()+"_"+shortType;
 		File outputFile = new File(dir, prefix+".png");
-		if (outputFile.exists())
-			return;
+		if (outputFile.exists() && !replot)
+			return outputFile;
 		
 		GriddedRegion gridReg = new GriddedRegion(region, 0.005, null);
 		List<Double> vals = prov.getValues(gridReg.getNodeList());
@@ -346,6 +346,7 @@ public class BatchBaseMapPlot {
 				"/resources/cpt/MaxSpectrum2.cpt"));
 		
 		plot(dir, prefix, data, region, customMin, customMax, prov.getShortName()+" "+shortType, prov.getMetadata(), cpt, true);
+		return outputFile;
 	}
 
 }

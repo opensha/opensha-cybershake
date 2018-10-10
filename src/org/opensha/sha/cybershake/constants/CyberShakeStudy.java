@@ -44,6 +44,7 @@ import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.cybershake.db.RunIDFetcher;
 import org.opensha.sha.cybershake.db.Runs2DB;
+import org.opensha.sha.cybershake.db.CybershakeRun.Status;
 import org.opensha.sha.cybershake.gui.util.ERFSaver;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.ProbEqkRupture;
@@ -81,7 +82,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(6).hasHazardCurves(this.getDatasetIDs());
+			return new RunIDFetcher(this.getDB()).forStudyID(6).hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_17_3_1D(cal(2017, 3), 80, "Study 17.3 1-D",
@@ -94,7 +95,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(8).hasHazardCurves(this.getDatasetIDs());
+			return new RunIDFetcher(this.getDB()).forStudyID(8).hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_17_3_3D(cal(2017, 3), 81, "Study 17.3 3-D",
@@ -107,7 +108,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(8).hasHazardCurves(this.getDatasetIDs());
+			return new RunIDFetcher(this.getDB()).forStudyID(8).hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_18_4_RSQSIM_PROTOTYPE_2457(cal(2018, 4), 82, "RSQSim 2457",
@@ -146,7 +147,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(9).hasHazardCurves(this.getDatasetIDs());
+			return new RunIDFetcher(this.getDB()).forStudyID(9).hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_18_9_RSQSIM_2740(cal(2018, 9), new int[] { 85, 86}, "RSQSim 2740",

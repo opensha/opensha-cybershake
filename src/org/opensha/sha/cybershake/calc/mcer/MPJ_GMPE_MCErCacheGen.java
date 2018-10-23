@@ -56,6 +56,7 @@ import org.opensha.sha.gui.infoTools.IMT_Info;
 import org.opensha.sha.imr.AttenuationRelationship;
 import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 import org.opensha.sha.imr.param.OtherParams.Component;
+import org.opensha.sha.imr.param.OtherParams.ComponentParam;
 import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
 
 import com.google.common.base.Joiner;
@@ -73,6 +74,7 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 //	private AbstractMCErProbabilisticCalc[] probCalcs;
 	private CalcRunnable[] calcs;
 	private String[] cachePrefixes;
+	private String[] pgaPrefixes;
 	
 	private static final boolean duplicateERF = false;
 	
@@ -160,6 +162,7 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 		// create calcs
 		calcs = new CalcRunnable[numThreads];
 		cachePrefixes = new String[attenRelsList.get(0).size()];
+		pgaPrefixes = new String[attenRelsList.get(0).size()];
 		
 		Component gmpeComp = MCErCalcUtils.getSupportedTranslationComponent(
 				attenRelsList.get(0).get(0), comp.getGMPESupportedComponents());
@@ -180,8 +183,12 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 			GMPE_MCErDeterministicCalc[] detCalcs = new GMPE_MCErDeterministicCalc[attenRels.size()];
 			GMPE_MCErProbabilisticCalc[] probCalcs = new GMPE_MCErProbabilisticCalc[attenRels.size()];
 			for (int i=0; i<attenRels.size(); i++) {
+				
 				cachePrefixes[i] = CyberShakeMCErMapGenerator.getCachePrefix(
 						-1, erfs[t], gmpeComp, Lists.newArrayList(attenRels.get(i)));
+				pgaPrefixes[i] = CyberShakeMCErMapGenerator.getCachePrefix(
+						-1, erfs[t], (Component)attenRels.get(i).getParameter(ComponentParam.NAME).getValue(),
+						Lists.newArrayList(attenRels.get(i)));
 				detCalcs[i] = new GMPE_MCErDeterministicCalc(detERFs[t], attenRels.get(i), gmpeComp);
 				probCalcs[i] = new GMPE_MCErProbabilisticCalc(erfs[t], attenRels.get(i), gmpeComp, xVals);
 				
@@ -190,17 +197,19 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 					xValsMap.put(cachePrefixes[i]+"_prob", periodsFunc);
 					xValsMap.put(cachePrefixes[i]+"_mcer", periodsFunc);
 					
-					if (storeCurves)
+					if (storeCurves) {
 						for (double period : periods)
 							xValsMap.put(cachePrefixes[i]+"_sa_"+(float)period+"s", xVals);
+						xValsMap.put(pgaPrefixes[i]+"_pga", xVals);
+					}
 					
-					pgaFiles.put(cachePrefixes[i]+"_pga_det",
+					pgaFiles.put(pgaPrefixes[i]+"_pga_det",
 							new BinaryGeoDatasetRandomAccessFile(new File(outputDir, cachePrefixes[i]+"_pga_det.bin"),
 									BinaryCurveArchiver.byteOrder, sites.size()));
-					pgaFiles.put(cachePrefixes[i]+"_pga_prob",
+					pgaFiles.put(pgaPrefixes[i]+"_pga_prob",
 							new BinaryGeoDatasetRandomAccessFile(new File(outputDir, cachePrefixes[i]+"_pga_prob.bin"),
 									BinaryCurveArchiver.byteOrder, sites.size()));
-					pgaFiles.put(cachePrefixes[i]+"_pga",
+					pgaFiles.put(pgaPrefixes[i]+"_pga_g",
 							new BinaryGeoDatasetRandomAccessFile(new File(outputDir, cachePrefixes[i]+"_pga.bin"),
 									BinaryCurveArchiver.byteOrder, sites.size()));
 				}
@@ -223,7 +232,7 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 		for (int i=0; i<sites.size(); i++) {
 			Site site = sites.get(i);
 			for (int j=0; j<cachePrefixes.length; j++)
-				calcTasks.add(new CalcTask(cachePrefixes[j], i, j, site));
+				calcTasks.add(new CalcTask(cachePrefixes[j], pgaPrefixes[j], i, j, site));
 		}
 	}
 	
@@ -310,12 +319,14 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 	
 	private class CalcTask {
 		private String cachePrefix;
+		private String pgaCachePrefix;
 		private int gmpeIndex;
 		private int siteIndex;
 		private Site site;
 		
-		public CalcTask(String cachePrefix, int siteIndex, int gmpeIndex, Site site) {
+		public CalcTask(String cachePrefix, String pgaCachePrefix, int siteIndex, int gmpeIndex, Site site) {
 			this.cachePrefix = cachePrefix;
+			this.pgaCachePrefix = pgaCachePrefix;
 			this.siteIndex = siteIndex;
 			this.gmpeIndex = gmpeIndex;
 			this.site = site;
@@ -359,22 +370,26 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 			
 			// PGA
 			try {
-				if (pgaFiles.get(cachePrefix+"_pga").isCalculated(siteIndex)) {
-					debug("Site "+name+" PGA G dalready done!");
+				CurveMetadata pgaCurveMetadata = new CurveMetadata(site, siteIndex, null, pgaCachePrefix+"_pga");
+				if (pgaFiles.get(pgaCachePrefix+"_pga_g").isCalculated(siteIndex)
+						&& (!storeCurves || archiver.isCurveCalculated(pgaCurveMetadata, periodsFunc))) {
+					debug("Site "+name+" PGA already done!");
 				} else {
 					debug("Calculating PGA deterministic, site "+name);
 					double det = detCalcs[gmpeIndex].calcPGA_G(site).getVal();
 					debug("Calculating PGA probabilistic, site "+name);
-					double prob = probCalcs[gmpeIndex].calcPGA_G(site);
+					DiscretizedFunc probCurve = probCalcs[gmpeIndex].calcPGAcurve(site);
+					double prob = probCalcs[gmpeIndex].calcPGA_G(probCurve);
 					double vs30 = site.getParameter(Double.class, Vs30_Param.NAME).getValue();
 					double detLower = ASCEDetLowerLimitCalc.calcPGA_G(vs30);
 					double pga = MCErCalcUtils.calcMCER(det, prob, detLower);
 					
 					debug("Archiving PGA site "+name);
 					Location loc = site.getLocation();
-					pgaFiles.get(cachePrefix+"_pga_det").write(siteIndex, loc, det);
-					pgaFiles.get(cachePrefix+"_pga_prob").write(siteIndex, loc, prob);
-					pgaFiles.get(cachePrefix+"_pga").write(siteIndex, loc, pga);
+					pgaFiles.get(pgaCachePrefix+"_pga_det").write(siteIndex, loc, det);
+					pgaFiles.get(pgaCachePrefix+"_pga_prob").write(siteIndex, loc, prob);
+					pgaFiles.get(pgaCachePrefix+"_pga_g").write(siteIndex, loc, pga);
+					archiver.archiveCurve(probCurve, pgaCurveMetadata);
 					debug("DONE PGA site "+name);
 				}
 			} catch (IOException e) {

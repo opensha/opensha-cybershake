@@ -37,7 +37,7 @@ public class CachedCurveBasedMCErProbabilisticCalc extends CurveBasedMCErProbabi
 	}
 
 	@Override
-	protected Map<Double, DiscretizedFunc> calcHazardCurves(Site site,
+	public Map<Double, DiscretizedFunc> calcHazardCurves(Site site,
 			Collection<Double> periods) {
 		Preconditions.checkArgument(!periods.isEmpty());
 		

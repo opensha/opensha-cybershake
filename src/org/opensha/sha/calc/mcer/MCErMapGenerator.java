@@ -527,7 +527,7 @@ public class MCErMapGenerator {
 //		return closest;
 //	}
 	
-	private static void generateMaps(Region region, GeoDataSet data, File outputDir, double period, boolean psv,
+	public static void generateMaps(Region region, GeoDataSet data, File outputDir, double period, boolean psv,
 			String prefix, String title, CPT cpt, boolean log) throws GMT_MapException, IOException {
 		GMT_Map map = buildScatterMap(region, data, psv, period, title, cpt, log);
 		// I hate this hack...but don't want to add more variables
@@ -563,7 +563,7 @@ public class MCErMapGenerator {
 //		map.setDpi(150);
 	}
 	
-	private static GMT_Map buildScatterMap(Region region, GeoDataSet data, boolean psv, double period,
+	public static GMT_Map buildScatterMap(Region region, GeoDataSet data, boolean psv, double period,
 			String label, CPT cpt, boolean log) {
 		data = data.copy();
 		if (psv)

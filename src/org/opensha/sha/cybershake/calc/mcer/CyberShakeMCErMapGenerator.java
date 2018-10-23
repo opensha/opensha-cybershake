@@ -93,7 +93,7 @@ public class CyberShakeMCErMapGenerator {
 		/*
 		 * Create site list
 		 */
-		List<Site> sites = getSitesList(fetcher, gmpes);
+		List<Site> sites = getSitesList(fetcher);
 		writeSitesFile(new File(outputDir, "sites.xml"), sites);
 		
 		/*
@@ -243,18 +243,12 @@ public class CyberShakeMCErMapGenerator {
 		return cachePrefix;
 	}
 
-	private static List<Site> getSitesList(HazardCurveFetcher fetcher, List<AttenuationRelationship> gmpes) {
+	static List<Site> getSitesList(HazardCurveFetcher fetcher) {
 		List<CybershakeSite> csSites = fetcher.getCurveSites();
 		List<Integer> runIDs = fetcher.getRunIDs();
 		
-		List<Site> sites = Lists.newArrayList();
-		
 		// to filter out duplicates
 		HashSet<Location> locs = new HashSet<Location>();
-		
-		OrderedSiteDataProviderList provs = null; // will be created when we have a velocity model ID from a CybershakeRun
-		SiteTranslator siteTrans = new SiteTranslator();
-		ParameterList siteParams = MCERDataProductsCalc.getSiteParams(gmpes);
 		
 		Runs2DB runs2db = new Runs2DB(fetcher.getDBAccess());
 		

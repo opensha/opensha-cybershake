@@ -21,6 +21,7 @@ import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationList;
 import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.ExceptionUtils;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.CybershakeVelocityModel;
@@ -141,7 +142,7 @@ public class CyberShakeSiteBuilder {
 			Location siteLoc = locs.get(i);
 			
 			// build site
-			Site site = new Site(siteLoc);
+			CyberShakeSiteRun site = new CyberShakeSiteRun(csSite, run);
 			site.setName(csSite.short_name);
 			Vs30_Param vs30Param = new Vs30_Param();
 			site.addParameter(vs30Param);

@@ -20,6 +20,8 @@ import org.opensha.sha.util.component.ComponentTranslation;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
+import scratch.kevin.util.ReturnPeriodUtils;
+
 public class GMPE_MCErProbabilisticCalc extends CurveBasedMCErProbabilisitCalc {
 	
 	private ERF erf;
@@ -85,15 +87,28 @@ public class GMPE_MCErProbabilisticCalc extends CurveBasedMCErProbabilisitCalc {
 		return curves;
 	}
 	
-	public double calcPGA_G(Site site) {
+	/**
+	 * Calculates PGA hazard curve without any conversion to maximum direction (geomean). Used for PGA_G value
+	 * @return
+	 */
+	public DiscretizedFunc calcPGAcurve(Site site) {
 		gmpe.setIntensityMeasure(PGA_Param.NAME);
 		
 		DiscretizedFunc hazFunction = HazardCurveSetCalculator.getLogFunction(xVals);
 		curveCalc.getHazardCurve(hazFunction, site, gmpe, erf);
 		hazFunction = HazardCurveSetCalculator.unLogFunction(xVals, hazFunction);
 		
-		// get 2 % in 50 year value
-		return HazardDataSetLoader.getCurveVal(hazFunction, false, 0.0004);
+		return hazFunction;
+	}
+	
+	public double calcPGA_G(Site site) {
+		DiscretizedFunc pgaCurve = calcPGAcurve(site);
+		return calcPGA_G(pgaCurve);
+	}
+	
+	public double calcPGA_G(DiscretizedFunc pgaCurve) {
+		// get 2 % in 50 year value from 1 year POE curves
+		return HazardDataSetLoader.getCurveVal(pgaCurve, false, ReturnPeriodUtils.calcExceedanceProb(0.02, 50, 1d));
 	}
 
 }

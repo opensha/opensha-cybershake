@@ -48,6 +48,7 @@ import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.Interpolate;
 import org.opensha.commons.util.XMLUtils;
 import org.opensha.commons.util.binFile.BinaryGeoDatasetRandomAccessFile;
+import org.opensha.commons.util.binFile.GeolocatedRectangularBinaryMesh2DCalculator;
 import org.opensha.sha.calc.hazardMap.BinaryHazardCurveReader;
 import org.opensha.sha.calc.mcer.ASCEDetLowerLimitCalc;
 import org.opensha.sha.calc.mcer.CurveBasedMCErProbabilisitCalc;
@@ -378,7 +379,16 @@ public class UGMS_WebToolCalc {
 					File willsFile = new File(cmd.getOptionValue("wills-file"));
 					Preconditions.checkState(willsFile.exists(),
 							"Wills 2015 file specified but doesnt exist: %s", willsFile.getAbsolutePath());
-					wills = new WillsMap2015(willsFile.getAbsolutePath());
+					if (cmd.hasOption("wills-header")) {
+						System.out.println("Reading custom Wills 2015 header file");
+						File hdrFile = new File(cmd.getOptionValue("wills-header"));
+						Preconditions.checkState(hdrFile.exists(),
+								"Wills 2015 header file specified but doesnt exist: %s", hdrFile.getAbsolutePath());
+						GeolocatedRectangularBinaryMesh2DCalculator calc = GeolocatedRectangularBinaryMesh2DCalculator.readHDR(hdrFile);
+						wills = new WillsMap2015(willsFile.getAbsolutePath(), calc);
+					} else {
+						wills = new WillsMap2015(willsFile.getAbsolutePath());
+					}
 				} else {
 					// use servlet
 					wills = new WillsMap2015();
@@ -607,7 +617,7 @@ public class UGMS_WebToolCalc {
 			double x2 = vs30Vals.get(1);
 			DiscretizedFunc s2 = spectrum.get(1);
 			double p2 = pgas.get(1);
-			Preconditions.checkState(s1.size() == s2.size(), "Spectrum sizes inconsistent");
+			Preconditions.checkState(s1.size() == s2.size(), "Spectra sizes inconsistent");
 			
 			if (x2 < x1) {
 				// reverse
@@ -1060,6 +1070,11 @@ public class UGMS_WebToolCalc {
 		willsFile.setRequired(false);
 		ops.addOption(willsFile);
 		
+		Option willsHeaderFile = new Option("w", "wills-header", true,
+				"Path to Wills 2015 header file, which can be used if a different grid is supplied than the full (large) Wills 2015 data file.");
+		willsHeaderFile.setRequired(false);
+		ops.addOption(willsHeaderFile);
+		
 		Option velModelID = new Option("vm", "vel-model-id", true,
 				"Velocity model ID, required if using precomputed CS data files");
 		velModelID.setRequired(false);
@@ -1120,10 +1135,12 @@ public class UGMS_WebToolCalc {
 			argStr += " --z25-file /home/kevin/workspace/opensha-commons/src/resources/data/site/CVM4i26/depth_2.5.bin";
 			argStr += " --output-dir /tmp/ugms_web_tool";
 //			argStr += " --vs30 987";
-			argStr += " --class C";
+//			argStr += " --class C";
 //			argStr += " --class D_default";
 			argStr += " --gmpe-erf UCERF3";
-			argStr += " --wills-file /data/kevin/opensha/wills2015.flt";
+//			argStr += " --wills-file /data/kevin/opensha/wills2015.flt";
+			argStr += " --wills-file /home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/wills_2015_vs30.flt";
+			argStr += " --wills-header /home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/wills_2015_vs30.hdr";
 			
 			args = Splitter.on(" ").splitToList(argStr).toArray(new String[0]);
 		}

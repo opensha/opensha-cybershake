@@ -4,6 +4,8 @@ import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,11 +20,14 @@ import org.opensha.commons.geo.Region;
 import org.opensha.commons.mapping.gmt.GMT_Map;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
 import org.opensha.commons.util.DataUtils.MinMaxAveTracker;
+import org.opensha.commons.util.FileNameComparator;
 import org.opensha.commons.util.binFile.BinaryGeoDatasetRandomAccessFile;
 import org.opensha.commons.util.binFile.BinaryXYZRandomAccessFile;
 import org.opensha.commons.util.cpt.CPT;
 import org.opensha.sha.calc.hazardMap.BinaryHazardCurveReader;
+import org.opensha.sha.calc.hazardMap.BinaryHazardCurveWriter;
 import org.opensha.sha.calc.hazardMap.BinaryRandomAccessHazardCurveWriter;
+import org.opensha.sha.calc.hazardMap.components.BinaryCurveArchiver;
 import org.opensha.sha.calc.mcer.MCErMapGenerator;
 
 import com.google.common.base.Preconditions;
@@ -40,9 +45,11 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 //		String prefix = "2016_09_30-ucerf3_downsampled_ngaw2_binary_0.02_";
 //		String prefix = "2017_01_20-ucerf3_downsampled_ngaw2_binary_0.02_";
 //		String prefix = "2017_05_19-ucerf3_downsampled_ngaw2_binary_0.02_";
-		String prefix = "2017_07_27-ucerf3_downsampled_ngaw2_binary_0.02_";
+//		String prefix = "2017_07_27-ucerf3_downsampled_ngaw2_binary_0.02_";
+		String prefix = "2018_10_03-ucerf3_downsampled_ngaw2_binary_curves_0.01_";
 		String dataFileName = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD100_mcer.bin";
-		String pgaFileName = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD100_pga.bin";
+		String pgaGFileName = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD50_pga_g.bin";
+		String saFilePrefix = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD100_sa_";
 		File outputDir = new File(mainDir, prefix+"results");
 		double spacing = 0.02;
 		Region region = new CaliforniaRegions.CYBERSHAKE_MAP_REGION();
@@ -61,7 +68,9 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 //		double[] plotPeriods = null;
 		boolean replot = false;
 		
-		for (File dir : mainDir.listFiles()) {
+		File[] subDirs = mainDir.listFiles();
+		Arrays.sort(subDirs, new FileNameComparator());
+		for (File dir : subDirs) {
 			if (!dir.isDirectory())
 				continue;
 			if (dir.equals(outputDir))
@@ -74,10 +83,10 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 			
 			System.out.println("Loading "+dirName);
 			BinaryHazardCurveReader reader = new BinaryHazardCurveReader(dataFile.getAbsolutePath());
-			Map<Location, ArbitrarilyDiscretizedFunc> map = reader.getCurveMap();
-			System.out.println("Loaded "+map.size());
-			for (Location loc : map.keySet()) {
-				ArbitrarilyDiscretizedFunc mcer = map.get(loc);
+			Map<Location, ArbitrarilyDiscretizedFunc> mcerMap = reader.getCurveMap();
+			System.out.println("Loaded "+mcerMap.size());
+			for (Location loc : mcerMap.keySet()) {
+				ArbitrarilyDiscretizedFunc mcer = mcerMap.get(loc);
 				Preconditions.checkNotNull(mcer);
 				for (Point2D pt : mcer)
 					Preconditions.checkState(Doubles.isFinite(pt.getY()));
@@ -90,10 +99,10 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 			
 			if (plotPeriods != null)
 				for (double period : plotPeriods)
-					plotSpectrum(period, map, outputDir, identifier, spacing, region, replot);
+					plotSpectra(period, mcerMap, outputDir, identifier+", MCER", identifier, spacing, region, replot);
 			
 			// now PGA
-			File pgaFile = new File(dir, pgaFileName);
+			File pgaFile = new File(dir, pgaGFileName);
 			if (pgaFile.exists()) {
 				System.out.println("Doing PGA");
 				ArbDiscrGeoDataSet pgaData = BinaryGeoDatasetRandomAccessFile.loadGeoDataset(pgaFile);
@@ -105,6 +114,54 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 				
 				if (plotPeriods != null) {
 					plotPGA(pgaData, outputDir, identifier, spacing, region, replot);
+				}
+			}
+			
+			// now BSE-2E and BSE-1E
+			
+			DiscretizedFunc mcerXVals = mcerMap.values().iterator().next();
+			Map<Location, ArbitrarilyDiscretizedFunc> bse2Espectra = new HashMap<>();
+			Map<Location, ArbitrarilyDiscretizedFunc> bse1Espectra = new HashMap<>();
+			for (int p=0; p<mcerXVals.size(); p++) {
+				double period = mcerXVals.getX(p);
+				File saFile = new File(dir, saFilePrefix+(float)period+"s.bin");
+				Preconditions.checkState(saFile.exists(), "SA file not found for p=%s: %s", (float)period, saFile);
+				reader = new BinaryHazardCurveReader(saFile.getAbsolutePath());
+				Map<Location, ArbitrarilyDiscretizedFunc> curveMap = reader.getCurveMap();
+				Preconditions.checkState(mcerMap.size() == curveMap.size(),
+						"curve size mismatch. have %s MCER, %s SA", mcerMap.size(), curveMap.size());
+				
+				for (Location loc : curveMap.keySet()) {
+					DiscretizedFunc hazardCurve = curveMap.get(loc);
+					DiscretizedFunc mcerSpectrum = mcerMap.get(loc);
+					Preconditions.checkNotNull(mcerSpectrum, "No MCER spectra found for location: %s", loc);
+					double mcer = mcerSpectrum.getY(period);
+					// TODO use ReturnPeriodUtils instead?
+					double imlAt5_50 = calculateUniformHazardVal(hazardCurve, 0.05, 50d);
+					double imlAt20_50 = calculateUniformHazardVal(hazardCurve, 0.2, 50d);
+					double bse2e = Math.min(imlAt5_50, mcer);
+					double bse1e = imlAt20_50;
+					
+					ArbitrarilyDiscretizedFunc bse2Espectrum = bse2Espectra.get(loc);
+					ArbitrarilyDiscretizedFunc bse1Espectrum = bse1Espectra.get(loc);
+					if (bse2Espectrum == null) {
+						bse2Espectrum = new ArbitrarilyDiscretizedFunc();
+						bse1Espectrum = new ArbitrarilyDiscretizedFunc();
+						bse2Espectra.put(loc, bse2Espectrum);
+						bse1Espectra.put(loc, bse1Espectrum);
+					}
+					bse2Espectrum.set(period, bse2e);
+					bse1Espectrum.set(period, bse1e);
+				}
+			}
+			BinaryHazardCurveWriter bse2Ewriter = new BinaryHazardCurveWriter(new File(outputDir, identifier+"_bse2e.bin"));
+			bse2Ewriter.writeCurves(bse2Espectra);
+			BinaryHazardCurveWriter bse1Ewriter = new BinaryHazardCurveWriter(new File(outputDir, identifier+"_bse1e.bin"));
+			bse1Ewriter.writeCurves(bse1Espectra);
+			if (plotPeriods != null) {
+				for (double period : plotPeriods) {
+					plotSpectra(period, bse2Espectra, outputDir, identifier+", BSE-2E", identifier+"_bse2e", spacing, region, replot);
+					plotSpectra(period, bse1Espectra, outputDir, identifier+", BSE-1E", identifier+"_bse1e", spacing, region, replot);
 				}
 			}
 		}
@@ -160,13 +217,13 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 		dDefaultWrite.close();
 		if (plotPeriods != null)
 			for (double period : plotPeriods)
-				plotSpectrum(period, dDeafultMap, outputDir, "classD_default", spacing, region, replot);
+				plotSpectra(period, dDeafultMap, outputDir, "classD (default), MCER", "classD_default", spacing, region, replot);
 		
 		// now the same but for PGA
-		File dInPGA = new File(new File(mainDir, prefix+"classD"), pgaFileName);
+		File dInPGA = new File(new File(mainDir, prefix+"classD"), pgaGFileName);
 		if (dInPGA.exists()) {
 			System.out.println("Creating PGA D_default");
-			File cInPGA = new File(new File(mainDir, prefix+"classC"), pgaFileName);
+			File cInPGA = new File(new File(mainDir, prefix+"classC"), pgaGFileName);
 			ArbDiscrGeoDataSet dPGA = BinaryGeoDatasetRandomAccessFile.loadGeoDataset(dInPGA);
 			ArbDiscrGeoDataSet cPGA = BinaryGeoDatasetRandomAccessFile.loadGeoDataset(cInPGA);
 			Preconditions.checkState(dPGA.size() == cPGA.size());
@@ -189,8 +246,23 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 		}
 	}
 	
-	private static void plotSpectrum(double period, Map<Location, ? extends DiscretizedFunc> curveMap,
-			File outputDir, String identifier, double spacing, Region region, boolean replot)
+	private static double calculateUniformHazardVal(DiscretizedFunc curve, double targetProb, double targetDuration) {
+		double prob = targetProb / targetDuration;
+		double iml;
+		try {
+			iml = curve.getFirstInterpolatedX_inLogXLogYDomain(prob);
+		} catch (RuntimeException e) {
+			System.out.println("prob: "+(float)prob);
+			System.out.println("curve: "+curve);
+			System.out.println();
+			System.out.flush();
+			throw e;
+		}
+		return iml;
+	}
+	
+	private static void plotSpectra(double period, Map<Location, ? extends DiscretizedFunc> curveMap,
+			File outputDir, String identifier, String prefix, double spacing, Region region, boolean replot)
 					throws GMT_MapException, IOException {
 		ArbDiscrGeoDataSet xyz = new ArbDiscrGeoDataSet(false);
 		for (Location loc : curveMap.keySet()) {
@@ -206,8 +278,8 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 			cpt = cpt.rescale(0d, xyz.getMaxZ());
 		}
 		GMT_Map map = new GMT_Map(region, xyz, spacing, cpt);
-		String label = identifier+", MCER, "+(float)period+"s SA";
-		String prefix = identifier+"_"+(float)period;
+		String label = identifier+", "+(float)period+"s SA";
+		prefix += "_"+(float)period;
 		if (!replot && new File(outputDir, prefix+".png").exists()) {
 			System.out.println("Skipping "+label);
 			return;

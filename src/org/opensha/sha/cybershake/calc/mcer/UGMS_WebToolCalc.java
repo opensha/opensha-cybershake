@@ -1156,16 +1156,20 @@ public class UGMS_WebToolCalc {
 			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_2E, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_2E, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_2E, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.PGAM, SpectraType.BSE_2E, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.SXS, SpectraType.BSE_1E, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_1E, SpectraSource.COMBINED);
-			getCalcDesignParam(DesignParameter.PGAM, SpectraType.BSE_2E, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_1E, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_1E, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.SXS, SpectraType.BSE_2N, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_2N, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_2N, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_2N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.PGAM, SpectraType.BSE_2N, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.SXS, SpectraType.BSE_1N, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_1N, SpectraSource.COMBINED);
-			getCalcDesignParam(DesignParameter.PGAM, SpectraType.BSE_2N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_1N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_1N, SpectraSource.COMBINED);
 			break;
 			
 		default:
@@ -1514,11 +1518,11 @@ public class UGMS_WebToolCalc {
 //			argStr += " --output-dir /tmp/ugms_web_tool/mcer";
 //			argStr += " --code-version MCER";
 			
-//			argStr += " --output-dir /tmp/ugms_web_tool/bse_n";
-//			argStr += " --code-version BSE_N";
+			argStr += " --output-dir /tmp/ugms_web_tool/bse_n";
+			argStr += " --code-version BSE_N";
 			
-			argStr += " --output-dir /tmp/ugms_web_tool/bse_e";
-			argStr += " --code-version BSE_E";
+//			argStr += " --output-dir /tmp/ugms_web_tool/bse_e";
+//			argStr += " --code-version BSE_E";
 			
 			args = Splitter.on(" ").splitToList(argStr).toArray(new String[0]);
 		}

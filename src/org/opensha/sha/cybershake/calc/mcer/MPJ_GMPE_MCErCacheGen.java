@@ -203,14 +203,14 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 						xValsMap.put(pgaPrefixes[i]+"_pga", xVals);
 					}
 					
-					pgaFiles.put(pgaPrefixes[i]+"_pga_det",
-							new BinaryGeoDatasetRandomAccessFile(new File(outputDir, cachePrefixes[i]+"_pga_det.bin"),
+					pgaFiles.put(pgaPrefixes[i]+"_pga_g_det",
+							new BinaryGeoDatasetRandomAccessFile(new File(outputDir, pgaPrefixes[i]+"_pga_g_det.bin"),
 									BinaryCurveArchiver.byteOrder, sites.size()));
-					pgaFiles.put(pgaPrefixes[i]+"_pga_prob",
-							new BinaryGeoDatasetRandomAccessFile(new File(outputDir, cachePrefixes[i]+"_pga_prob.bin"),
+					pgaFiles.put(pgaPrefixes[i]+"_pga_g_prob",
+							new BinaryGeoDatasetRandomAccessFile(new File(outputDir, pgaPrefixes[i]+"_pga_g_prob.bin"),
 									BinaryCurveArchiver.byteOrder, sites.size()));
 					pgaFiles.put(pgaPrefixes[i]+"_pga_g",
-							new BinaryGeoDatasetRandomAccessFile(new File(outputDir, cachePrefixes[i]+"_pga.bin"),
+							new BinaryGeoDatasetRandomAccessFile(new File(outputDir, pgaPrefixes[i]+"_pga_g.bin"),
 									BinaryCurveArchiver.byteOrder, sites.size()));
 				}
 			}
@@ -386,8 +386,8 @@ public class MPJ_GMPE_MCErCacheGen extends MPJTaskCalculator {
 					
 					debug("Archiving PGA site "+name);
 					Location loc = site.getLocation();
-					pgaFiles.get(pgaCachePrefix+"_pga_det").write(siteIndex, loc, det);
-					pgaFiles.get(pgaCachePrefix+"_pga_prob").write(siteIndex, loc, prob);
+					pgaFiles.get(pgaCachePrefix+"_pga_g_det").write(siteIndex, loc, det);
+					pgaFiles.get(pgaCachePrefix+"_pga_g_prob").write(siteIndex, loc, prob);
 					pgaFiles.get(pgaCachePrefix+"_pga_g").write(siteIndex, loc, pga);
 					archiver.archiveCurve(probCurve, pgaCurveMetadata);
 					debug("DONE PGA site "+name);

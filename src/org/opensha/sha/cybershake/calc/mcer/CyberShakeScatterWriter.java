@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,6 +34,7 @@ import org.opensha.sha.calc.mcer.CachedMCErDeterministicCalc;
 import org.opensha.sha.calc.mcer.MCErCalcUtils;
 import org.opensha.sha.calc.mcer.MCErMapGenerator;
 import org.opensha.sha.cybershake.HazardCurveFetcher;
+import org.opensha.sha.cybershake.calc.mcer.UGMS_WebToolCalc.SpectraType;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
@@ -45,7 +47,6 @@ import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 
 import scratch.UCERF3.analysis.FaultBasedMapGen;
@@ -61,6 +62,7 @@ public class CyberShakeScatterWriter {
 		Region region = new CaliforniaRegions.CYBERSHAKE_MAP_REGION();
 		boolean cache = true;
 		boolean replot = false;
+		boolean reinterpolate = false;
 		double spacing = 0.002;
 		
 		DBAccess db = study.getDB();
@@ -98,9 +100,35 @@ public class CyberShakeScatterWriter {
 		int tocIndex = lines.size();
 		String topLink = "*[(top)](#table-of-contents)*";
 		
-		Map<Location, DiscretizedFunc> mcerSpectrumMap = Maps.newHashMap();
-		Map<Location, DiscretizedFunc> bse2eSpectrumMap = Maps.newHashMap();
-		Map<Location, DiscretizedFunc> bse1eSpectrumMap = Maps.newHashMap();
+		File mcerSpectraFile = new File(outputDir, SpectraType.MCER.getFileName(spacing));
+		Map<Location, DiscretizedFunc> mcerSpectrumMap = null;
+		if (reinterpolate || !mcerSpectraFile.exists())
+			mcerSpectrumMap = new HashMap<>();
+		
+		File mcerProbSpectraFile = new File(outputDir, SpectraType.MCER_PROB.getFileName(spacing));
+		Map<Location, DiscretizedFunc> mcerProbSpectrumMap = null;
+		if (reinterpolate || !mcerProbSpectraFile.exists())
+			mcerProbSpectrumMap = new HashMap<>();
+		
+		File mcerDetSpectraFile = new File(outputDir, SpectraType.MCER_DET.getFileName(spacing));
+		Map<Location, DiscretizedFunc> mcerDetSpectrumMap = null;
+		if (reinterpolate || !mcerDetSpectraFile.exists())
+			mcerDetSpectrumMap = new HashMap<>();
+		
+		File mcerDetLowerSpectraFile = new File(outputDir, SpectraType.MCER_DET_LOWER.getFileName(spacing));
+		Map<Location, DiscretizedFunc> mcerDetLowerSpectrumMap = null;
+		if (reinterpolate || !mcerDetLowerSpectraFile.exists())
+			mcerDetLowerSpectrumMap = new HashMap<>();
+		
+		File bse2eSpectraFile = new File(outputDir, SpectraType.BSE_2E.getFileName(spacing));
+		Map<Location, DiscretizedFunc> bse2eSpectrumMap = null;
+		if (reinterpolate || !bse2eSpectraFile.exists())
+			bse2eSpectrumMap = new HashMap<>();
+		
+		File bse1eSpectraFile = new File(outputDir, SpectraType.BSE_1E.getFileName(spacing));
+		Map<Location, DiscretizedFunc> bse1eSpectrumMap = null;
+		if (reinterpolate || !bse1eSpectraFile.exists())
+			bse1eSpectrumMap = new HashMap<>();
 		
 		for (double period : periods) {
 			CybershakeIM im = CyberShakeMCErProbabilisticCalc.getIMsForPeriods(db, component, Lists.newArrayList(period)).get(0);
@@ -183,12 +211,30 @@ public class CyberShakeScatterWriter {
 			lines.add("");
 			
 			System.out.println("Interpolating with GMT");
-			GeoDataSet mcerInterpolatedData = interpolate(mcerScatter, region, spacing);
-			loadSpecta(mcerSpectrumMap, mcerInterpolatedData, period);
-			GeoDataSet bse2eInterpolatedData = interpolate(bse2eScatter, region, spacing);
-			loadSpecta(bse2eSpectrumMap, bse2eInterpolatedData, period);
-			GeoDataSet bse1eInterpolatedData = interpolate(bse1eScatter, region, spacing);
-			loadSpecta(bse1eSpectrumMap, bse1eInterpolatedData, period);
+			if (mcerSpectrumMap != null) {
+				GeoDataSet mcerInterpolatedData = interpolate(mcerScatter, region, spacing);
+				loadSpecta(mcerSpectrumMap, mcerInterpolatedData, period);
+			}
+			if (mcerProbSpectrumMap != null) {
+				GeoDataSet mcerProbInterpolatedData = interpolate(probScatter, region, spacing);
+				loadSpecta(mcerProbSpectrumMap, mcerProbInterpolatedData, period);
+			}
+			if (mcerDetSpectrumMap != null) {
+				GeoDataSet mcerDetInterpolatedData = interpolate(detScatter, region, spacing);
+				loadSpecta(mcerDetSpectrumMap, mcerDetInterpolatedData, period);
+			}
+			if (mcerDetLowerSpectrumMap != null) {
+				GeoDataSet mcerDetLowerInterpolatedData = interpolate(detLowerScatter, region, spacing);
+				loadSpecta(mcerDetLowerSpectrumMap, mcerDetLowerInterpolatedData, period);
+			}
+			if (bse2eSpectrumMap != null) {
+				GeoDataSet bse2eInterpolatedData = interpolate(bse2eScatter, region, spacing);
+				loadSpecta(bse2eSpectrumMap, bse2eInterpolatedData, period);
+			}
+			if (bse1eSpectrumMap != null) {
+				GeoDataSet bse1eInterpolatedData = interpolate(bse1eScatter, region, spacing);
+				loadSpecta(bse1eSpectrumMap, bse1eInterpolatedData, period);
+			}
 			
 			if (cache) {
 				try {
@@ -201,9 +247,18 @@ public class CyberShakeScatterWriter {
 		}
 		
 		System.out.println("Writing interpolated spectra binary files");
-		new BinaryHazardCurveWriter(new File(outputDir, "mcer_scpectum_"+(float)spacing+".bin")).writeCurves(mcerSpectrumMap);
-		new BinaryHazardCurveWriter(new File(outputDir, "bse2e_scpectum_"+(float)spacing+".bin")).writeCurves(bse2eSpectrumMap);
-		new BinaryHazardCurveWriter(new File(outputDir, "bse1e_scpectum_"+(float)spacing+".bin")).writeCurves(bse1eSpectrumMap);
+		if (mcerSpectrumMap != null)
+			new BinaryHazardCurveWriter(mcerSpectraFile).writeCurves(mcerSpectrumMap);
+		if (mcerProbSpectrumMap != null)
+			new BinaryHazardCurveWriter(mcerProbSpectraFile).writeCurves(mcerProbSpectrumMap);
+		if (mcerDetSpectrumMap != null)
+			new BinaryHazardCurveWriter(mcerDetSpectraFile).writeCurves(mcerDetSpectrumMap);
+		if (mcerDetLowerSpectrumMap != null)
+			new BinaryHazardCurveWriter(mcerDetLowerSpectraFile).writeCurves(mcerDetLowerSpectrumMap);
+		if (bse2eSpectrumMap != null)
+			new BinaryHazardCurveWriter(bse2eSpectraFile).writeCurves(bse2eSpectrumMap);
+		if (bse1eSpectrumMap != null)
+			new BinaryHazardCurveWriter(bse1eSpectraFile).writeCurves(bse1eSpectrumMap);
 		
 		db.destroy();
 		

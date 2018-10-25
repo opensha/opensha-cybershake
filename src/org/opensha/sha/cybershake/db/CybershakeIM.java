@@ -214,7 +214,7 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 	}
 	
 	public String toString() {
-		return this.measure+" ("+component+"): "+this.val+" ("+this.units+")";
+		return "ID: "+id+", "+this.measure+" ("+component+"): "+this.val+" ("+this.units+")";
 	}
 	
 	@Override

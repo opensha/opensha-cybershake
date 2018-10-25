@@ -9,13 +9,14 @@ import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.GnuParser;
+import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.MissingOptionException;
 import org.apache.commons.cli.Option;
@@ -65,13 +66,16 @@ import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.cybershake.gui.util.ERFSaver;
 import org.opensha.sha.earthquake.ERF;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Table;
 
 public class UGMS_WebToolCalc {
 	
@@ -82,7 +86,7 @@ public class UGMS_WebToolCalc {
 	private File gmpeDir;
 	private double gmpeSpacing;
 	private String gmpeERF;
-	private List<String> siteClassNames;
+	private List<String> siteClassNames; // user selected class, or classes that bound user Vs30 value
 	private double userVs30;
 	private double z2p5;
 	private double z1p0;
@@ -92,7 +96,7 @@ public class UGMS_WebToolCalc {
 	public static BiMap<String, Double> vs30Map = HashBiMap.create();
 	private static final double minCalcVs30 = 150d;
 	private static final double maxCalcVs30 = 1000d;
-	private static List<Double> vs30ValsSorted = Lists.newArrayList();
+	private static List<Double> vs30ValsSorted = new ArrayList<>();
 	static {
 		vs30Map.put("AorB",				1000d);
 		vs30Map.put("BBC",				880d);
@@ -126,7 +130,7 @@ public class UGMS_WebToolCalc {
 			0.5,0.75,1.0,1.5,2.0,3.0,4.0,5.0,7.5,10.0};
 	
 	private CyberShakeSiteRun csRun; // list for future interpolation
-	private File csDataFile;
+	private File csDataDir;
 	private double csDataSpacing;
 	
 	private Runs2DB runs2db;
@@ -135,23 +139,120 @@ public class UGMS_WebToolCalc {
 	private CyberShakeMCErDeterministicCalc csDetCalc;
 	private CyberShakeMCErProbabilisticCalc csProbCalc;
 	
-	private DiscretizedFunc csDetSpectrum;
-	private DiscretizedFunc csProbSpectrum;
-	private DiscretizedFunc csMCER;
-	private DiscretizedFunc finalMCER;
-	private DiscretizedFunc designResponseSpectrum;
-	private DiscretizedFunc standardSpectrum;
-	private DiscretizedFunc designStandardSpectrum;
+	private static CodeVersion CODE_DEFAULT = CodeVersion.MCER;
+	private CodeVersion codeVersion = CODE_DEFAULT;
 	
-	private double sds;
-	private double sd1;
-	private double sms;
-	private double sm1;
-	private double tl;
-	private static boolean plotSD = false;
+	private enum CodeVersion {
+		MCER,
+		BSE_N,
+		BSE_E
+	}
 	
-	private DiscretizedFunc gmpeMCER;
-	private Double gmpePGA;
+	private static final String SPACING_REPLACE_STR = "123SPACING321";
+	
+	public enum SpectraType {
+		MCER("Site Specific MCER", "MCER", "MCER", "mcer_spectrum_"+SPACING_REPLACE_STR+".bin"),
+		MCER_PROB("MCER Probabilistic", "Prob", "ProbabilisticMCER", "mcer_prob_spectrum_"+SPACING_REPLACE_STR+".bin"),
+		MCER_DET("MCER Deterministic", "Determ", "DeterministicMCER", "mcer_det_spectrum_"+SPACING_REPLACE_STR+".bin"),
+		MCER_DET_LOWER("MCER Deterministic Lower Limit", "Determ Lower Limit", "DeterministicLowerLevel", "mcer_det_lower_spectrum_"+SPACING_REPLACE_STR+".bin"),
+		MCER_DESIGN("Site Specific Design Response", "Design", "DesignResponseSpectrum"),
+		MCER_STANDARD("Standard MCER", "Standard", "StandardMCERSpectrum"),
+		MCER_DESIGN_STANDARD("Standard Design Response", "Standard Design", "StandardDesignResponseSpectrum"),
+		BSE_2E("Site Specific BSE-2E", "BSE-2E", "BSE_2E", "bse_2e_spectrum_"+SPACING_REPLACE_STR+".bin"),
+		BSE_1E("Site Specific BSE-1E", "BSE-1E", "BSE_1E", "bse_1e_spectrum_"+SPACING_REPLACE_STR+".bin"),
+		BSE_2N("Site Specific BSE-2N", "BSE-2N", "BSE_2N", "mcer_spectrum_"+SPACING_REPLACE_STR+".bin"),
+		BSE_1N("Site Specific BSE-1N", "BSE-1N", "BSE_1N");
+		
+		private String name, shortName, elementName, fileName;
+		
+		private SpectraType(String name, String shortName, String elementName) {
+			this(name, shortName, elementName, null);
+		}
+		
+		private SpectraType(String name, String shortName, String elementName, String fileName) {
+			this.name = name;
+			this.shortName = shortName;
+			this.elementName = elementName;
+			this.fileName = fileName;
+		}
+		
+		public String getName() {
+			return name;
+		}
+		
+		public String getShortName() {
+			return shortName;
+		}
+		
+		public String getElementName() {
+			return elementName;
+		}
+		
+		public String getFileName(double spacing) {
+			Preconditions.checkNotNull(fileName);
+			return fileName.replaceAll(SPACING_REPLACE_STR, (float)spacing+"");
+		}
+		
+		@Override
+		public String toString() {
+			return getShortName();
+		}
+	}
+	
+	public enum SpectraSource {
+		GMPE("GMPE"),
+		CYBERSHAKE("CyberShake"),
+		COMBINED(null);
+		
+		private String name;
+		private SpectraSource(String name) {
+			this.name = name;
+		}
+		
+		public String getName() {
+			return name;
+		}
+	}
+	
+	public enum DesignParameter {
+		SDS,
+		SD1,
+		SMS,
+		SM1,
+		SXS,
+		SX1,
+		TL,
+		TS,
+		T0,
+		PGAM() {
+			@Override
+			public String getFileName(double spacing, SpectraType type, SpectraSource source) {
+				Preconditions.checkState(source == SpectraSource.COMBINED, "Only combined supported for PGAM");
+				String fileName;
+				switch (type) {
+				case MCER:
+					fileName = "pga_m_"+SPACING_REPLACE_STR+".bin";
+					break;
+				case BSE_2N:
+					fileName = "pga_m_"+SPACING_REPLACE_STR+".bin";
+					break;
+				case BSE_2E:
+					fileName = "bse_2e_pga_m_"+SPACING_REPLACE_STR+".bin";
+					break;
+
+				default:
+					throw new IllegalStateException("PGAM not supported for "+type+", "+source);
+				}
+				return fileName.replaceAll(SPACING_REPLACE_STR, (float)spacing+"");
+			}
+		};
+		
+		public String getFileName(double spacing, SpectraType type, SpectraSource source) {
+			throw new UnsupportedOperationException("getFileName not applicable to "+name());
+		}
+	}
+	
+	private Table<SpectraType, SpectraSource, DiscretizedFunc> spectraCache;
 	
 	private Document xmlMetadataDoc;
 	private Element xmlRoot;
@@ -169,6 +270,11 @@ public class UGMS_WebToolCalc {
 		metadataEl.addAttribute("dbHost", Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME);
 		metadataEl.addAttribute("component", component.name());
 		
+		if (cmd.hasOption("code-version"))
+			codeVersion = CodeVersion.valueOf(cmd.getOptionValue("code-version"));
+		System.out.println("Code Version: "+codeVersion);
+		metadataEl.addAttribute("codeVersion", codeVersion.name());
+		
 		outputDir = new File(cmd.getOptionValue("output-dir"));
 		Preconditions.checkState(outputDir.exists() || outputDir.mkdirs(),
 				"Output dir doesn't exist and couldn't be created: %s", outputDir.getAbsolutePath());
@@ -179,10 +285,10 @@ public class UGMS_WebToolCalc {
 		gmpeERF = cmd.getOptionValue("gmpe-erf");
 		
 		int velModelID;
-		if (cmd.hasOption("cs-data-file")) {
-			Preconditions.checkArgument(cmd.hasOption("cs-spacing"), "Must supply spacing with CS data file");
-			csDataFile = new File(cmd.getOptionValue("cs-data-file"));
-			Preconditions.checkState(csDataFile.exists(), "CS data file doesn't exist: %s", csDataFile.getAbsolutePath());
+		if (cmd.hasOption("cs-data-dir")) {
+			Preconditions.checkArgument(cmd.hasOption("cs-spacing"), "Must supply spacing with CS data directory");
+			csDataDir = new File(cmd.getOptionValue("cs-data-dir"));
+			Preconditions.checkState(csDataDir.exists() && csDataDir.isDirectory(), "CS data dir doesn't exist: %s", csDataDir.getAbsolutePath());
 			
 			csDataSpacing = Double.parseDouble(cmd.getOptionValue("cs-spacing"));
 			
@@ -222,7 +328,7 @@ public class UGMS_WebToolCalc {
 				List<CyberShakeSiteRun> completedRuns = getCompletedRunsForDataset(datasetID, IM_TYPE_ID_FOR_SEARCH);
 				Preconditions.checkState(!completedRuns.isEmpty(),
 						"No runs found for datasetID=%s with imTypeID=%s", datasetID, IM_TYPE_ID_FOR_SEARCH);
-				List<CyberShakeSiteRun> csRuns = Lists.newArrayList();
+				List<CyberShakeSiteRun> csRuns = new ArrayList<>();
 				if (cmd.hasOption("site-id")) {
 					// search by site ID
 					Preconditions.checkState(!cmd.hasOption("latitude"), "Can't specify both a location and a Site ID");
@@ -264,7 +370,7 @@ public class UGMS_WebToolCalc {
 				}
 				
 				System.out.println(csRuns.size()+" completed nearby sites found: ");
-				List<Double> distances = Lists.newArrayList();
+				List<Double> distances = new ArrayList<>();
 				for (CyberShakeSiteRun run : csRuns)
 					distances.add(LocationUtils.horzDistanceFast(loc, run.getLocation()));
 				csRuns = ComparablePairing.getSortedData(distances, csRuns);
@@ -309,8 +415,6 @@ public class UGMS_WebToolCalc {
 		metadataEl.addAttribute("longitude", latLonDF.format(loc.getLongitude()));
 		
 		System.out.println("Loc: "+loc);
-		tl = ASCEDetLowerLimitCalc.getTl(loc);
-		System.out.println("TL: "+tl);
 		
 		if (cmd.hasOption("class")) {
 			// site class specified
@@ -328,7 +432,7 @@ public class UGMS_WebToolCalc {
 				siteClassName = "AorB"; // for bin file matching
 			Preconditions.checkState(matchingVs30 != null, "Unknown site class: %s", matchingClass);
 			Preconditions.checkState(!cmd.hasOption("vs30"), "Can't specify site class and Vs30!");
-			siteClassNames = Lists.newArrayList();
+			siteClassNames = new ArrayList<>();
 			siteClassNames.add(matchingClass);
 			userVs30 = matchingVs30;
 		} else if (cmd.hasOption("vs30")) {
@@ -347,7 +451,7 @@ public class UGMS_WebToolCalc {
 			String closestClass = vs30Map.inverse().get(closestVs30);
 			System.out.println("Closest GMPE site class "+closestClass+"="+(float)closestVs30
 					+" for user Vs30 of "+vs30+" (diff="+minDiff+")");
-			siteClassNames = Lists.newArrayList();
+			siteClassNames = new ArrayList<>();
 			siteClassNames.add(closestClass);
 			if (vs30 > minCalcVs30 && vs30 < maxCalcVs30 && (float)minDiff > 0f) {
 				// only add second point for interp if within range and not an exact match
@@ -455,38 +559,105 @@ public class UGMS_WebToolCalc {
 		}
 		
 		resultsEl = xmlRoot.addElement("Results");
+		
+		spectraCache = HashBasedTable.create();
 	}
 	
-	public void calcCyberShake() {
-		if (csDataFile != null) {
-			System.out.println("Calculating with precomputed CS data file");
-			
+	private Element getResultsEl(SpectraSource source) {
+		switch (source) {
+		case COMBINED:
+			return resultsEl;
+		case CYBERSHAKE:
+			return getCreateElement(resultsEl, source.getName());
+		case GMPE:
+			return getCreateElement(resultsEl, source.getName());
+
+		default:
+			throw new IllegalStateException("Unkown source: "+source);
+		}
+	}
+	
+	private static Element getCreateElement(Element root, String name) {
+		Element el = root.element(name);
+		if (el == null)
+			el = root.addElement(name);
+		return el;
+	}
+	
+	private synchronized DiscretizedFunc getCalcSpectrum(SpectraType type, SpectraSource source) {
+		if (spectraCache.contains(type, source))
+			return spectraCache.get(type, source);
+		
+		Element resultsEl = getResultsEl(source);
+		
+		DiscretizedFunc spectrum;
+		switch (source) {
+		case CYBERSHAKE:
+			spectrum = calcCyberShake(type);
+			break;
+		case GMPE:
+			spectrum = calcGMPE(type);
+			break;
+		case COMBINED:
+			spectrum = calcCombined(type);
+			break;
+
+		default:
+			throw new IllegalStateException("Unknown spectra source: "+source);
+		}
+		if (source.getName() == null)
+			spectrum.setName(type.getName());
+		else
+			spectrum.setName(source.getName()+" "+type.getShortName());
+		spectrum.toXMLMetadata(resultsEl, type.getElementName(), valDF);
+		spectraCache.put(type, source, spectrum);
+		return spectrum;
+	}
+	
+	private DiscretizedFunc calcCyberShake(SpectraType type) {
+		if (csDataDir != null) {
+			System.out.println("Calculating CyberShake "+type+" with precomputed data file");
+			String fileName = type.getFileName(csDataSpacing);
+			Preconditions.checkState(fileName != null, "Cannot calculate '"+type+"' from only CyberShake precomputed data");
+			File csDataFile = new File(csDataDir, fileName);
+			Preconditions.checkState(csDataFile.exists(), "CS data file doesn't exist: %s", csDataFile.getAbsolutePath());
 			try {
 				GriddedSpectrumInterpolator interp = getInterpolator(csDataFile, csDataSpacing);
-				csMCER = interp.getInterpolated(loc);
-				csMCER.setName("CyberShake MCER");
+				return interp.getInterpolated(loc);
 			} catch (Exception e) {
-				ExceptionUtils.throwAsRuntimeException(e);
+				throw ExceptionUtils.asRuntimeException(e);
 			}
+		} else if (type == SpectraType.MCER_DET_LOWER) {
+			DiscretizedFunc periods = getCalcSpectrum(SpectraType.MCER_PROB, SpectraSource.CYBERSHAKE);
+			return ASCEDetLowerLimitCalc.calc(periods, userVs30, getCalcDesignParam(DesignParameter.TL, null, null));
 		} else {
 			CyberShakeSiteRun site = csRun;
 			
-			System.out.println("Calculating CyberShake Values");
-			List<DeterministicResult> csDeterms = Lists.newArrayList();
-			csDetSpectrum = new ArbitrarilyDiscretizedFunc();
-			csDetSpectrum.setName("CyberShake Deterministic");
-			csProbSpectrum = new ArbitrarilyDiscretizedFunc();
-			csProbSpectrum.setName("CyberShake Probabilistic");
+			System.out.println("Calculating CyberShake values on the fly");
+			DiscretizedFunc spectrum = new ArbitrarilyDiscretizedFunc();
 			
 			for (double period : periods) {
 				try {
-					DeterministicResult csDet = csDetCalc.calc(site, period);
-					Preconditions.checkNotNull(csDet); // will kick down to catch and skip this period if null
-					csDeterms.add(csDet);
-					DiscretizedFunc curve = csProbCalc.calcHazardCurves(site, Lists.newArrayList(period)).get(period);
-					double csProb = CurveBasedMCErProbabilisitCalc.calcRTGM(curve);
-//					double csProb = csProbCalc.calc(site, period);
-					csProbSpectrum.set(period, csProb);
+					double value;
+					switch (type) {
+					case MCER:
+						double probVal = getCalcSpectrum(SpectraType.MCER_PROB, SpectraSource.CYBERSHAKE).getY(period);
+						double detVal = getCalcSpectrum(SpectraType.MCER_DET, SpectraSource.CYBERSHAKE).getY(period);
+						double detLowerVal = getCalcSpectrum(SpectraType.MCER_DET_LOWER, SpectraSource.CYBERSHAKE).getY(period);
+						value = MCErCalcUtils.calcMCER(detVal, probVal, detLowerVal);
+						break;
+					case MCER_PROB:
+						DiscretizedFunc curve = csProbCalc.calcHazardCurves(site, Lists.newArrayList(period)).get(period);
+						value = CurveBasedMCErProbabilisitCalc.calcRTGM(curve);
+						break;
+					case MCER_DET:
+						DeterministicResult csDet = csDetCalc.calc(site, period);
+						Preconditions.checkNotNull(csDet); // will kick down to catch and skip this period if null
+						value = csDet.getVal();
+					default:
+						throw new IllegalStateException("Cannot calc "+type+" from CyberShake only");
+					}
+					spectrum.set(period, value);
 				} catch (RuntimeException e) {
 					if (e.getMessage() != null && e.getMessage().startsWith("No CyberShake IM match")
 							|| e instanceof NullPointerException) {
@@ -494,49 +665,31 @@ public class UGMS_WebToolCalc {
 //						System.err.flush();
 						System.out.println("Skipping period "+period+", no matching CyberShake IM");
 //						System.out.flush();
-						csDeterms.add(null);
 						continue;
 					}
 					throw e;
 				}
 			}
-			Preconditions.checkState(csDeterms.size() == periods.length);
-			for (int i=0; i<periods.length; i++)
-				if (csDeterms.get(i) != null)
-					csDetSpectrum.set(periods[i], csDeterms.get(i).getVal());
 			
-			DiscretizedFunc asceDeterm = ASCEDetLowerLimitCalc.calc(csProbSpectrum, userVs30, tl);
-			
-			csMCER = MCERDataProductsCalc.calcMCER(csDetSpectrum, csProbSpectrum, asceDeterm);
-			csMCER.setName("CyberShake MCER");
-			
-			csDetSpectrum.toXMLMetadata(csSiteEl, "deterministic", valDF);
-			csProbSpectrum.toXMLMetadata(csSiteEl, "probabilistic", valDF);
-			asceDeterm.toXMLMetadata(csSiteEl, "detLowerLimit", valDF);
-			csMCER.toXMLMetadata(csSiteEl, "mcer", valDF);
+			return spectrum;
 		}
-		
-		csMCER.toXMLMetadata(resultsEl, "CyberShakeMCER", valDF);
 	}
 	
-	public void calcGMPE() throws Exception {
+	private DiscretizedFunc calcGMPE(SpectraType type) {
 		System.out.println("Calculating GMPE");
 		File gmpeDir = new File(this.gmpeDir, gmpeERF);
 		Preconditions.checkState(gmpeDir.exists(), "GMPE/ERF dir doesn't exist: %s", gmpeDir.getAbsolutePath());
 		
-		List<String> dataFileNames = Lists.newArrayList();
-		List<String> pgaDataFileNames = Lists.newArrayList();
-		List<Double> vs30Vals = Lists.newArrayList();
-		List<DiscretizedFunc> spectrum = Lists.newArrayList();
-		List<Double> pgas = Lists.newArrayList();
+		List<String> dataFileNames = new ArrayList<>();
+		List<Double> vs30Vals = new ArrayList<>();
+		List<DiscretizedFunc> spectrum = new ArrayList<>();
+		String typeFileName = type.getFileName(gmpeSpacing);
 		if (siteClassNames == null) {
-			dataFileNames.add("Wills.bin");
-			pgaDataFileNames.add("Wills_pga.bin");
+			dataFileNames.add("Wills_"+typeFileName);
 			vs30Vals.add(userVs30);
 		} else {
 			for (String siteClassName : siteClassNames) {
-				dataFileNames.add("class"+siteClassName+".bin");
-				pgaDataFileNames.add("class"+siteClassName+"_pga.bin");
+				dataFileNames.add("class"+siteClassName+"_"+typeFileName);
 				vs30Vals.add(vs30Map.get(siteClassName));
 			}
 		}
@@ -550,7 +703,12 @@ public class UGMS_WebToolCalc {
 			gmpeSiteEl = xmlRoot.addElement("GMPE_Run");
 			gmpeSiteEl.addAttribute("dataFile", dataFile.getAbsolutePath());
 			
-			GriddedSpectrumInterpolator interp = getInterpolator(dataFile, gmpeSpacing);
+			GriddedSpectrumInterpolator interp;
+			try {
+				interp = getInterpolator(dataFile, gmpeSpacing);
+			} catch (Exception e1) {
+				throw ExceptionUtils.asRuntimeException(e1);
+			}
 			
 			Location closestLoc = interp.getClosestGridLoc(loc);
 			
@@ -577,24 +735,24 @@ public class UGMS_WebToolCalc {
 			gmpeSiteEl.addAttribute("latitude", latLonDF.format(closestLoc.getLatitude()));
 			gmpeSiteEl.addAttribute("longitude", latLonDF.format(closestLoc.getLongitude()));
 			
-			// now PGA
-			String pgaDataFileName = pgaDataFileNames.get(i);
-			File pgaDataFile = new File(gmpeDir, pgaDataFileName);
-			System.out.println("Loading GMPE PGA data file: "+pgaDataFile.getAbsolutePath());
-			Preconditions.checkState(pgaDataFile.exists(), "Data file doesn't exist: %s", pgaDataFile.getAbsolutePath());
-			
-			interp = getPGAInterpolator(pgaDataFile, gmpeSpacing);
-			
-			closestLoc = interp.getClosestGridLoc(loc);
-			
-			try {
-				pgas.add(interp.getInterpolated(loc).getY(0));
-			} catch (IllegalStateException e) {
-				System.out.println("Interpolation failed, falling back to closest defined point."
-						+ " This happens if one of the surrounding points is in the ocean.");
-				closestLoc = interp.getClosestDefinedGridLoc(loc);
-				pgas.add(interp.getClosest(closestLoc).getY(0));
-			}
+//			// now PGA
+//			String pgaDataFileName = pgaDataFileNames.get(i);
+//			File pgaDataFile = new File(gmpeDir, pgaDataFileName);
+//			System.out.println("Loading GMPE PGA data file: "+pgaDataFile.getAbsolutePath());
+//			Preconditions.checkState(pgaDataFile.exists(), "Data file doesn't exist: %s", pgaDataFile.getAbsolutePath());
+//			
+//			interp = getPGAInterpolator(pgaDataFile, gmpeSpacing);
+//			
+//			closestLoc = interp.getClosestGridLoc(loc);
+//			
+//			try {
+//				pgas.add(interp.getInterpolated(loc).getY(0));
+//			} catch (IllegalStateException e) {
+//				System.out.println("Interpolation failed, falling back to closest defined point."
+//						+ " This happens if one of the surrounding points is in the ocean.");
+//				closestLoc = interp.getClosestDefinedGridLoc(loc);
+//				pgas.add(interp.getClosest(closestLoc).getY(0));
+//			}
 			
 			minDist = LocationUtils.horzDistanceFast(closestLoc, loc);
 			System.out.println("Distance to closest point in GMPE PGA data file: "+minDist+" km");
@@ -604,68 +762,103 @@ public class UGMS_WebToolCalc {
 		}
 		
 		if (spectrum.size() == 1) {
-			gmpeMCER = spectrum.get(0);
-			gmpePGA = pgas.get(0);
+			return spectrum.get(0);
 		} else {
-			// need to interpolate
-			Preconditions.checkState(spectrum.size() == 2, "need exactly 2 for interpolation");
-			Element interpEl = xmlRoot.addElement("GMPE_Interpolation");
-			
-			double x1 = vs30Vals.get(0);
-			DiscretizedFunc s1 = spectrum.get(0);
-			double p1 = pgas.get(0);
-			double x2 = vs30Vals.get(1);
-			DiscretizedFunc s2 = spectrum.get(1);
-			double p2 = pgas.get(1);
-			Preconditions.checkState(s1.size() == s2.size(), "Spectra sizes inconsistent");
-			
-			if (x2 < x1) {
-				// reverse
-				double tx = x1;
-				DiscretizedFunc ts = s1;
-				x1 = x2;
-				s1 = s2;
-				x2 = tx;
-				s2 = ts;
-				double tp = p1;
-				p1 = p2;
-				p2 = tp;
-			}
-			Preconditions.checkState(x2 > x1);
-			Preconditions.checkState(x2 >= userVs30 && userVs30 >= x1,
-					"User supplied Vs30 (%s) not in range [%s %s]", userVs30, x1, x2); 
+			Element interpEl = type == SpectraType.MCER || type == SpectraType.BSE_1E ? xmlRoot.addElement("GMPE_Interpolation") : null;
+			return interpolateSpectraWithVs30(vs30Vals, spectrum, userVs30, interpEl);
+		}
+	}
+
+	private static DiscretizedFunc interpolateSpectraWithVs30(List<Double> vs30Vals, List<DiscretizedFunc> spectrum,
+			double vs30, Element interpEl) {
+		// need to interpolate
+		Preconditions.checkState(spectrum.size() == 2, "need exactly 2 for interpolation");
+		
+		double x1 = vs30Vals.get(0);
+		DiscretizedFunc s1 = spectrum.get(0);
+//			double p1 = pgas.get(0);
+		double x2 = vs30Vals.get(1);
+		DiscretizedFunc s2 = spectrum.get(1);
+//			double p2 = pgas.get(1);
+		Preconditions.checkState(s1.size() == s2.size(), "Spectra sizes inconsistent");
+		
+		if (x2 < x1) {
+			// reverse
+			double tx = x1;
+			DiscretizedFunc ts = s1;
+			x1 = x2;
+			s1 = s2;
+			x2 = tx;
+			s2 = ts;
+		}
+		Preconditions.checkState(x2 > x1);
+		Preconditions.checkState(x2 >= vs30 && vs30 >= x1,
+				"User supplied Vs30 (%s) not in range [%s %s]", vs30, x1, x2);
+		if (interpEl != null) {
 			interpEl.addAttribute("vs30lower", vs30DF.format(x1));
 			interpEl.addAttribute("vs30upper", vs30DF.format(x2));
-			interpEl.addAttribute("userVs30", vs30DF.format(userVs30));
+			interpEl.addAttribute("userVs30", vs30DF.format(vs30));
 			s1.toXMLMetadata(interpEl, "LowerSpectrum", valDF);
 			s2.toXMLMetadata(interpEl, "UpperSpectrum", valDF);
-			
-			double[] xs = {x1, x2};
-			gmpeMCER = new ArbitrarilyDiscretizedFunc();
-			for (int i=0; i<s1.size(); i++) {
-				double x = s1.getX(i);
-				Preconditions.checkState((float)x == (float)s2.getX(i), "Spectrum x values inconsistent");
-				double[] ys = {s1.getY(i), s2.getY(i)};
-				// log-log interpolation as requested by Christine, 1/17/17
+		}
+		
+		double[] xs = {x1, x2};
+		DiscretizedFunc interpSpectrum = new ArbitrarilyDiscretizedFunc();
+		for (int i=0; i<s1.size(); i++) {
+			double x = s1.getX(i);
+			Preconditions.checkState((float)x == (float)s2.getX(i), "Spectrum x values inconsistent");
+			double[] ys = {s1.getY(i), s2.getY(i)};
+			// log-log interpolation as requested by Christine, 1/17/17
 //				double y = Interpolate.findY(xs, ys, userVs30);
 //				double y = Interpolate.findLogY(xs, ys, userVs30);
-				double y = Interpolate.findLogLogY(xs, ys, userVs30);
+			double y = Interpolate.findLogLogY(xs, ys, vs30);
 //				System.out.println("x="+userVs30+", x1="+x1+", x2="+x2);
 //				System.out.println("y="+y+", y1="+ys[0]+", y2="+ys[1]);
-				Preconditions.checkState((float)y >= (float)ys[0] && (float)y <= (float)ys[1] || (float)y >= (float)ys[1] && y <= (float)ys[0],
-						"Bad interpolation, %s outside of range [%s %s]", y, ys[0], ys[1]);
-				gmpeMCER.set(x, y);
-			}
-			// now PGA
-			double[] ys = {p1, p2};
-			double y = Interpolate.findLogLogY(xs, ys, userVs30);
 			Preconditions.checkState((float)y >= (float)ys[0] && (float)y <= (float)ys[1] || (float)y >= (float)ys[1] && y <= (float)ys[0],
 					"Bad interpolation, %s outside of range [%s %s]", y, ys[0], ys[1]);
-			gmpePGA = y;
+			interpSpectrum.set(x, y);
 		}
-		gmpeMCER.setName("GMPE MCER");
-		
-		gmpeMCER.toXMLMetadata(resultsEl, "GMPE_MCER", valDF);
+		return interpSpectrum;
+	}
+	
+	private DiscretizedFunc calcCombined(SpectraType type) {
+		if (type == SpectraType.MCER || type == SpectraType.BSE_2N || type == SpectraType.BSE_2E || type == SpectraType.BSE_1E) {
+			// weight average CS and GMPE
+			return MCERDataProductsCalc.calcFinalMCER(getCalcSpectrum(type, SpectraSource.CYBERSHAKE),
+					getCalcSpectrum(type, SpectraSource.GMPE));
+		}
+		if (type == SpectraType.MCER_DESIGN) {
+			DiscretizedFunc designResponseSpectrum = getCalcSpectrum(SpectraType.MCER, SpectraSource.COMBINED);
+			designResponseSpectrum = designResponseSpectrum.deepClone();
+			designResponseSpectrum.scale(2d/3d);
+			designResponseSpectrum.setName(type.getName());
+			return designResponseSpectrum;
+		}
+		if (type == SpectraType.BSE_1N) {
+			DiscretizedFunc designResponseSpectrum = getCalcSpectrum(SpectraType.BSE_2N, SpectraSource.COMBINED);
+			designResponseSpectrum = designResponseSpectrum.deepClone();
+			designResponseSpectrum.scale(2d/3d);
+			designResponseSpectrum.setName(type.getName());
+			return designResponseSpectrum;
+		}
+		// if we're here, then we're calculating from parameters
+		if (type == SpectraType.MCER_STANDARD) {
+			DiscretizedFunc standardSpectrum = DesignSpectrumCalc.calcSpectrum(
+					getCalcDesignParam(DesignParameter.SMS, SpectraType.MCER, SpectraSource.COMBINED),
+					getCalcDesignParam(DesignParameter.SM1, SpectraType.MCER, SpectraSource.COMBINED),
+					getCalcDesignParam(DesignParameter.TL, null, null));
+			standardSpectrum.setName("Standard MCER Spectrum");
+			return standardSpectrum;
+		}
+		if (type == SpectraType.MCER_DESIGN_STANDARD) {
+			DiscretizedFunc standardSpectrum =DesignSpectrumCalc.calcSpectrum(
+					getCalcDesignParam(DesignParameter.SDS, SpectraType.MCER_DESIGN, SpectraSource.COMBINED),
+					getCalcDesignParam(DesignParameter.SD1, SpectraType.MCER_DESIGN, SpectraSource.COMBINED),
+					getCalcDesignParam(DesignParameter.TL, null, null));
+			standardSpectrum.setName("Standard MCER Spectrum");
+			return standardSpectrum;
+		}
+		throw new IllegalStateException("Cannot calculate combined spectrum for "+type);
 	}
 	
 	private GriddedSpectrumInterpolator getInterpolator(File dataFile, double spacing) throws Exception {
@@ -722,92 +915,269 @@ public class UGMS_WebToolCalc {
 		return interp;
 	}
 	
-	public void calcFinalMCER() {
-		Preconditions.checkNotNull(csMCER, "CS MCER has not been computed!");
-		Preconditions.checkNotNull(gmpeMCER, "GMPE MCER has not been computed!");
-		finalMCER = MCERDataProductsCalc.calcFinalMCER(csMCER, gmpeMCER);
-		finalMCER.toXMLMetadata(resultsEl, "FinalMCER", valDF);
-		finalMCER.setName("Site Specific MCER");
+	public double getCalcDesignParam(DesignParameter param, SpectraType type, SpectraSource source) {
+		double value;
+		switch (param) {
+		case SDS:
+			Preconditions.checkState(type == SpectraType.MCER_DESIGN);
+			value = calcSXS(getCalcSpectrum(SpectraType.MCER_DESIGN, source));
+			break;
+		case SD1:
+			Preconditions.checkState(type == SpectraType.MCER_DESIGN);
+			value = calcSX1(getCalcSpectrum(SpectraType.MCER_DESIGN, source));
+			break;
+		case SMS:
+			Preconditions.checkState(type == SpectraType.MCER);
+			value = calcSXS(getCalcSpectrum(SpectraType.MCER, source));
+			break;
+		case SM1:
+			value = calcSX1(getCalcSpectrum(SpectraType.MCER, source));
+			break;
+		case SXS:
+			value = calcSXS(getCalcSpectrum(type, source));
+			break;
+		case SX1:
+			value = calcSX1(getCalcSpectrum(type, source));
+			break;
+		case TS:
+			value = calcSX1(getCalcSpectrum(type, source))/calcSXS(getCalcSpectrum(type, source));
+			break;
+		case T0:
+			value = 0.2*getCalcDesignParam(DesignParameter.TS, type, source);
+			break;
+		case TL:
+			value = ASCEDetLowerLimitCalc.getTl(loc);
+			break;
+		case PGAM:
+			value = calcPGAM(DesignParameter.PGAM, type, source);
+			break;
+		default:
+			throw new IllegalStateException("Unknown/unimplemented design param: "+param);
+		}
 		
-		designResponseSpectrum = finalMCER.deepClone();
-		designResponseSpectrum.scale(2d/3d);
-		designResponseSpectrum.setName("Design Response Spectrum");
-		designResponseSpectrum.toXMLMetadata(resultsEl, "DesignResponseSpectrum", valDF);
-		
-		// calc SDS and SD1
-		/* SDS */
-		// SDS = 0.9 * max(Sa) for 0.2s <= T <= 0.5 where Sa 2/3 * MCER
-		this.sds = 0;
-		for (int i=0; i<designResponseSpectrum.size(); i++) {
-			double x = designResponseSpectrum.getX(i);
+		System.out.println("Calculated "+param+": "+(float)value);
+		if (type == null) {
+			metadataEl.addAttribute(param.name(), valDF.format(value));
+		} else {
+			Element rootEl;
+			if (source == SpectraSource.COMBINED || source == null)
+				rootEl = resultsEl;
+			else
+				rootEl = resultsEl.element(source.name());
+			Preconditions.checkNotNull(rootEl);
+			Element spectrumEl = rootEl.element(type.getElementName());
+			Preconditions.checkNotNull(spectrumEl, "Spectrum XML element not created for %s when computing %s from source %s",
+					type, param, source);
+			spectrumEl.addAttribute(param.name(), valDF.format(value));
+		}
+		return value;
+	}
+	
+	private double calcSXS(DiscretizedFunc spectrum) {
+		double value = 0;
+		for (int i=0; i<spectrum.size(); i++) {
+			double x = spectrum.getX(i);
 			if (x < 0.2)
 				continue;
 			if (x > 0.5)
 				break;
-			double y = designResponseSpectrum.getY(i);
-			sds = Math.max(sds, 0.9 * y);
+			double y = spectrum.getY(i);
+			value = Math.max(value, 0.9 * y);
 		}
-		
-		/* SD1 */
-		double minPeriodSD1 = 1d;
-		double maxPeriodSD1;
+		return value;
+	}
+	
+	private double calcSX1(DiscretizedFunc spectrum) {
+		double minPeriodSX1 = 1d;
+		double maxPeriodSX1;
 		if (userVs30 > 365.76) {
 			// SD1  = max(T * Sa) for 1s <= T <= 2s
-			maxPeriodSD1 = 2d;
+			maxPeriodSX1 = 2d;
 		} else {
 			// SD1 = max(T * Sa) for 1s <= T <= 5s
-			maxPeriodSD1 = 5d;
+			maxPeriodSX1 = 5d;
 		}
-		sd1 = 0;
-		for (int i=0; i<designResponseSpectrum.size(); i++) {
-			double x = designResponseSpectrum.getX(i);
-			if (x < minPeriodSD1)
+		double value = 0;
+		for (int i=0; i<spectrum.size(); i++) {
+			double x = spectrum.getX(i);
+			if (x < minPeriodSX1)
 				continue;
-			if (x > maxPeriodSD1)
+			if (x > maxPeriodSX1)
 				break;
-			double y = designResponseSpectrum.getY(i);
-			sd1 = Math.max(sd1, x * y);
+			double y = spectrum.getY(i);
+			value = Math.max(value, x * y);
+		}
+		return value;
+	}
+	
+	private double calcPGAM(DesignParameter param, SpectraType type, SpectraSource source) {
+		System.out.println("Calculating "+param);
+		File gmpeDir = new File(this.gmpeDir, gmpeERF);
+		Preconditions.checkState(gmpeDir.exists(), "GMPE/ERF dir doesn't exist: %s", gmpeDir.getAbsolutePath());
+		
+		List<String> dataFileNames = new ArrayList<>();
+		List<Double> vs30Vals = new ArrayList<>();
+		String typeFileName = param.getFileName(gmpeSpacing, type, source);
+		if (siteClassNames == null) {
+			dataFileNames.add("Wills_"+typeFileName);
+			vs30Vals.add(userVs30);
+		} else {
+			for (String siteClassName : siteClassNames) {
+				dataFileNames.add("class"+siteClassName+"_"+typeFileName);
+				vs30Vals.add(vs30Map.get(siteClassName));
+			}
 		}
 		
-		sms = 1.5*sds;
-		sm1 = 1.5*sd1;
+		List<DiscretizedFunc> pgas = new ArrayList<>();
+		for (int i=0; i<dataFileNames.size(); i++) {
+			String dataFileName = dataFileNames.get(i);
+			File dataFile = new File(gmpeDir, dataFileName);
+			System.out.println("Loading GMPE "+param+" data file: "+dataFile.getAbsolutePath());
+			Preconditions.checkState(dataFile.exists(), "Data file doesn't exist: %s", dataFile.getAbsolutePath());
+			
+			GriddedSpectrumInterpolator interp;
+			try {
+				interp = getPGAInterpolator(dataFile, gmpeSpacing);
+			} catch (Exception e1) {
+				throw ExceptionUtils.asRuntimeException(e1);
+			}
+			
+			Location closestLoc = interp.getClosestGridLoc(loc);
+			
+			double pga;
+			try {
+				pga = interp.getInterpolated(loc).getY(0);
+			} catch (IllegalStateException e) {
+				System.out.println("Interpolation failed, falling back to closest defined point."
+						+ " This happens if one of the surrounding points is in the ocean.");
+				closestLoc = interp.getClosestDefinedGridLoc(loc);
+				pga = interp.getClosest(closestLoc).getY(0);
+			}
+			DiscretizedFunc fakeSpectrum = new ArbitrarilyDiscretizedFunc();
+			fakeSpectrum.set(0d, pga);
+			pgas.add(fakeSpectrum);
+		}
 		
-		resultsEl.addAttribute("SDS", valDF.format(sds));
-		resultsEl.addAttribute("SD1", valDF.format(sd1));
-		resultsEl.addAttribute("SMS", valDF.format(sms));
-		resultsEl.addAttribute("SM1", valDF.format(sm1));
-		resultsEl.addAttribute("TL", valDF.format(tl));
-		double ts = sd1/sds;
-		double t0 = 0.2*ts;
-		resultsEl.addAttribute("TS", valDF.format(ts));
-		resultsEl.addAttribute("T0", valDF.format(t0));
-		resultsEl.addAttribute("PGAM", valDF.format(gmpePGA));
+		double interpPGA;
+		if (pgas.size() == 1) {
+			interpPGA = pgas.get(0).getY(0);
+		} else {
+			interpPGA = interpolateSpectraWithVs30(vs30Vals, pgas, userVs30, null).getY(0);
+		}
 		
-		standardSpectrum = DesignSpectrumCalc.calcSpectrum(sms, sm1, tl);
-		standardSpectrum.setName("Standard MCER Spectrum");
-		standardSpectrum.toXMLMetadata(resultsEl, "StandardMCERSpectrum", valDF);
-		
-		designStandardSpectrum = DesignSpectrumCalc.calcSpectrum(sds, sd1, tl);
-		designStandardSpectrum.setName("Standard Design Response Spectrum");
-		designStandardSpectrum.toXMLMetadata(resultsEl, "StandardDesignResponseSpectrum", valDF);
-		
-		System.out.println("SDS: "+(float)sds);
-		System.out.println("SD1: "+(float)sd1);
-		System.out.println("SMS: "+(float)sms);
-		System.out.println("SM1: "+(float)sm1);
-		System.out.println("1s MCER: "+(float)finalMCER.getY(1d));
-		System.out.println("10s MCER: "+(float)finalMCER.getY(10d));
-		System.out.println("T0: "+(float)t0);
-		System.out.println("Ts: "+(float)ts);
-		System.out.println("PGAM: "+gmpePGA.floatValue());
+		return interpPGA;
 	}
 	
 	public void plot() throws IOException {
-		//	PSV		CS/GM  Final  FinDes  SM      SD
-		plot(false, true, true,   false, false, false);
-		plot(false, false, true,  false, false, false);
-		plot(false, false, true,  true, false, false);
-		plot(false, false, false, true,  false, false);
+		
+		ParamPlotElem[] params = null;
+		boolean psv = false;
+		switch (codeVersion) {
+		case MCER:
+			plot("mcer_sa_final", psv, params,
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER, Color.BLACK, PlotLineType.SOLID, 4f));
+			plot("mcer_sa_design_final", psv, params,
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER, Color.BLACK, PlotLineType.SOLID, 4f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER_DESIGN, Color.RED, PlotLineType.SOLID, 3f));
+			plot("mcer_sa_ingredients", psv, params,
+					new SpectrumPlotElem(SpectraSource.GMPE, SpectraType.MCER, Color.BLUE, PlotLineType.SOLID, 2f),
+					new SpectrumPlotElem(SpectraSource.CYBERSHAKE, SpectraType.MCER, Color.RED, PlotLineType.DASHED, 2f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER, Color.BLACK, PlotLineType.SOLID, 4f));
+			writeCSV("mcer_sa", getCalcSpectrum(SpectraType.MCER, SpectraSource.GMPE),
+					getCalcSpectrum(SpectraType.MCER, SpectraSource.CYBERSHAKE),
+					getCalcSpectrum(SpectraType.MCER, SpectraSource.COMBINED),
+					getCalcSpectrum(SpectraType.MCER_DESIGN, SpectraSource.COMBINED));
+			
+			// enumerating them here puts them in the XML file
+			getCalcDesignParam(DesignParameter.TL, null, null);
+			getCalcDesignParam(DesignParameter.SMS, SpectraType.MCER, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SM1, SpectraType.MCER, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SDS, SpectraType.MCER_DESIGN, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SD1, SpectraType.MCER_DESIGN, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.TS, SpectraType.MCER, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.T0, SpectraType.MCER, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.PGAM, SpectraType.MCER, SpectraSource.COMBINED);
+			break;
+
+		case BSE_N:
+			plot("bse_2n_sa_final", psv, params,
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_2N, Color.BLACK, PlotLineType.SOLID, 4f));
+			plot("bse_1n_sa_final", psv, params,
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_2N, Color.BLACK, PlotLineType.SOLID, 4f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_1N, Color.RED, PlotLineType.SOLID, 3f));
+			plot("bse_2n_sa_ingredients", psv, params,
+					new SpectrumPlotElem(SpectraSource.GMPE, SpectraType.BSE_2N, Color.BLUE, PlotLineType.SOLID, 2f),
+					new SpectrumPlotElem(SpectraSource.CYBERSHAKE, SpectraType.BSE_2N, Color.RED, PlotLineType.DASHED, 2f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_2N, Color.BLACK, PlotLineType.SOLID, 4f));
+			writeCSV("bse_2n_1n_sa", getCalcSpectrum(SpectraType.BSE_2N, SpectraSource.GMPE),
+					getCalcSpectrum(SpectraType.BSE_2N, SpectraSource.CYBERSHAKE),
+					getCalcSpectrum(SpectraType.BSE_2N, SpectraSource.COMBINED),
+					getCalcSpectrum(SpectraType.BSE_1N, SpectraSource.COMBINED));
+			
+			// enumerating them here puts them in the XML file
+			getCalcDesignParam(DesignParameter.TL, null, null);
+			getCalcDesignParam(DesignParameter.SXS, SpectraType.BSE_2N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_2N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_2N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_2N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SXS, SpectraType.BSE_1N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_1N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.PGAM, SpectraType.BSE_2N, SpectraSource.COMBINED);
+			break;
+			
+		case BSE_E:
+			Color bseNcolor = Color.GREEN.darker();
+			plot("bse_2e_sa_final", psv, params,
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_2N, bseNcolor, PlotLineType.SOLID, 3f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_2E, Color.BLACK, PlotLineType.SOLID, 4f));
+			plot("bse_1e_sa_final", psv, params,
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_1N, bseNcolor, PlotLineType.SOLID, 3f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_1E, Color.BLACK, PlotLineType.SOLID, 4f));
+			plot("bse_2e_sa_ingredients", psv, params,
+					new SpectrumPlotElem(SpectraSource.GMPE, SpectraType.BSE_2E, Color.BLUE, PlotLineType.SOLID, 2f),
+					new SpectrumPlotElem(SpectraSource.CYBERSHAKE, SpectraType.BSE_2E, Color.RED, PlotLineType.DASHED, 2f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_2E, Color.BLACK, PlotLineType.SOLID, 4f));
+			plot("bse_1e_sa_ingredients", psv, params,
+					new SpectrumPlotElem(SpectraSource.GMPE, SpectraType.BSE_1E, Color.BLUE, PlotLineType.SOLID, 2f),
+					new SpectrumPlotElem(SpectraSource.CYBERSHAKE, SpectraType.BSE_1E, Color.RED, PlotLineType.DASHED, 2f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_1E, Color.BLACK, PlotLineType.SOLID, 4f));
+			writeCSV("bse_2e_1e_sa", getCalcSpectrum(SpectraType.BSE_2E, SpectraSource.GMPE),
+					getCalcSpectrum(SpectraType.BSE_2E, SpectraSource.CYBERSHAKE),
+					getCalcSpectrum(SpectraType.BSE_2E, SpectraSource.COMBINED),
+					getCalcSpectrum(SpectraType.BSE_2N, SpectraSource.COMBINED),
+					getCalcSpectrum(SpectraType.BSE_1E, SpectraSource.GMPE),
+					getCalcSpectrum(SpectraType.BSE_1E, SpectraSource.CYBERSHAKE),
+					getCalcSpectrum(SpectraType.BSE_1E, SpectraSource.COMBINED),
+					getCalcSpectrum(SpectraType.BSE_1N, SpectraSource.COMBINED));
+			
+			// enumerating them here puts them in the XML file
+			getCalcDesignParam(DesignParameter.TL, null, null);
+			getCalcDesignParam(DesignParameter.SXS, SpectraType.BSE_2E, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_2E, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_2E, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_2E, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SXS, SpectraType.BSE_1E, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_1E, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.PGAM, SpectraType.BSE_2E, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SXS, SpectraType.BSE_2N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_2N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_2N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_2N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SXS, SpectraType.BSE_1N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_1N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.PGAM, SpectraType.BSE_2N, SpectraSource.COMBINED);
+			break;
+			
+		default:
+			throw new IllegalStateException("Unsupported code version: "+codeVersion);
+		}
+		
+		
+//		//	PSV		CS/GM  Final  FinDes  SM      SD
+//		plot(false, true, true,   false, false, false);
+//		plot(false, false, true,  false, false, false);
+//		plot(false, false, true,  true, false, false);
+//		plot(false, false, false, true,  false, false);
 	}
 	
 	private static final DecimalFormat valDF = new DecimalFormat("0.000");
@@ -815,102 +1185,92 @@ public class UGMS_WebToolCalc {
 	private static final DecimalFormat vs30DF = new DecimalFormat("0");
 	private static final DecimalFormat zDF = new DecimalFormat("0.00");
 	
-	public void plot(boolean psv, boolean ingredients, boolean finalSpectrum, boolean finalDesign, boolean smSpectrum, boolean sdSpectrum) throws IOException {
+	private class SpectrumPlotElem {
+		private final SpectraSource source;
+		private final SpectraType type;
+		private final Color color;
+		private final PlotLineType line;
+		private final double thickness;
+		
+		public SpectrumPlotElem(SpectraSource source, SpectraType type, Color color, PlotLineType line, double thickness) {
+			this.source = source;
+			this.type = type;
+			this.color = color;
+			this.line = line;
+			this.thickness = thickness;
+		}
+	}
+	
+	private class ParamPlotElem {
+		private final DesignParameter param;
+		private final SpectraType type;
+		private final SpectraSource source;
+		private final Color color;
+		private final PlotLineType line;
+		private final double thickness;
+		
+		@SuppressWarnings("unused")
+		public ParamPlotElem(DesignParameter param, SpectraType type, SpectraSource source, Color color,
+				PlotLineType line, double thickness) {
+			this.param = param;
+			this.type = type;
+			this.source = source;
+			this.color = color;
+			this.line = line;
+			this.thickness = thickness;
+		}
+	}
+	
+	public void plot(String prefix, boolean psv, ParamPlotElem[] params, SpectrumPlotElem... spectra)
+			throws IOException {
+		Preconditions.checkState(spectra != null && spectra.length > 0);
 		boolean xLog = psv;
 		boolean yLog = psv;
 		Range xRange = new Range(1e-2, 10d);
 		Range yRange;
 		
-		DiscretizedFunc gmpeMCER = this.gmpeMCER;
-		DiscretizedFunc csMCER = this.csMCER;
-		DiscretizedFunc finalMCER = this.finalMCER;
-		
-		String prefix, yAxisLabel;
+		String yAxisLabel;
 		if (psv) {
-			prefix = "mcer_psv";
 			yRange = new Range(2e0, 2e3);
-			gmpeMCER = MCErCalcUtils.saToPsuedoVel(gmpeMCER);
-			csMCER = MCErCalcUtils.saToPsuedoVel(csMCER);
-			finalMCER = MCErCalcUtils.saToPsuedoVel(finalMCER);
 			yAxisLabel = "PSV (cm/s)";
 		} else {
-			prefix = "mcer_sa";
 //			yRange = new Range(1e-2, 1e1);
 			yRange = null;
 			yAxisLabel = "Sa (g)";
 		}
-		
-		if (smSpectrum)
-			prefix += "_standard_mcer";
-		if (finalDesign)
-			prefix += "_design";
-		if (sdSpectrum)
-			prefix += "_standard_design";
-		if (finalSpectrum && !ingredients && !smSpectrum && !sdSpectrum)
-			prefix += "_final";
-		boolean writeCSV = ingredients && !smSpectrum && !sdSpectrum;
 
-		List<DiscretizedFunc> funcs = Lists.newArrayList();
-		List<PlotCurveCharacterstics> chars = Lists.newArrayList();
+		List<DiscretizedFunc> funcs = new ArrayList<>();
+		List<PlotCurveCharacterstics> chars = new ArrayList<>();
 		
-		if (!psv && plotSD) {
-			DiscretizedFunc sdsFunc = new ArbitrarilyDiscretizedFunc();
-			sdsFunc.setName("SDS="+(float)+sds);
-			DiscretizedFunc sd1Func = new ArbitrarilyDiscretizedFunc();
-			sd1Func.setName("SD1="+(float)+sd1);
-			
-			for (int i=0; i<finalMCER.size(); i++) {
-				double x = finalMCER.getX(i);
-				sdsFunc.set(x, sds);
-				sd1Func.set(x, sd1);
+		if (!psv && params != null) {
+			DiscretizedFunc xVals = getCalcSpectrum(spectra[0].type, spectra[0].source);
+			for (ParamPlotElem param : params) {
+				double val = getCalcDesignParam(param.param, param.type, param.source);
+				DiscretizedFunc paramFunc = new ArbitrarilyDiscretizedFunc();
+				paramFunc.setName(param.type.getShortName()+" "+param.param.name()+"="+valDF.format(val));
+				for (int i=0; i<xVals.size(); i++) {
+					double x = xVals.getX(i);
+					paramFunc.set(x, val);
+				}
+				funcs.add(paramFunc);
+				chars.add(new PlotCurveCharacterstics(param.line, (float)param.thickness, param.color));
 			}
+		}
+		
+		for (SpectrumPlotElem spectrumPlot : spectra) {
+			DiscretizedFunc spectrum = getCalcSpectrum(spectrumPlot.type, spectrumPlot.source);
 			
-			funcs.add(sdsFunc);
-			chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 1f, Color.BLACK));
-			funcs.add(sd1Func);
-			chars.add(new PlotCurveCharacterstics(PlotLineType.DOTTED, 1f, Color.BLACK));
-		}
-
-		if (ingredients) {
-			funcs.add(gmpeMCER);
-			chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 2f, Color.BLUE));
+			if (psv)
+				spectrum = MCErCalcUtils.saToPsuedoVel(spectrum);
 			
-			funcs.add(csMCER);
-			chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 2f, Color.RED));
-		}
-		
-		if (finalSpectrum) {
-			if (smSpectrum || sdSpectrum) {
-				finalMCER = finalMCER.deepClone();
-				finalMCER.setName("Site-Specific MCER");
-			}
-			funcs.add(finalMCER);
-			chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 4f, Color.BLACK));
-		}
-		
-		if (smSpectrum) {
-			funcs.add(standardSpectrum);
-			chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 2f, Color.RED));
-		}
-		
-		if (finalDesign) {
-			funcs.add(designResponseSpectrum);
-			
-			if (finalSpectrum)
-				chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.RED));
-			else
-				chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 4f, Color.BLACK));
-		}
-		
-		if (sdSpectrum) {
-			funcs.add(designStandardSpectrum);
-			chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 2f, Color.RED));
+			funcs.add(spectrum);
+			chars.add(new PlotCurveCharacterstics(spectrumPlot.line, (float)spectrumPlot.thickness, spectrumPlot.color));
 		}
 
 //		String title = "MCER Acceleration Response Spectrum";
 		String title = null;
 		PlotSpec spec = new PlotSpec(funcs, chars, title, "Period (s)", yAxisLabel);
-		spec.setLegendVisible(funcs.size() > 1);
+		spec.setLegendVisible(funcs.size() > 1 && funcs.get(0).getName() != null);
 //		spec.setLegendVisible(true);
 
 		HeadlessGraphPanel gp = new HeadlessGraphPanel();
@@ -933,27 +1293,26 @@ public class UGMS_WebToolCalc {
 		gp.saveAsPDF(file.getAbsolutePath()+".pdf");
 		gp.saveAsPNG(file.getAbsolutePath()+".png");
 //		gp.saveAsTXT(file.getAbsolutePath()+".txt");
+	}
+	
+	private void writeCSV(String prefix, DiscretizedFunc... spectra) throws IOException {
+		CSVFile<String> csv = new CSVFile<String>(true);
 		
-		// now write CSV
-		if (writeCSV) {
-			CSVFile<String> csv = new CSVFile<String>(true);
+		List<String> header = new ArrayList<>();
+		header.add("Period (s)");
+		for (DiscretizedFunc spectrum : spectra)
+			header.add(spectrum.getName()+", Sa (g)");
+		csv.addLine(header);
+		
+		for (double period : periods) {
+			List<String> line = Lists.newArrayList((float)period+"");
+			for (DiscretizedFunc spectrum : spectra)
+				line.add(MCERDataProductsCalc.getValIfPresent(spectrum, period, valDF));
 			
-			List<String> header = Lists.newArrayList("Period (s)", "GMPE Sa (g)", "CyberShake Sa (g)",
-					"Site Specific MCER Sa (g)", "Site Specific Design Response Spectrum (g)");
-			csv.addLine(header);
-			
-			for (double period : periods) {
-				List<String> line = Lists.newArrayList((float)period+"");
-				line.add(MCERDataProductsCalc.getValIfPresent(gmpeMCER, period, valDF));
-				line.add(MCERDataProductsCalc.getValIfPresent(csMCER, period, valDF));
-				line.add(MCERDataProductsCalc.getValIfPresent(finalMCER, period, valDF));
-				line.add(MCERDataProductsCalc.getValIfPresent(designResponseSpectrum, period, valDF));
-				
-				csv.addLine(line);
-			}
-			
-			csv.writeToFile(new File(outputDir, prefix+".csv"));
+			csv.addLine(line);
 		}
+		
+		csv.writeToFile(new File(outputDir, prefix+".csv"));
 	}
 	
 	public void writeMetadata() throws IOException {
@@ -1049,7 +1408,7 @@ public class UGMS_WebToolCalc {
 		csDir.setRequired(false);
 		ops.addOption(csDir);
 		
-		Option csData = new Option("csdata", "cs-data-file", true, "CS precomputed data file");
+		Option csData = new Option("csdata", "cs-data-dir", true, "CS precomputed data dir");
 		csData.setRequired(false);
 		ops.addOption(csData);
 		
@@ -1092,6 +1451,14 @@ public class UGMS_WebToolCalc {
 		help.setRequired(false);
 		ops.addOption(help);
 		
+		List<String> codeOptions = new ArrayList<>();
+		for (CodeVersion code : CodeVersion.values())
+			codeOptions.add(code.name());
+		Option codeOption = new Option("cd", "code-version", true, "Code version, one of: "+Joiner.on(",").join(codeOptions)
+				+". Default: "+CODE_DEFAULT.name());
+		codeOption.setRequired(false);
+		ops.addOption(codeOption);
+		
 		return ops;
 	}
 	
@@ -1111,6 +1478,9 @@ public class UGMS_WebToolCalc {
 
 	public static void main(String[] args) {
 		if (args.length == 1 && args[0].equals("--hardcoded")) {
+			File backendDir = new File("/home/kevin/git/UGMS-opensha-backend");
+			File dataDir = new File(backendDir, "data");
+			File siteDataDir = new File(dataDir, "site_params");
 			// hardcoded
 //			String argStr = "--latitude 34.026414 --longitude -118.300136";
 //			String argStr = "--latitude 34.05204 --longitude -118.25713"; // LADT
@@ -1123,50 +1493,42 @@ public class UGMS_WebToolCalc {
 //			String argStr = "--longitude -118.91 --latitude 33.969";
 //			String argStr = "--longitude -117.5888 --latitude 33.2976";
 //			String argStr = "--longitude -118.369 --latitude 34.043";
-			String argStr = "--longitude -118.178 --latitude 34.033";
+			String argStr = "--longitude -118.25713 --latitude 34.05204";
 //			String argStr = "--site-name LADT";
 //			String argStr = "--site-id 20";
-			argStr += " --gmpe-dir /home/kevin/CyberShake/MCER/gmpe_cache_gen/mcer_binary_results_2017_07_27";
-			argStr += " --gmpe-spacing 0.02";
-			argStr += " --cs-data-file /home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/interp_tests/mcer_spectrum_0.002.bin";
+			argStr += " --gmpe-dir "+new File(dataDir, "gmpe");
+			argStr += " --gmpe-spacing 0.01";
+			argStr += " --cs-data-dir "+new File(dataDir, "cs_study_15_4");
 			argStr += " --cs-spacing 0.002";
 			argStr += " --vel-model-id 5";
-			argStr += " --z10-file /home/kevin/workspace/opensha-commons/src/resources/data/site/CVM4i26/depth_1.0.bin";
-			argStr += " --z25-file /home/kevin/workspace/opensha-commons/src/resources/data/site/CVM4i26/depth_2.5.bin";
-			argStr += " --output-dir /tmp/ugms_web_tool";
+			argStr += " --z10-file "+new File(siteDataDir, "CVM4i26_depth_1.0.bin");
+			argStr += " --z25-file "+new File(siteDataDir, "CVM4i26_depth_2.5.bin");
 //			argStr += " --vs30 987";
 //			argStr += " --class C";
 //			argStr += " --class D_default";
 			argStr += " --gmpe-erf UCERF3";
 //			argStr += " --wills-file /data/kevin/opensha/wills2015.flt";
-			argStr += " --wills-file /home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/wills_2015_vs30.flt";
-			argStr += " --wills-header /home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/wills_2015_vs30.hdr";
+			argStr += " --wills-file "+new File(siteDataDir, "wills_2015_vs30.flt");
+			argStr += " --wills-header "+new File(siteDataDir, "wills_2015_vs30.hdr");
+			
+//			argStr += " --output-dir /tmp/ugms_web_tool/mcer";
+//			argStr += " --code-version MCER";
+			
+//			argStr += " --output-dir /tmp/ugms_web_tool/bse_n";
+//			argStr += " --code-version BSE_N";
+			
+			argStr += " --output-dir /tmp/ugms_web_tool/bse_e";
+			argStr += " --code-version BSE_E";
 			
 			args = Splitter.on(" ").splitToList(argStr).toArray(new String[0]);
 		}
-		
-		/*
-		 * Kevin's TODO
-		 * x Plot title: MCER Acceleration Response Spectrum (can we subscript the R?)
-		 * x generate plot with only final (no legend), in addition to plot with components
-		 * x Remove PSV
-		 * x round CSV file (3 decimal places), add units
-		 * x have David link directly to CSV for download
-		 * x remove txt files
-		 * x new plot with Final and spectrum from SMS/SM1. SMS=1.5*SDS, SM1=1.5*SD1
-		 * 	* Ts = SD1/SDS
-		 * 	* T0 = 0.2*TS
-		 * 	* at P=0, intercept is 0.4*SMS
-		 * 	* spectrum from SMS is black line, Final MCER is red dashed
-		 * x if user Vs30 outside range, clamp to actual range
-		 */
 		
 		try {
 			Options options = createOptions();
 			
 			String appName = ClassUtils.getClassNameWithoutPackage(UGMS_WebToolCalc.class);
 			
-			CommandLineParser parser = new GnuParser();
+			CommandLineParser parser = new DefaultParser();
 			
 			if (args.length == 0) {
 				printUsage(options, appName);
@@ -1180,10 +1542,6 @@ public class UGMS_WebToolCalc {
 				}
 				
 				UGMS_WebToolCalc calc = new UGMS_WebToolCalc(cmd);
-				
-				calc.calcCyberShake();
-				calc.calcGMPE();
-				calc.calcFinalMCER();
 				
 				calc.plot();
 				calc.writeMetadata();

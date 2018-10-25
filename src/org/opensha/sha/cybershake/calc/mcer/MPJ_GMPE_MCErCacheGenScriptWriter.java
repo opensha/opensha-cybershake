@@ -43,7 +43,7 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 
 	public static void main(String[] args) throws IOException {
 		int mins = 60*24*1;
-		int nodes = 32;
+		int nodes = 10;
 		int memGigs = 50;
 		String queue = "scec";
 		int ppn = 20;

@@ -595,7 +595,7 @@ public class MCERDataProductsCalc {
 			}
 			
 			// now disagg
-			DisaggregationPlotter disagg = new DisaggregationPlotter(run.getRunID(), erf, imsForDisagg,
+			DisaggregationPlotter disagg = new DisaggregationPlotter(db, run.getRunID(), erf, imsForDisagg,
 					Lists.newArrayList(gmpe), Lists.newArrayList(uhsVal), null, disaggDir,
 					Lists.newArrayList(PlotType.PDF, PlotType.PNG, PlotType.TXT));
 			disagg.disaggregate();

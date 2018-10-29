@@ -104,6 +104,7 @@ public class DisaggregationPlotter {
 	private HashMap<Double, Double> imlToProbsMap;
 	
 	public DisaggregationPlotter(
+			DBAccess db,
 			int runID,
 			AbstractERF rawERF,
 			List<CybershakeIM> ims,
@@ -112,20 +113,38 @@ public class DisaggregationPlotter {
 			List<Double> imlLevels,
 			File outputDir,
 			List<PlotType> plotTypes) {
-		initDB();
+		this(db, null, runID, rawERF, ims, gmpes, probLevels, imlLevels, outputDir, plotTypes);
+	}
+	
+	public DisaggregationPlotter(
+			DBAccess db,
+			PeakAmplitudesFromDB amps2db,
+			int runID,
+			AbstractERF rawERF,
+			List<CybershakeIM> ims,
+			List<AttenuationRelationship> gmpes,
+			List<Double> probLevels,
+			List<Double> imlLevels,
+			File outputDir,
+			List<PlotType> plotTypes) {
+		initDB(db, amps2db);
 		init(runID, rawERF, ims, gmpes, probLevels, imlLevels, outputDir, plotTypes);
 	}
 	
 	public DisaggregationPlotter(CommandLine cmd) {
-		initDB();
+		initDB(null, null);
 		init(cmd);
 	}
 	
-	private void initDB() {
-		db = Cybershake_OpenSHA_DBApplication.getDB();
+	private void initDB(DBAccess db, PeakAmplitudesFromDB amps2db) {
+		if (db == null)
+			db = Cybershake_OpenSHA_DBApplication.getDB();
+		this.db = db;
 		runs2db = new Runs2DB(db);
 		curve2db = new HazardCurve2DB(db);
-		amps2db = new PeakAmplitudesFromDB(db);
+		if (amps2db == null)
+			amps2db = new PeakAmplitudesFromDB(db);
+		this.amps2db = amps2db;
 		site2db = new SiteInfo2DB(db);
 	}
 	
@@ -230,7 +249,9 @@ public class DisaggregationPlotter {
 		
 		erf = new CyberShakeWrapper_ERF(run.getERFID(), rawERF);
 		erf.updateForecast();
-		imr = new CyberShakeIMR(null, db, new CachedPeakAmplitudesFromDB(db, null, rawERF));
+		if (!(amps2db instanceof CachedPeakAmplitudesFromDB))
+			amps2db = new CachedPeakAmplitudesFromDB(db, null, rawERF);
+		imr = new CyberShakeIMR(null, db, amps2db);
 		imr.setParamDefaults();
 		
 		imr.setSite(site);

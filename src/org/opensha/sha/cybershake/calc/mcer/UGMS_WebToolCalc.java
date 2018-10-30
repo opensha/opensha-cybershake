@@ -1122,6 +1122,8 @@ public class UGMS_WebToolCalc {
 			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_2N, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.SXS, SpectraType.BSE_1N, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_1N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_1N, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_1N, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.PGAM, SpectraType.BSE_2N, SpectraSource.COMBINED);
 			break;
 			

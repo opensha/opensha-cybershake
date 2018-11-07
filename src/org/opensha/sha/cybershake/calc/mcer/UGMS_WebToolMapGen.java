@@ -43,15 +43,15 @@ public class UGMS_WebToolMapGen {
 		File gmpeFile = new File("/home/kevin/CyberShake/MCER/gmpe_cache_gen/2018_06_26-ucerf3_downsampled_ngaw2_binary_0.005_Wills/"
 				+ "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD100_mcer.bin");
 		double gmpeSpacing = 0.005;
-		File csFile = new File("/home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/interp_tests/mcer_spectrum_0.002.bin");
+		File csFile = new File("/home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/scatter/mcer_spectrum_0.002.bin");
 		double csSpacing = 0.002;
 		int datasetID = 57;
 		File outputDir = new File("/home/kevin/CyberShake/MCER/maps/final_combined");
 		
-		double period = 2d;
-		double cptMax = 1.2d;
-//		double period = 5d;
-//		double cptMax = 0.6d;
+//		double period = 2d;
+//		double cptMax = 1.2d;
+		double period = 5d;
+		double cptMax = 0.5d;
 		
 		System.out.println("Loading CS");
 		GriddedSpectrumInterpolator csInterp = getInterpolator(csFile, csSpacing);
@@ -59,7 +59,8 @@ public class UGMS_WebToolMapGen {
 		GriddedSpectrumInterpolator gmpeInterp = getInterpolator(gmpeFile, gmpeSpacing);
 		
 		boolean doInterp = true;
-		double mapSpacing = Math.min(0.01, Math.max(gmpeSpacing, csSpacing));
+//		double mapSpacing = Math.min(0.01, Math.max(gmpeSpacing, csSpacing));
+		double mapSpacing = Math.max(gmpeSpacing, csSpacing);
 		Region region = new CaliforniaRegions.CYBERSHAKE_MAP_REGION();
 		GriddedRegion gridReg = new GriddedRegion(region, mapSpacing, null);
 		GriddedGeoDataSet combXYZ = new GriddedGeoDataSet(gridReg, false);
@@ -151,6 +152,9 @@ public class UGMS_WebToolMapGen {
 		Color fillColor = Color.WHITE;
 		Symbol symbol = Symbol.INVERTED_TRIANGLE;
 		
+		double imgWidth = 6.5;
+		int dpi = 300;
+		
 		for (int i=0; i<xyzs.length; i++) {
 			GriddedGeoDataSet xyz = xyzs[i];
 			String label = labels[i];
@@ -168,7 +172,8 @@ public class UGMS_WebToolMapGen {
 			map.setCustomScaleMax((double)cpt.getMaxValue());
 			map.setCustomLabel(label);
 			map.setRescaleCPT(false);
-			map.setImageWidth(12);
+			map.setImageWidth(imgWidth);
+			map.setDpi(dpi);
 			FaultBasedMapGen.LOCAL_MAPGEN = false;
 			FaultBasedMapGen.SAVE_PS = true;
 			System.out.println("Plotting map: "+label);
@@ -204,7 +209,8 @@ public class UGMS_WebToolMapGen {
 				map.setCustomLabel(ratioLabel);
 				map.setRescaleCPT(false);
 				map.setCPTEqualSpacing(true);
-				map.setImageWidth(12);
+				map.setImageWidth(imgWidth);
+				map.setDpi(dpi);
 				FaultBasedMapGen.LOCAL_MAPGEN = false;
 				FaultBasedMapGen.SAVE_PS = true;
 				System.out.println("Plotting map: "+label);

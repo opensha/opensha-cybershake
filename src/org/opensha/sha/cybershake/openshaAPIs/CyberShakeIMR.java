@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.commons.math3.stat.StatUtils;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbDiscrEmpiricalDistFunc;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
@@ -37,6 +38,7 @@ import org.opensha.commons.param.event.ParameterChangeListener;
 import org.opensha.commons.param.event.ParameterChangeWarningListener;
 import org.opensha.commons.param.impl.IntegerParameter;
 import org.opensha.commons.util.ExceptionUtils;
+import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
@@ -53,6 +55,7 @@ import org.opensha.sha.imr.param.OtherParams.SigmaTruncTypeParam;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.primitives.Doubles;
 
 public class CyberShakeIMR extends AttenuationRelationship implements ParameterChangeListener {
 
@@ -183,6 +186,9 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 					List<Double> ret = ampsDB.getIM_Values(key.runID, key.sourceID, key.rupID, key.im);
 					if (ret == null)
 						ret = new ArrayList<>();
+					else
+						for (int i=0; i<ret.size(); i++)
+							ret.set(i, ret.get(i)/HazardCurveComputation.CONVERSION_TO_G);
 					return ret;
 				}
 				
@@ -497,29 +503,36 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 			tot += Math.log(val);
 		}
 		double mean = tot / (double)vals.size();
+//		System.out.println("getMean(): "+mean);
 		return mean;
 	}
 
 	private double calcStdDev(List<Double> vals) {
-		double mean = calcMean(vals);
-
-		// subtract the mean from each one, square them, and sum them
-		double sum = 0;
-		for (double val : vals) {
-			val = Math.log(val);
-			val = val - mean;
-			val = Math.pow(val, 2);
-			sum += val;
-		}
-		//		System.out.println("Sum: " + sum);
-		// std deviation is the sqrt(sum / (numVals - 1))
-		double std = Math.sqrt(sum / (vals.size() - 1));
-		//		if (std != 0)
-		//			System.out.println("********************************** STD DEV: " + std);
+		double[] array = Doubles.toArray(vals);
+		for (int i=0; i<array.length; i++)
+			array[i] = Math.log(array[i]);
+		double std = Math.sqrt(StatUtils.variance(array));
+//		double mean = calcMean(vals);
+//
+//		// subtract the mean from each one, square them, and sum them
+//		double sum = 0;
+//		for (double val : vals) {
+//			val = Math.log(val);
+//			val = val - mean;
+//			val = Math.pow(val, 2);
+//			sum += val;
+//		}
+//		//		System.out.println("Sum: " + sum);
+//		// std deviation is the sqrt(sum / (numVals - 1))
+//		double std = Math.sqrt(sum / (vals.size() - 1));
+//		//		if (std != 0)
+//		//			System.out.println("********************************** STD DEV: " + std);
+//		System.out.println("getStdDev(): "+std);
 		return std;
 	}
 
 	public double getMean() {
+//		System.out.println("getMean()");
 		if (curRunID < 0)
 			return 0d;
 		CyberShakeEqkRupture rup = null;
@@ -540,6 +553,7 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 	}
 
 	public double getStdDev() {
+//		System.out.println("getStdDev()");
 		if (curRunID < 0)
 			return 0d;
 		CyberShakeEqkRupture rup = null;
@@ -558,6 +572,16 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 			return 0d;
 		return calcStdDev(imVals);
 	}
+
+//	@Override
+//	public double getEpsilon() {
+//		double iml = ((Double) im.getValue()).doubleValue();
+//		double mean = getMean();
+//		double sd = getStdDev();
+//		double epsilon = (iml - getMean())/getStdDev();
+//		System.out.println("epsilon = ["+(float)iml+" - "+(float)mean+"]/"+(float)sd+" = "+(float)+epsilon);
+//		return epsilon;
+//	}
 
 	@Override
 	public ListIterator getOtherParamsIterator() {

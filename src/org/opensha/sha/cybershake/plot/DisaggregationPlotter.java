@@ -34,6 +34,7 @@ import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
+import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.CybershakeVelocityModel;
@@ -272,6 +273,12 @@ public class DisaggregationPlotter {
 		this.outputDir = outputDir;
 	}
 	
+	public void setMagRange(double minMag, int numMags, double deltaMag) {
+		this.minMag = minMag;
+		this.numMags = numMags;
+		this.deltaMag = deltaMag;
+	}
+	
 	public void disaggregate() throws IOException {
 		
 		for (CybershakeIM im : ims) {
@@ -497,11 +504,13 @@ public class DisaggregationPlotter {
 	}
 
 	public static void main(String args[]) throws DocumentException, InvocationTargetException {
-		String[] newArgs = {"-R", "5760", "-p", "3,5,10", "-pr", "0.002,4.0e-4", "-o", "/tmp", "-t", "png",
-				"-ef", "/home/kevin/workspace/opensha-cybershake/src/org/opensha/sha/cybershake/conf/MeanUCERF.xml"};
+//		String[] newArgs = {"-R", "5760", "-p", "3,5,10", "-pr", "0.002,4.0e-4", "-o", "/tmp", "-t", "png",
+//				"-ef", "/home/kevin/workspace/opensha-cybershake/src/org/opensha/sha/cybershake/conf/MeanUCERF.xml"};
+		String[] newArgs = {"-R", "3970", "-p", "5", "--component", CyberShakeComponent.RotD100.getShortName(), "-pr", "4.0e-4",
+				"-o", "/tmp", "-t", "png", "-ef", "/home/kevin/workspace/opensha-cybershake/src/org/opensha/sha/cybershake/conf/MeanUCERF.xml"};
 //		String[] newArgs = {"--help"};
 //		String[] newArgs = {"-R", "792", "-p", "3", "-pr", "4.0e-4", "-t", "pdf", "-o", "D:\\Documents\\temp"};
-		Cybershake_OpenSHA_DBApplication.HOST_NAME = Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME;
+		Cybershake_OpenSHA_DBApplication.HOST_NAME = Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME;
 		args = newArgs;
 		
 		try {

@@ -25,6 +25,8 @@ import org.opensha.sha.calc.hazardMap.BinaryHazardCurveReader;
 import org.opensha.sha.calc.hazardMap.HazardDataSetLoader;
 import org.opensha.sha.cybershake.ModProbConfig;
 import org.opensha.sha.cybershake.bombay.ModProbConfigFactory;
+import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
+import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.maps.InterpDiffMap.InterpDiffMapType;
@@ -40,11 +42,12 @@ public class MultiDatasetMapGen {
 
 	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
-		HardCodedInterpDiffMapCreator.LOCAL_MAPGEN = true;
+		HardCodedInterpDiffMapCreator.LOCAL_MAPGEN = false;
 		
 		File outputDir = new File("/home/kevin/CyberShake/maps/combined_17_3_and_15_4");
 //		File outputDir = new File("/home/kevin/CyberShake/maps/combined_17_3_and_15_4_nobasemap");
 		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
+		int saveDPI = 300;
 		
 		int studyID1 = 81;
 		DBAccess db1 = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
@@ -62,6 +65,14 @@ public class MultiDatasetMapGen {
 		boolean plotIntersection = true;
 		
 		Region intersection = Region.intersect(region1, region2); // null if no overlap
+		intersection = null;
+		
+		int imTypeID = CybershakeIM.getSA(CyberShakeComponent.GEOM_MEAN, 2).getID(); // 2 sec SA, GEOM
+		String imtLabel = "2sec SA";
+		Double customMax = 1.0;
+		File baseMapFile = new File("/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-2sec/"
+				+ "NGAWest_2014_NoIdr/curves/imrs1.bin");
+//		File baseMapFile = null;
 		
 //		int imTypeID = 167; // 2 sec SA, RotD50
 //		String imtLabel = "2sec SA";
@@ -84,12 +95,12 @@ public class MultiDatasetMapGen {
 //				+ "NGAWest_2014_NoIdr/curves/imrs1.bin");
 ////		File baseMapFile = null;
 		
-		int imTypeID = 152; // 10 sec SA, RotD50
-		String imtLabel = "10sec SA";
-		Double customMax = 0.4;
-		File baseMapFile = new File("/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-10sec/"
-				+ "NGAWest_2014_NoIdr/curves/imrs1.bin");
-//		File baseMapFile = null;
+//		int imTypeID = 152; // 10 sec SA, RotD50
+//		String imtLabel = "10sec SA";
+//		Double customMax = 0.4;
+//		File baseMapFile = new File("/home/kevin/CyberShake/baseMaps/2017_04_12-statewide-nobasin-cs-nga2-10sec/"
+//				+ "NGAWest_2014_NoIdr/curves/imrs1.bin");
+////		File baseMapFile = null;
 		
 //		int imTypeID = 21; // 3 sec SA, GEOM
 //		String imtLabel = "3sec SA GEOM";
@@ -203,7 +214,7 @@ public class MultiDatasetMapGen {
 		
 //		combRegion = region2;
 //		combScatter = scatter1;
-		plotCombinedMap(combRegion, basemapSpacing, combScatter, basemap, outputDir, durationLabel, imtLabel, imtPrefix, customMax);
+		plotCombinedMap(combRegion, basemapSpacing, combScatter, basemap, outputDir, durationLabel, imtLabel, imtPrefix, customMax, saveDPI);
 		
 		db1.destroy();
 		db2.destroy();
@@ -240,7 +251,7 @@ public class MultiDatasetMapGen {
 	}
 	
 	private static void plotCombinedMap(Region region, double spacing, GeoDataSet scatterData, GeoDataSet basemap,
-			File outputDir, String durationLabel, String imtLabel, String imtPrefix, Double customMax)
+			File outputDir, String durationLabel, String imtLabel, String imtPrefix, Double customMax, int saveDPI)
 					throws ClassNotFoundException, IOException, GMT_MapException {
 		boolean logPlot = false;
 		Double customMin = null;
@@ -280,14 +291,14 @@ public class MultiDatasetMapGen {
 		System.out.println("Map address: " + addr);
 		if (outputDir != null) {
 			String prefix = "combined_"+imtPrefix;
-			HardCodedInterpDiffMapCreator.fetchPlot(addr, "interpolated_marks.150.png",
+			HardCodedInterpDiffMapCreator.fetchPlot(addr, "interpolated_marks."+saveDPI+".png",
 						new File(outputDir, prefix+"_marks.png"));
-			HardCodedInterpDiffMapCreator.fetchPlot(addr, "interpolated.150.png",
+			HardCodedInterpDiffMapCreator.fetchPlot(addr, "interpolated."+saveDPI+".png",
 					new File(outputDir, prefix+".png"));
 			HardCodedInterpDiffMapCreator.fetchPlot(addr, "interpolated.ps",
 					new File(outputDir, prefix+".ps"));
 			if (basemap != null)
-				HardCodedInterpDiffMapCreator.fetchPlot(addr, "basemap.150.png",
+				HardCodedInterpDiffMapCreator.fetchPlot(addr, "basemap."+saveDPI+".png",
 						new File(outputDir, "basemap_"+imtPrefix+".png"));
 			if (HardCodedInterpDiffMapCreator.LOCAL_MAPGEN)
 				FileUtils.deleteRecursive(new File(addr));

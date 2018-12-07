@@ -10,6 +10,7 @@ import java.util.List;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
+import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculator;
@@ -45,7 +46,7 @@ public class DisaggCompare {
 	public static void main(String[] args) throws IOException {
 		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
 		
-		boolean doCS = true;
+		boolean doCS = false;
 		boolean doGMPE = true;
 		
 		File outputDir = new File("/home/kevin/CyberShake/MCER/disagg_comparisons");
@@ -115,6 +116,8 @@ public class DisaggCompare {
 				System.out.println("Doing GMPE, "+siteName);
 				
 				Site site = siteBuilder.buildSite(run, sites2db.getSiteFromDB(run.getSiteID()));
+				for (Parameter<?> param : site)
+					System.out.println("\t"+param.getName()+": "+param.getValue());
 				
 				for (double period : periods) {
 					SA_Param.setPeriodInSA_Param(gmpe.getIntensityMeasure(), period);

@@ -455,7 +455,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		List<CyberShakeStudy> studies = new ArrayList<>();
 		List<Vs30_Source> vs30s = new ArrayList<>();
 		
-		studies.add(CyberShakeStudy.STUDY_18_4_RSQSIM_2585);
+		studies.add(CyberShakeStudy.STUDY_18_9_RSQSIM_2740);
 		vs30s.add(Vs30_Source.Simulation);
 		
 //		studies.add(CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457);

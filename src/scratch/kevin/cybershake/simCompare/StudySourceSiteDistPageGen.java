@@ -131,8 +131,8 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		
 		// RSQSim
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457;
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
-		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
 		
 		List<String> sourceNames = new ArrayList<>();
 		List<int[]> parentIDs = new ArrayList<>();
@@ -147,6 +147,8 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		
 //		String[] siteNames = { "USC" };
 		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
+		
+		boolean hypoSort = true;
 		
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014, AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
 		double[] periods = { 3, 5, 10 };
@@ -212,7 +214,7 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		for (AttenRelRef gmpe : gmpeRefs)
 			headerLines.add("* "+gmpe.getName());
 		
-		pageGen.generatePage(sourceCompsTable, outputDir, headerLines, periods);
+		pageGen.generatePage(sourceCompsTable, outputDir, headerLines, periods, hypoSort);
 		
 		study.writeMarkdownSummary(studyDir);
 		CyberShakeStudy.writeStudiesIndex(mainOutputDir);

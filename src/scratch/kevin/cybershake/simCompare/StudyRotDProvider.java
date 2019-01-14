@@ -13,10 +13,12 @@ import java.util.concurrent.ExecutionException;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.function.LightFixedXFunc;
+import org.opensha.commons.geo.Location;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
+import org.opensha.sha.cybershake.db.ERF2DB;
 
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
@@ -30,6 +32,7 @@ import scratch.kevin.simCompare.SimulationRotDProvider;
 public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	
 	private CachedPeakAmplitudesFromDB amps2db;
+	private ERF2DB erf2db;
 	private Map<Site, Integer> runIDsMap;
 	private Map<Site, List<CSRupture>> siteRups;
 	private double[] periods;
@@ -101,6 +104,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 			Map<Site, List<CSRupture>> siteRups, double[] periods, CybershakeIM[] rd50_ims,
 			CybershakeIM[] rd100_ims, String name) {
 		this.amps2db = amps2db;
+		this.erf2db = new ERF2DB(amps2db.getDBAccess());
 		this.runIDsMap = runIDsMap;
 		this.siteRups = siteRups;
 		this.periods = periods;
@@ -307,6 +311,11 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 			System.out.println("DONE: "+minNonZeroRate);
 		}
 		return minNonZeroRate;
+	}
+
+	@Override
+	public Location getHypocenter(CSRupture rupture, int index) {
+		return rupture.getHypocenter(index, erf2db);
 	}
 
 }

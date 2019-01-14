@@ -7,7 +7,9 @@ import java.util.Map;
 
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.DiscretizedFunc;
+import org.opensha.commons.geo.Location;
 import org.opensha.sha.simulators.RSQSimEvent;
+import org.opensha.sha.simulators.utils.RSQSimUtils;
 
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
@@ -92,6 +94,11 @@ public class CSRuptureBBPWrapperRotDProvider implements SimulationRotDProvider<C
 	@Override
 	public double getMagnitude(CSRupture rupture) {
 		return getEvent(rupture).getMagnitude();
+	}
+
+	@Override
+	public Location getHypocenter(CSRupture rupture, int index) {
+		return RSQSimUtils.getHypocenter(getEvent(rupture));
 	}
 
 }

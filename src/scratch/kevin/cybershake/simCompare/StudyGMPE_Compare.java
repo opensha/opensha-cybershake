@@ -6,66 +6,37 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Future;
 
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.region.CaliforniaRegions;
-import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
-import org.opensha.commons.data.siteData.SiteData;
-import org.opensha.commons.data.siteData.SiteDataValue;
-import org.opensha.commons.data.siteData.SiteDataValueList;
-import org.opensha.commons.data.siteData.impl.WaldAllenGlobalVs30;
-import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.geo.Location;
-import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.ExceptionUtils;
-import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
-import org.opensha.sha.cybershake.HazardCurveFetcher;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
-import org.opensha.sha.cybershake.db.CybershakeIM;
-import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
-import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
 import org.opensha.sha.cybershake.db.CybershakeRun;
-import org.opensha.sha.cybershake.db.CybershakeSite;
-import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.ERF2DB;
-import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
-import org.opensha.sha.cybershake.db.Runs2DB;
-import org.opensha.sha.cybershake.db.SiteInfo2DB;
-import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.EqkRupture;
 import org.opensha.sha.earthquake.ProbEqkRupture;
-import org.opensha.sha.earthquake.ProbEqkSource;
 import org.opensha.sha.faultSurface.FaultTrace;
 import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
 import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
-import org.opensha.sha.imr.param.SiteParams.DepthTo1pt0kmPerSecParam;
-import org.opensha.sha.imr.param.SiteParams.DepthTo2pt5kmPerSecParam;
-import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
-import org.opensha.sha.imr.param.SiteParams.Vs30_TypeParam;
-import org.opensha.sha.simulators.utils.RSQSimSubSectEqkRupture;
-import org.opensha.sha.util.SiteTranslator;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Doubles;
 
-import scratch.kevin.bbp.BBP_Module.VelocityModel;
 import scratch.kevin.simCompare.MultiRupGMPE_ComparePageGen;
 import scratch.kevin.simCompare.RuptureComparison;
-import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
-import org.opensha.commons.util.MarkdownUtils;
 
 public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	
@@ -73,22 +44,13 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	private ERF2DB erf2db;
 	private AbstractERF erf;
 	private CyberShakeStudy study;
-	private double[] periods;
 	
-	private CybershakeIM[] rd50_ims;
-	private CybershakeIM[] rd100_ims;
-	
-	private List<CybershakeSite> csSites;
-	private List<Integer> csRuns;
+	private List<CybershakeRun> csRuns;
 	private List<Site> sites;
-	
-	private Map<Site, List<CSRupture>> siteRupsMap;
 	
 	private StudyRotDProvider prov;
 	
 	private List<Site> highlightSites;
-	
-	private CSRupture[][] csRups;
 	
 	private static double MAX_DIST = 200d;
 	private static boolean DIST_JB = true;
@@ -100,130 +62,36 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			Vs30_Source vs30Source) throws IOException, SQLException {
 		this.study = study;
 		this.erf = erf;
-		this.periods = periods;
 		this.vs30Source = vs30Source;
 		this.amps2db = new CachedPeakAmplitudesFromDB(db, ampsCacheDir, erf);
 		this.erf2db = new ERF2DB(db);
-
-		rd50_ims = amps2db.getIMs(Doubles.asList(periods),
-				IMType.SA, CyberShakeComponent.RotD50).toArray(new CybershakeIM[0]);
-		if (doRotD)
-			rd100_ims = amps2db.getIMs(Doubles.asList(periods),
-					IMType.SA, CyberShakeComponent.RotD100).toArray(new CybershakeIM[0]);
 		
-		for (int i=0; i<periods.length; i++) {
-			Preconditions.checkNotNull(rd50_ims[i]);
-			if (doRotD)
-				Preconditions.checkNotNull(rd100_ims[i]);
-		}
-		
-//		HazardCurveFetcher fetcher = new HazardCurveFetcher(db, datasetID, rd50_ims[0].getID());
-		System.out.println("TODO: hardcoded to using im=21 for curve/site discovery");
-		HazardCurveFetcher fetcher = new HazardCurveFetcher(db, study.getDatasetIDs(), 21); // TODO
-		csSites = fetcher.getCurveSites();
-		csRuns = fetcher.getRunIDs();
+		csRuns = study.runFetcher().fetch();
 		System.out.println("Loaded "+csRuns.size()+" runs for "+study.getName()+" (dataset "+study.getDatasetIDs()+")");
-		Preconditions.checkState(!csSites.isEmpty());
-		Preconditions.checkState(csSites.size() == csRuns.size());
+		
+		sites = CyberShakeSiteBuilder.buildSites(study, vs30Source, csRuns);
 		
 		if (limitSiteNames != null && !limitSiteNames.isEmpty()) {
-			for (int i=csSites.size(); --i>=0;) {
-				if (!limitSiteNames.contains(csSites.get(i).short_name)) {
-					csSites.remove(i);
+			for (int i=sites.size(); --i>=0;) {
+				if (!limitSiteNames.contains(sites.get(i).getName())) {
+					sites.remove(i);
 					csRuns.remove(i);
 				}
 			}
 		}
-		
-		sites = new ArrayList<>();
-		siteRupsMap = new HashMap<>();
-		csRups = new CSRupture[erf.getNumSources()][];
-		Map<Site, Integer> runIDsMap = new HashMap<>();
-		int erfID = -1;
-		int rvScenID = -1;
+
 		highlightSites = new ArrayList<>();
-		// TODO populate highlight sites
-//		if (highlightSiteNames != null && highlightSiteNames.contains(site.getName()))
-//			highlightSites.add(site);
-		sites = buildSites(csSites, csRuns, study, vs30Source, db);
-		
-		for (int i=0; i<csSites.size(); i++) {
-			Site site = sites.get(i);
-			int runID = csRuns.get(i);
-			runIDsMap.put(site, runID);
-			if (highlightSiteNames != null && highlightSiteNames.contains(site.getName()))
-				highlightSites.add(site);
-			
-			if (erfID < 0) {
-				CybershakeRun run = new Runs2DB(db).getRun(runID);
-				erfID = run.getERFID();
-				rvScenID = run.getRupVarScenID();
-			}
-			
-			List<CSRupture> siteRups = getSiteRuptures(site, amps2db, erfID, rvScenID, csRups, erf, runID, rd50_ims[0]);
-			siteRupsMap.put(site, siteRups);
+		if (highlightSiteNames != null) {
+			for (Site site : sites)
+				if (highlightSiteNames.contains(site.getName()))
+					highlightSites.add(site);
 		}
 		
-		prov = new StudyRotDProvider(amps2db, runIDsMap, siteRupsMap, periods, rd50_ims, rd100_ims, study.getName());
+		prov = new StudyRotDProvider(study, amps2db, periods, study.getName());
 		
 		System.out.println("Done with setup");
 		
 		init(prov, sites, DIST_JB, MAX_DIST, minMag, 8.5);
-	}
-	
-	static Site buildSite(CybershakeSite csSite, int runID,
-			CyberShakeStudy study, Vs30_Source vs30Source, DBAccess db) throws IOException {
-		ArrayList<CybershakeSite> csSites = new ArrayList<>();
-		csSites.add(csSite);
-		ArrayList<Integer> runIDs = new ArrayList<>();
-		runIDs.add(runID);
-		return buildSites(csSites, runIDs, study, vs30Source, db).get(0);
-	}
-	
-	static List<Site> buildSites(List<CybershakeSite> csSites, List<Integer> runIDs,
-			CyberShakeStudy study, Vs30_Source vs30Source, DBAccess db) throws IOException {
-		Preconditions.checkState(csSites.size() == runIDs.size());
-		Runs2DB runs2db = new Runs2DB(db);
-		
-		List<CybershakeRun> runs = new ArrayList<>();
-		for (int i=0; i<csSites.size(); i++)
-			runs.add(runs2db.getRun(runIDs.get(i)));
-		
-		CyberShakeSiteBuilder siteBuilder = new CyberShakeSiteBuilder(vs30Source, study.getVelocityModelID());
-		List<Site> sites = siteBuilder.buildSites(runs, csSites);
-		
-		return sites;
-	}
-	
-	static List<CSRupture> getSiteRuptures(Site site, CachedPeakAmplitudesFromDB amps2db, int erfID, int rvScenID,
-			CSRupture[][] csRups, AbstractERF erf, int runID, CybershakeIM im) throws SQLException {
-		List<CSRupture> siteRups = new ArrayList<>();
-		System.out.println("Fetching sources for "+site.getName());
-		double[][][] allAmps = amps2db.getAllIM_Values(runID, im);
-		for (int sourceID=0; sourceID<allAmps.length; sourceID++) {
-			ProbEqkSource source = erf.getSource(sourceID);
-			if (csRups[sourceID] == null)
-				csRups[sourceID] = new CSRupture[source.getNumRuptures()];
-			if (allAmps[sourceID] != null) {
-				for (int rupID=0; rupID<csRups[sourceID].length; rupID++) {
-					if (allAmps[sourceID][rupID] != null) {
-						int numRVs = allAmps[sourceID][rupID].length;
-						if (csRups[sourceID][rupID] == null) {
-							ProbEqkRupture rup = source.getRupture(rupID);
-							if (rup instanceof RSQSimProbEqkRup)
-								csRups[sourceID][rupID] = new CSRupture(erfID, rvScenID, sourceID, rupID, rup, numRVs,
-										((RSQSimProbEqkRup)rup).getTimeYears());
-							else
-								csRups[sourceID][rupID] = new CSRupture(erfID, rvScenID, sourceID, rupID, rup, numRVs);
-						}
-						else
-							Preconditions.checkState(numRVs == csRups[sourceID][rupID].getNumRVs());
-						siteRups.add(csRups[sourceID][rupID]);
-					}
-				}
-			}
-		}
-		return siteRups;
 	}
 	
 	static class CSRuptureComparison extends RuptureComparison.Cached<CSRupture> {
@@ -339,13 +207,13 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 		for (int r=0; r<csRuns.size(); r++) {
 			Site site = sites.get(r);
-			for (CSRupture siteRup : siteRupsMap.get(site)) {
+			for (CSRupture siteRup : prov.getRupturesForSite(site)) {
 				if (siteRup.getRate() == 0)
 					continue;
 				int sourceID = siteRup.getSourceID();
 				int rupID = siteRup.getRupID();
 				if (comps[sourceID] == null)
-					comps[sourceID] = new CSRuptureComparison[csRups[sourceID].length];
+					comps[sourceID] = new CSRuptureComparison[erf.getNumRuptures(sourceID)];
 				if (comps[sourceID][rupID] == null) {
 					comps[sourceID][rupID] = new CSRuptureComparison(siteRup);
 					ret.add(comps[sourceID][rupID]);

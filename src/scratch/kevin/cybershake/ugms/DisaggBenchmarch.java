@@ -148,7 +148,7 @@ public class DisaggBenchmarch {
 				
 				for (String siteName : siteNames) {
 					System.out.println("Doing CyberShake, "+siteName);
-					CybershakeRun run = study.runFetcher().forSite(siteName).fetch().get(0);
+					CybershakeRun run = study.runFetcher().forSiteNames(siteName).fetch().get(0);
 					System.out.println("Run: "+run);
 					for (CybershakeIM im : ims)
 						// make sure they're already cached on disk, will be cleared from memory

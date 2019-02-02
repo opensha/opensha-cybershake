@@ -3,7 +3,6 @@ package scratch.kevin.cybershake.simCompare;
 import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,31 +15,28 @@ import java.util.zip.ZipFile;
 
 import org.opensha.commons.data.Site;
 import org.opensha.commons.geo.LocationUtils;
-import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
+import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.UCERF2_AleatoryMagVarRemovalMod;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
 import org.opensha.sha.cybershake.db.CybershakeRun;
-import org.opensha.sha.cybershake.db.CybershakeSite;
-import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
-import org.opensha.sha.cybershake.db.Runs2DB;
-import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.MeanUCERF2.MeanUCERF2;
 import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
 import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
-import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
@@ -49,7 +45,6 @@ import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Table;
 import com.google.common.primitives.Doubles;
 
-import scratch.UCERF3.enumTreeBranches.FaultModels;
 import scratch.kevin.bbp.BBP_Site;
 import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare.CSRuptureComparison;
 import scratch.kevin.simCompare.SimulationRotDProvider;
@@ -65,61 +60,6 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 	public StudySiteHazardCurvePageGen(SimulationRotDProvider<CSRupture> simProv, String simName,
 			List<SimulationRotDProvider<?>> compSimProvs) {
 		super(simProv, simName, compSimProvs);
-	}
-	
-	static StudyRotDProvider getSimProv(CyberShakeStudy study, String siteName, File ampsCacheDir,
-			double[] periods, CybershakeIM[] rd50_ims, Vs30_Source vs30Source) throws SQLException, IOException {
-		return getSimProv(study, siteName, ampsCacheDir, periods, rd50_ims, null, vs30Source);
-	}
-	
-	static StudyRotDProvider getSimProv(CyberShakeStudy study, String siteName, File ampsCacheDir,
-			double[] periods, CybershakeIM[] rd50_ims, Site site) throws SQLException, IOException {
-		return getSimProv(study, siteName, ampsCacheDir, periods, rd50_ims, site, null);
-	}
-	
-	static StudyRotDProvider getSimProv(CyberShakeStudy study, String siteName, File ampsCacheDir, double[] periods,
-			CybershakeIM[] rd50_ims, Site site, Vs30_Source vs30Source) throws SQLException, IOException {
-		DBAccess db = study.getDB();
-		
-		SiteInfo2DB sites2db = new SiteInfo2DB(db);
-		CybershakeSite csSite = sites2db.getSiteFromDB(siteName);
-		
-		int runID = -1;
-		for (int datasetID : study.getDatasetIDs()) {
-			System.out.println("Finding Run_ID for study "+study+", site "+siteName);
-			String sql = "SELECT C.Run_ID FROM Hazard_Curves C JOIN CyberShake_Runs R ON R.Run_ID=C.Run_ID\n" + 
-					"WHERE R.Site_ID="+csSite.id+" AND C.Hazard_Dataset_ID="+datasetID+" ORDER BY C.Curve_Date DESC LIMIT 1";
-			System.out.println(sql);
-			ResultSet rs = db.selectData(sql);
-			if (!rs.first())
-				// doesn't exist for this ID
-				continue;
-			runID = rs.getInt(1);
-		}
-		
-		System.out.println("Detected Run_ID="+runID);
-		
-		CybershakeRun run = new Runs2DB(db).getRun(runID);
-		
-		if (site == null) {
-			System.out.println("Building site");
-			site = StudyGMPE_Compare.buildSite(csSite, runID, study, vs30Source, db);
-		}
-		
-		Map<Site, Integer> runIDsMap = new HashMap<>();
-		runIDsMap.put(site, runID);
-		
-		AbstractERF erf = study.getERF();
-		CSRupture[][] csRups = new CSRupture[erf.getNumSources()][];
-		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(db, ampsCacheDir, erf);
-		
-		Map<Site, List<CSRupture>> siteRupsMap = new HashMap<>();
-		
-		List<CSRupture> siteRups = StudyGMPE_Compare.getSiteRuptures(site, amps2db, run.getERFID(), run.getRupVarScenID(),
-				csRups, erf, runID, rd50_ims[0]);
-		siteRupsMap.put(site, siteRups);
-		
-		return new StudyRotDProvider(amps2db, runIDsMap, siteRupsMap, periods, rd50_ims, null, study.getName());
 	}
 	
 	public static List<CSRuptureComparison> calcComps(StudyRotDProvider prov, Site site,
@@ -306,15 +246,15 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		boolean includeAleatoryStrip = true;
 		
-//		String[] siteNames = { "USC" };
+		String[] siteNames = { "USC" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
 //		String[] siteNames = { "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "s119", "s279", "s480" };
 //		String[] siteNames = { "LAPD" };
-		String[] siteNames = { "SMCA" };
+//		String[] siteNames = { "SMCA" };
 		
-		boolean replotCurves = false;
+		boolean replotCurves = true;
 		boolean replotDisaggs = false;
 		
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
@@ -328,10 +268,13 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
 		
 		try {
+			CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, study.getERF());
+			StudyRotDProvider mainProv = new StudyRotDProvider(study, amps2db, periods, study.getName());
+			
 			for (String siteName : siteNames) {
-				StudyRotDProvider mainProv = getSimProv(study, siteName, ampsCacheDir, periods, rd50_ims, vs30Source);
-				
-				Site site = mainProv.getAvailableSites().iterator().next();
+				List<CybershakeRun> matchingRuns = study.runFetcher().forSiteNames(siteName).fetch();
+				Preconditions.checkState(!matchingRuns.isEmpty(), "Must have at least 1 run for the given site/study");
+				Site site = CyberShakeSiteBuilder.buildSites(study, vs30Source, matchingRuns).get(0);
 				
 				List<SimulationRotDProvider<?>> compSimProvs = new ArrayList<>();
 				
@@ -343,7 +286,14 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 						getSourceContribFracts(study.getERF(), mainProv.getRupturesForSite(site), catalog);
 				
 				for (CyberShakeStudy compStudy : compStudies) {
-					StudyRotDProvider compProv = getSimProv(compStudy, siteName, ampsCacheDir, periods, rd50_ims, site);
+					// strip the run out of the site so we don't get bad associations
+					if (site instanceof CyberShakeSiteRun) {
+						Site oSite = new Site(site.getLocation(), site.getName());
+						oSite.addParameterList(oSite);
+						site = oSite;
+					}
+					CachedPeakAmplitudesFromDB compAmps2db = new CachedPeakAmplitudesFromDB(compStudy.getDB(), ampsCacheDir, compStudy.getERF());
+					StudyRotDProvider compProv = new StudyRotDProvider(compStudy, compAmps2db, periods, compStudy.getName());
 					compSimProvs.add(compProv);
 					if (includeAleatoryStrip && compStudy.getERF() instanceof MeanUCERF2)
 						compSimProvs.add(new StudyModifiedProbRotDProvider(

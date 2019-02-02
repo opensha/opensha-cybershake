@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.Map;
 import org.opensha.commons.data.NamedComparator;
 import org.opensha.commons.data.Site;
 import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
@@ -46,53 +48,8 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		super(simProv, sites);
 	}
 	
-	static StudyRotDProvider getSimProv(CyberShakeStudy study, String[] siteNames, File ampsCacheDir, double[] periods,
-			CybershakeIM[] rd50_ims, Vs30_Source vs30Source, CSRupture[][] csRups) throws SQLException, IOException {
-		DBAccess db = study.getDB();
-		
-		SiteInfo2DB sites2db = new SiteInfo2DB(db);
-		Runs2DB runs2db = new Runs2DB(db);
-		
-		Map<Site, Integer> runIDsMap = new HashMap<>();
-		
-		AbstractERF erf = study.getERF();
-		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(db, ampsCacheDir, erf);
-		
-		Map<Site, List<CSRupture>> siteRupsMap = new HashMap<>();
-		
-		for (String siteName : siteNames) {
-			CybershakeSite csSite = sites2db.getSiteFromDB(siteName);
-			
-			int runID = -1;
-			for (int datasetID : study.getDatasetIDs()) {
-				System.out.println("Finding Run_ID for study "+study+", site "+siteName);
-				String sql = "SELECT C.Run_ID FROM Hazard_Curves C JOIN CyberShake_Runs R ON R.Run_ID=C.Run_ID\n" + 
-						"WHERE R.Site_ID="+csSite.id+" AND C.Hazard_Dataset_ID="+datasetID+" ORDER BY C.Curve_Date DESC LIMIT 1";
-				System.out.println(sql);
-				ResultSet rs = db.selectData(sql);
-				if (!rs.first())
-					// doesn't exist for this ID
-					continue;
-				runID = rs.getInt(1);
-			}
-			
-			System.out.println("Detected Run_ID="+runID);
-			
-			CybershakeRun run = runs2db.getRun(runID);
-			
-			System.out.println("Building site");
-			Site site = StudyGMPE_Compare.buildSite(csSite, runID, study, vs30Source, db);
-			
-			runIDsMap.put(site, runID);
-			List<CSRupture> siteRups = StudyGMPE_Compare.getSiteRuptures(site, amps2db, run.getERFID(), run.getRupVarScenID(),
-					csRups, erf, runID, rd50_ims[0]);
-			siteRupsMap.put(site, siteRups);
-		}
-		
-		return new StudyRotDProvider(amps2db, runIDsMap, siteRupsMap, periods, rd50_ims, null, study.getName());
-	}
-	
-	private static List<List<CSRupture>> getRupturesForSoruces(List<String> sourceNames, List<int[]> parentIDs, AbstractERF erf, CSRupture[][] csRups) {
+	private static List<List<CSRupture>> getRupturesForSoruces(List<String> sourceNames, List<int[]> parentIDs, AbstractERF erf,
+			Collection<CSRupture> csRuptures) {
 		List<List<CSRupture>> ret = new ArrayList<>();
 		if (erf instanceof RSQSimSectBundledERF) {
 			RSQSimSectBundledERF rsERF = (RSQSimSectBundledERF)erf;
@@ -101,17 +58,11 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 				List<CSRupture> rupsForSource = new ArrayList<>();
 				ret.add(rupsForSource);
 				int[] sourceParents = parentIDs.get(i);
-				for (CSRupture[] sourceRups : csRups) {
-					if (sourceRups == null)
-						continue;
-					for (CSRupture rup : sourceRups) {
-						if (rup == null)
-							continue;
-						for (FaultSectionPrefData sect : rsERF.getRupture(rup.getSourceID(), rup.getRupID()).getSortedSubSects()) {
-							if (Ints.contains(sourceParents, sect.getParentSectionId())) {
-								rupsForSource.add(rup);
-								break;
-							}
+				for (CSRupture rup : csRuptures) {
+					for (FaultSectionPrefData sect : rsERF.getRupture(rup.getSourceID(), rup.getRupID()).getSortedSubSects()) {
+						if (Ints.contains(sourceParents, sect.getParentSectionId())) {
+							rupsForSource.add(rup);
+							break;
 						}
 					}
 				}
@@ -119,8 +70,7 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 				Preconditions.checkState(!rupsForSource.isEmpty(), "None found!");
 			}
 		} else {
-//			Preconditions.checkst
-			throw new IllegalStateException("not yet implemented for non RSQSim");
+			throw new IllegalStateException("currently only implemented for RSQSim");
 		}
 		return ret;
 	}
@@ -152,17 +102,16 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014, AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
 		double[] periods = { 3, 5, 10 };
-		CybershakeIM[] rd50_ims = new PeakAmplitudesFromDB(study.getDB()).getIMs(Doubles.asList(periods),
-				IMType.SA, CyberShakeComponent.RotD50).toArray(new CybershakeIM[0]);
 		
-		CSRupture[][] csRups = new CSRupture[study.getERF().getNumSources()][];
-		
-		StudyRotDProvider simProv = getSimProv(study, siteNames, ampsCacheDir, periods, rd50_ims, vs30Source, csRups);
+//		StudyRotDProvider simProv = getSimProv(study, siteNames, ampsCacheDir, periods, rd50_ims, vs30Source, csRups);
+		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, study.getERF());
+		StudyRotDProvider simProv = new StudyRotDProvider(study, amps2db, periods, study.getName());
 		
 		File studyDir = new File(mainOutputDir, study.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
 		
-		List<Site> sites = new ArrayList<>(simProv.getAvailableSites());
+		List<CybershakeRun> runs = study.runFetcher().forSiteNames(siteNames).fetch();
+		List<Site> sites = CyberShakeSiteBuilder.buildSites(study, vs30Source, runs);
 		sites.sort(new NamedComparator());
 		
 		Map<AttenRelRef, List<CSRuptureComparison>> gmpeComps = new HashMap<>();
@@ -170,7 +119,7 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		for (AttenRelRef gmpeRef : gmpeRefs) {
 			System.out.println("Calculating for "+gmpeRef.getName());
 			Map<CSRupture, CSRuptureComparison> compsMap = new HashMap<>();
-			for (Site site : simProv.getAvailableSites()) {
+			for (Site site : sites) {
 				List<CSRuptureComparison> siteComps = StudySiteHazardCurvePageGen.calcComps(simProv, site, gmpeRef, periods);
 				for (CSRuptureComparison comp : siteComps) {
 					if (compsMap.containsKey(comp.getRupture())) {
@@ -187,7 +136,11 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 			gmpeComps.put(gmpeRef, new ArrayList<>(compsMap.values()));
 		}
 		
-		List<List<CSRupture>> rupsForSources = getRupturesForSoruces(sourceNames, parentIDs, study.getERF(), csRups);
+		HashSet<CSRupture> uniqueRups = new HashSet<>();
+		for (Site site : sites)
+			uniqueRups.addAll(simProv.getRupturesForSite(site));
+		System.out.println("Found "+uniqueRups+" ruptures for all sites");
+		List<List<CSRupture>> rupsForSources = getRupturesForSoruces(sourceNames, parentIDs, study.getERF(), uniqueRups);
 		Table<AttenRelRef, String, List<RuptureComparison<CSRupture>>> sourceCompsTable = HashBasedTable.create();
 		for (int i=0; i<sourceNames.size(); i++) {
 			HashSet<CSRupture> rups = new HashSet<>(rupsForSources.get(i));

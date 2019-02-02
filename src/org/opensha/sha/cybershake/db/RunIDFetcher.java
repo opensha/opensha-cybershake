@@ -21,7 +21,7 @@ import com.google.common.primitives.Ints;
 public class RunIDFetcher {
 	
 	// runs table fields
-	private Integer siteID;
+	private List<Integer> siteIDs;
 	private Integer erfID;
 	private Integer sgtVarID;
 	private Integer rupVarScenID;
@@ -44,14 +44,29 @@ public class RunIDFetcher {
 		this.db = db;
 	}
 	
-	public RunIDFetcher forSite(int siteID) {
-		this.siteID = siteID;
+	public synchronized RunIDFetcher forSiteIDs(int... ids) {
+		if (ids.length == 0)
+			return this;
+		if (siteIDs == null)
+			siteIDs = new ArrayList<>();
+		for (int id : ids)
+			siteIDs.add(id);
 		return this;
 	}
 	
-	public RunIDFetcher forSite(String siteShortName) {
-		this.siteID = new SiteInfo2DB(db).getSiteId(siteShortName);
+	public synchronized RunIDFetcher forSiteIDs(List<Integer> siteIDs) {
+		return forSiteIDs(Ints.toArray(siteIDs));
+	}
+	
+	public RunIDFetcher forSiteNames(String... siteShortNames) {
+		SiteInfo2DB sites2db = new SiteInfo2DB(db);
+		for (String shortName : siteShortNames)
+			forSiteIDs(sites2db.getSiteId(shortName));
 		return this;
+	}
+	
+	public RunIDFetcher forSiteNames(List<String> siteShortNames) {
+		return forSiteNames(siteShortNames.toArray(new String[0]));
 	}
 	
 	public RunIDFetcher forERF(int erfID) {
@@ -173,8 +188,12 @@ public class RunIDFetcher {
 		if (hasCurves)
 			sql += " JOIN Hazard_Curves C ON R.Run_ID=C.Run_ID";
 		List<String> wheres = new ArrayList<>();
-		if (siteID != null)
-			wheres.add("R.Site_ID="+siteID);
+		if (siteIDs != null && !siteIDs.isEmpty()) {
+			if (siteIDs.size() == 1)
+				wheres.add("R.Site_ID="+siteIDs.get(0));
+			else
+				wheres.add("R.Site_ID IN ('"+Joiner.on("','").join(siteIDs)+"')");
+		}
 		if (erfID != null)
 			wheres.add("R.ERF_ID="+erfID);
 		if (sgtVarID != null)

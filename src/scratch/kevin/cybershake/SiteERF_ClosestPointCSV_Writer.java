@@ -2,6 +2,7 @@ package scratch.kevin.cybershake;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,8 @@ import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationUtils;
+import org.opensha.sha.cybershake.constants.CyberShakeStudy;
+import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
@@ -22,17 +25,35 @@ import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.ProbEqkSource;
+import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.MeanUCERF2.MeanUCERF2;
+
+import com.google.common.base.Preconditions;
 
 public class SiteERF_ClosestPointCSV_Writer {
 
 	public static void main(String[] args) throws IOException, InterruptedException, ExecutionException {
-		DBAccess db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
+		
+		DBAccess db = study.getDB();
 		
 		SiteInfo2DB sites2db = new SiteInfo2DB(db);
-		List<CybershakeSite> sites = sites2db.getAllSitesFromDB();
 		
-		File outputDir = new File("/home/kevin/CyberShake/site_erf_closest_points/ucerf2");
-		AbstractERF erf = MeanUCERF2_ToDB.createUCERF2ERF();
+		AbstractERF erf = study.getERF();
+		File parentDir = new File("/home/kevin/CyberShake/site_erf_closest_points/");
+		File outputDir;
+		List<CybershakeSite> sites;
+		if (erf instanceof MeanUCERF2) {
+			// do all sites
+			sites = sites2db.getAllSitesFromDB();
+			outputDir = new File(parentDir, "ucerf2");
+		} else {
+			List<CybershakeRun> runs = study.runFetcher().fetch();
+			sites = new ArrayList<>();
+			for (CybershakeRun run : runs)
+				sites.add(sites2db.getSiteFromDB(run.getSiteID()));
+			outputDir = new File(parentDir, study.getDirName());
+		}
+		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
 		
 		double cutoff = 200d;
 		

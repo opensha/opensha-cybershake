@@ -2,12 +2,9 @@ package scratch.kevin.cybershake.simCompare;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import org.opensha.commons.data.Site;
@@ -16,37 +13,45 @@ import org.opensha.commons.data.function.LightFixedXFunc;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
+import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
+import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
+import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
+import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.ERF2DB;
+import org.opensha.sha.earthquake.AbstractERF;
+import org.opensha.sha.earthquake.ProbEqkRupture;
 
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.HashBasedTable;
-import com.google.common.collect.Table;
+import com.google.common.primitives.Doubles;
 
 import scratch.kevin.simCompare.SimulationRotDProvider;
+import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
 
 public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	
 	private CachedPeakAmplitudesFromDB amps2db;
 	private ERF2DB erf2db;
-	private Map<Site, Integer> runIDsMap;
-	private Map<Site, List<CSRupture>> siteRups;
 	private double[] periods;
 	private CybershakeIM[] rd50_ims;
 	private CybershakeIM[] rd100_ims;
 	private String name;
+	private CSRupture[][] csRups;
+	
+	private AbstractERF erf;
 	
 	public static int MAX_CACHE_SIZE = 100000;
 	
+	private LoadingCache<Site, CybershakeRun> runsCache;
+	private LoadingCache<Site, List<CSRupture>> siteRupsCache;
 	private LoadingCache<CacheKey, DiscretizedFunc[]> rd50Cache;
 	private LoadingCache<CacheKey, DiscretizedFunc[][]> rd100Cache;
 	private LoadingCache<CacheKey, DiscretizedFunc[]> rdRatioCache;
-	
-	private double minNonZeroRate = Double.POSITIVE_INFINITY;
 	
 	private class CacheKey {
 		private CSRupture rup;
@@ -97,27 +102,36 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 		}
 		
 	}
-	
-	private Map<CSRupture, Integer> rvCountMap;
 
-	public StudyRotDProvider(CachedPeakAmplitudesFromDB amps2db, Map<Site, Integer> runIDsMap,
-			Map<Site, List<CSRupture>> siteRups, double[] periods, CybershakeIM[] rd50_ims,
-			CybershakeIM[] rd100_ims, String name) {
+	public StudyRotDProvider(CyberShakeStudy study, CachedPeakAmplitudesFromDB amps2db, double[] periods, String name) {
+		this(study.getERF(), new CacheLoader<Site, CybershakeRun>() {
+
+			@Override
+			public CybershakeRun load(Site site) throws Exception {
+				if (site instanceof CyberShakeSiteRun) {
+					return ((CyberShakeSiteRun)site).getCS_Run();
+				}
+				Preconditions.checkNotNull(site.getName() != null, "Must supply site, or site with name set to CS Short Name");
+				List<CybershakeRun> runs = study.runFetcher().forSiteNames(site.getName()).fetch();
+				Preconditions.checkState(!runs.isEmpty(), "No runs found for Study %s, Site '%s'", study.getName(), site.getName());
+				return runs.get(0);
+			}
+			
+		}, amps2db, periods, name);
+	}
+
+	public StudyRotDProvider(AbstractERF erf, CacheLoader<Site, CybershakeRun> runCacheLoader, CachedPeakAmplitudesFromDB amps2db,
+			double[] periods, String name) {
 		this.amps2db = amps2db;
 		this.erf2db = new ERF2DB(amps2db.getDBAccess());
-		this.runIDsMap = runIDsMap;
-		this.siteRups = siteRups;
 		this.periods = periods;
-		this.rd50_ims = rd50_ims;
-		this.rd100_ims = rd100_ims;
 		this.name = name;
-
-		Preconditions.checkState(periods.length == rd50_ims.length);
-		Preconditions.checkState(rd100_ims == null || rd50_ims.length == rd100_ims.length);
-		for (int i=0; i<rd50_ims.length; i++) {
-			Preconditions.checkState((float)rd50_ims[i].getVal() == (float)rd50_ims[i].getVal());
-			Preconditions.checkState((float)rd50_ims[i].getVal() == (float)periods[i]);
-		}
+		this.erf = erf;
+		
+		rd50_ims = amps2db.getIMs(Doubles.asList(periods),
+				IMType.SA, CyberShakeComponent.RotD50).toArray(new CybershakeIM[0]);
+		rd100_ims = amps2db.getIMs(Doubles.asList(periods),
+				IMType.SA, CyberShakeComponent.RotD100).toArray(new CybershakeIM[0]);
 		
 		rd50Cache = CacheBuilder.newBuilder().maximumSize(MAX_CACHE_SIZE).build(new RD50Loader());
 		if (hasRotD100()) {
@@ -125,33 +139,72 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 			rdRatioCache = CacheBuilder.newBuilder().maximumSize(MAX_CACHE_SIZE).build(new RDRatioLoader());
 		}
 		
-		rvCountMap = new HashMap<>();
+		runsCache = CacheBuilder.newBuilder().build(runCacheLoader);
+		
+		csRups = new CSRupture[erf.getNumSources()][];
+		
+		siteRupsCache = CacheBuilder.newBuilder().build(new CacheLoader<Site, List<CSRupture>>() {
+
+			@Override
+			public List<CSRupture> load(Site site) throws Exception {
+				System.out.println("Fetching sources for "+site.getName());
+				CybershakeRun run = runsCache.get(site);
+				double[][][] allAmps = amps2db.getAllIM_Values(run.getRunID(), rd50_ims[0]);
+				List<CSRupture> siteRups = new ArrayList<>();
+				for (int sourceID=0; sourceID<allAmps.length; sourceID++) {
+					if (allAmps[sourceID] != null) {
+						for (int rupID=0; rupID<allAmps[sourceID].length; rupID++) {
+							if (allAmps[sourceID][rupID] != null) {
+								int numRVs = allAmps[sourceID][rupID].length;
+								siteRups.add(getCSRupture(sourceID, rupID, run.getERFID(), run.getRupVarScenID(), numRVs));
+							}
+						}
+					}
+				}
+				return siteRups;
+			}
+			
+		});
+	}
+	
+	private CSRupture getCSRupture(int sourceID, int rupID, int erfID, int rvScenID, int numRVs) {
+		if (csRups[sourceID] != null && csRups[sourceID][rupID] != null)
+			return csRups[sourceID][rupID];
+		synchronized (csRups) {
+			if (csRups[sourceID] == null)
+				csRups[sourceID] = new CSRupture[erf.getNumRuptures(sourceID)];
+			ProbEqkRupture rup = erf.getRupture(sourceID, rupID);
+			if (rup instanceof RSQSimProbEqkRup)
+				csRups[sourceID][rupID] = new CSRupture(erfID, rvScenID, sourceID, rupID, rup, numRVs,
+						((RSQSimProbEqkRup)rup).getTimeYears());
+			else
+				csRups[sourceID][rupID] = new CSRupture(erfID, rvScenID, sourceID, rupID, rup, numRVs);
+		}
+		return csRups[sourceID][rupID];
 	}
 	
 	protected StudyRotDProvider(StudyRotDProvider o, String name) {
 		this.amps2db = o.amps2db;
-		this.runIDsMap = o.runIDsMap;
-		this.siteRups = o.siteRups;
+		this.erf2db = o.erf2db;
 		this.periods = o.periods;
 		this.rd50_ims = o.rd50_ims;
 		this.rd100_ims = o.rd100_ims;
 		this.name = name;
-		
+		this.csRups = o.csRups;
+		this.erf = o.erf;
+		this.runsCache = o.runsCache;
+		this.siteRupsCache = o.siteRupsCache;
 		this.rd50Cache = o.rd50Cache;
-		if (hasRotD100()) {
-			this.rd100Cache = o.rd100Cache;
-			this.rdRatioCache = o.rdRatioCache;
+		this.rd100Cache = o.rd100Cache;
+		this.rdRatioCache = o.rdRatioCache;
+	}
+	
+	public CybershakeRun getRun(Site site) {
+		try {
+			return runsCache.get(site);
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
 		}
-		
-		this.rvCountMap = o.rvCountMap;
-	}
-	
-	public Set<Site> getAvailableSites() {
-		return runIDsMap.keySet();
-	}
-	
-	public Map<Site, Integer> getRunIDsMap() {
-		return runIDsMap;
 	}
 
 	@Override
@@ -187,7 +240,12 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	
 	private DiscretizedFunc[] getSpectras(Site site, CSRupture rup, CybershakeIM[] ims) {
 		DiscretizedFunc[] ret = null;
-		int runID = runIDsMap.get(site);
+		int runID;
+		try {
+			runID = runsCache.get(site).getRunID();
+		} catch (ExecutionException e1) {
+			throw ExceptionUtils.asRuntimeException(e1);
+		}
 		for (int i=0; i<ims.length; i++) {
 			try {
 				double[][][] amps = amps2db.getAllIM_Values(runID, ims[i]);
@@ -255,26 +313,17 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	}
 
 	@Override
-	public synchronized int getNumSimulations(Site site, CSRupture rupture) {
-		Integer count = rvCountMap.get(rupture);
-		
-		if (count == null) {
-			double[][][] vals;
-			try {
-				vals = amps2db.getAllIM_Values(runIDsMap.get(site), rd50_ims[0]);
-			} catch (SQLException e) {
-				throw ExceptionUtils.asRuntimeException(e);
-			}
-			count = vals[rupture.getSourceID()][rupture.getRupID()].length;
-			rvCountMap.put(rupture, count);
-		}
-		
-		return count;
+	public int getNumSimulations(Site site, CSRupture rupture) {
+		return rupture.getNumRVs();
 	}
 
 	@Override
 	public Collection<CSRupture> getRupturesForSite(Site site) {
-		return siteRups.get(site);
+		try {
+			return siteRupsCache.get(site);
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
+		}
 	}
 
 	@Override
@@ -298,17 +347,16 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	}
 
 	@Override
-	public synchronized double getMinimumCurvePlotRate() {
-		if (!Double.isFinite(minNonZeroRate)) {
-			System.out.print("Calculating minimum rate to plot...");
-			for (Site site : siteRups.keySet()) {
-				for (CSRupture rup : siteRups.get(site)) {
-					double rate = getAnnualRate(rup)/getNumSimulations(site, rup);
-					if (rate > 0)
-						minNonZeroRate = Math.min(minNonZeroRate, rate);
-				}
+	public synchronized double getMinimumCurvePlotRate(Site site) {
+		double minNonZeroRate = Double.POSITIVE_INFINITY;
+		try {
+			for (CSRupture rup : siteRupsCache.get(site)) {
+				double rate = getAnnualRate(rup)/getNumSimulations(site, rup);
+				if (rate > 0)
+					minNonZeroRate = Math.min(minNonZeroRate, rate);
 			}
-			System.out.println("DONE: "+minNonZeroRate);
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
 		}
 		return minNonZeroRate;
 	}

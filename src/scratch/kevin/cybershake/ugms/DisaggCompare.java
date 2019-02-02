@@ -99,7 +99,7 @@ public class DisaggCompare {
 		SiteInfo2DB sites2db = new SiteInfo2DB(study.getDB());
 		
 		for (String siteName : siteNames) {
-			CybershakeRun run = study.runFetcher().forSite(siteName).fetch().get(0);
+			CybershakeRun run = study.runFetcher().forSiteNames(siteName).fetch().get(0);
 			
 			if (doCS) {
 				System.out.println("Doing CyberShake, "+siteName);

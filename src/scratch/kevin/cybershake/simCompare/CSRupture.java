@@ -85,6 +85,8 @@ public class CSRupture {
 			synchronized (this) {
 				if (hypos != null)
 					return hypos[rv];
+				Preconditions.checkState(erfID >= 0, "Must have ERF ID to fetch hypocenters");
+				Preconditions.checkState(rvScenID >= 0, "Must have RV Scenario ID to fetch hypocenters");
 				Map<Integer, Location> hypoMap = erf2db.getHypocenters(erfID, sourceID, rupID, rvScenID);
 				Preconditions.checkState(hypoMap != null && !hypoMap.isEmpty(),
 						"No hypos for %s, %s, %s, %s", erfID, rvScenID, sourceID, rupID);

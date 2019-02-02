@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.IOException;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -33,20 +32,14 @@ import org.opensha.commons.gui.plot.jfreechart.xyzPlot.XYZPlotSpec;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
 import org.opensha.commons.param.Parameter;
 import org.opensha.commons.param.impl.DoubleParameter;
+import org.opensha.commons.util.MarkdownUtils;
+import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 import org.opensha.commons.util.cpt.CPT;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
-import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeRun;
-import org.opensha.sha.cybershake.db.CybershakeSite;
-import org.opensha.sha.cybershake.db.DBAccess;
-import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
-import org.opensha.sha.cybershake.db.Runs2DB;
-import org.opensha.sha.cybershake.db.SiteInfo2DB;
-import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
-import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
-import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
 import org.opensha.sha.imr.param.SiteParams.Vs30_TypeParam;
@@ -57,18 +50,15 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Table;
-import com.google.common.primitives.Doubles;
 
+import scratch.kevin.bbp.BBP_Module.VelocityModel;
 import scratch.kevin.bbp.BBP_Site;
 import scratch.kevin.bbp.SpectraPlotter;
-import scratch.kevin.bbp.BBP_Module.VelocityModel;
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
 import scratch.kevin.simulators.ruptures.BBP_CatalogSimZipLoader;
-import org.opensha.commons.util.MarkdownUtils;
-import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 
 public class Study3Dvs1DCompare {
 	
@@ -465,55 +455,6 @@ public class Study3Dvs1DCompare {
 		
 		return plotFiles;
 	}
-	
-	static StudyRotDProvider getSimProv(CyberShakeStudy study, String[] siteNames, File ampsCacheDir, double[] periods,
-			CybershakeIM[] rd50_ims, Vs30_Source vs30Source) throws SQLException, IOException {
-		DBAccess db = study.getDB();
-		
-		SiteInfo2DB sites2db = new SiteInfo2DB(db);
-		
-		Map<Site, Integer> runIDsMap = new HashMap<>();
-		
-		AbstractERF erf = study.getERF();
-		CSRupture[][] csRups = new CSRupture[erf.getNumSources()][];
-		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(db, ampsCacheDir, erf);
-		
-		Map<Site, List<CSRupture>> siteRupsMap = new HashMap<>();
-		
-		for (String siteName : siteNames) {
-			CybershakeSite csSite = sites2db.getSiteFromDB(siteName);
-			
-			int runID = -1;
-			for (int datasetID : study.getDatasetIDs()) {
-				System.out.println("Finding Run_ID for study "+study+", site "+siteName);
-				String sql = "SELECT C.Run_ID FROM Hazard_Curves C JOIN CyberShake_Runs R ON R.Run_ID=C.Run_ID\n" + 
-						"WHERE R.Site_ID="+csSite.id+" AND C.Hazard_Dataset_ID="+datasetID+" ORDER BY C.Curve_Date DESC LIMIT 1";
-				System.out.println(sql);
-				ResultSet rs = db.selectData(sql);
-				if (!rs.first())
-					// doesn't exist for this ID
-					continue;
-				runID = rs.getInt(1);
-			}
-			Preconditions.checkState(runID >= 0, "No runID found for site %s, study %s", siteName, study);
-			
-			System.out.println("Detected Run_ID="+runID);
-			
-			CybershakeRun run = new Runs2DB(db).getRun(runID);
-			
-			System.out.println("Building site");
-			Site site = StudyGMPE_Compare.buildSite(csSite, runID, study, vs30Source, db);
-			
-			runIDsMap.put(site, runID);
-			
-			List<CSRupture> siteRups = StudyGMPE_Compare.getSiteRuptures(site, amps2db, run.getERFID(), run.getRupVarScenID(),
-					csRups, erf, runID, rd50_ims[0]);
-			siteRupsMap.put(site, siteRups);
-		}
-		
-		return new StudyRotDProvider(amps2db, runIDsMap, siteRupsMap, periods, rd50_ims, null, study.getName());
-	}
-	
 //	private void plotCheckerboard()
 
 	public static void main(String[] args) throws SQLException, IOException {
@@ -540,11 +481,13 @@ public class Study3Dvs1DCompare {
 		double[] periods = {3d, 5d, 7.5, 10d};
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
-		CybershakeIM[] rd50_ims = new PeakAmplitudesFromDB(study3D.getDB()).getIMs(Doubles.asList(periods),
-				IMType.SA, CyberShakeComponent.RotD50).toArray(new CybershakeIM[0]);
 		
-		StudyRotDProvider prov3D = getSimProv(study3D, siteNames, ampsCacheDir, periods, rd50_ims, vs30Source);
-		List<Site> sites = new ArrayList<>(prov3D.getAvailableSites());
+//		StudyRotDProvider prov3D = getSimProv(study3D, siteNames, ampsCacheDir, periods, rd50_ims, vs30Source);
+		
+		List<CybershakeRun> runs3D = study3D.runFetcher().forSiteNames(siteNames).fetch();
+		List<Site> sites = CyberShakeSiteBuilder.buildSites(study3D, vs30Source, runs3D);
+		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study3D.getDB(), ampsCacheDir, study3D.getERF());
+		StudyRotDProvider prov3D = new StudyRotDProvider(study3D, amps2db, periods, study3D.getName());
 		SimulationRotDProvider<CSRupture> prov1D;
 		if (study1D == null) {
 			// BBP for 1D

@@ -87,8 +87,8 @@ public class CSRuptureBBPWrapperRotDProvider implements SimulationRotDProvider<C
 	}
 
 	@Override
-	public double getMinimumCurvePlotRate() {
-		return bbpLoader.getMinimumCurvePlotRate();
+	public double getMinimumCurvePlotRate(Site site) {
+		return bbpLoader.getMinimumCurvePlotRate(site);
 	}
 
 	@Override

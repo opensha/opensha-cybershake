@@ -14,14 +14,18 @@ import org.opensha.commons.geo.Location;
 import org.opensha.commons.gui.plot.GraphWindow;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotLineType;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
+import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
+import org.opensha.sha.cybershake.db.CybershakeRun;
 
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
 
 import scratch.kevin.simCompare.SimulationHazardCurveCalc;
@@ -41,12 +45,13 @@ public class OldVsNewCalcCheck {
 		CybershakeIM[] rd50_ims = new PeakAmplitudesFromDB(study.getDB()).getIMs(Doubles.asList(periods),
 				IMType.SA, CyberShakeComponent.RotD50).toArray(new CybershakeIM[0]);
 		
-		Site site = new Site(new Location(34.0192, -118.286));
+		CybershakeRun run = study.runFetcher().forSiteNames(siteName).fetch().get(0);
+		Site site = CyberShakeSiteBuilder.buildSites(study, vs30Source, Lists.newArrayList(run)).get(0);
 		
-		StudyRotDProvider prov = StudySiteHazardCurvePageGen.getSimProv(study, siteName, ampsCacheDir, periods, rd50_ims, site);
+//		StudyRotDProvider prov = StudySiteHazardCurvePageGen.getSimProv(study, siteName, ampsCacheDir, periods, rd50_ims, site);
+		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, study.getERF());
+		StudyRotDProvider prov = new StudyRotDProvider(study, amps2db, periods, study.getName());
 		SimulationHazardCurveCalc<CSRupture> newCalc = new SimulationHazardCurveCalc<>(prov);
-		
-		int runID = prov.getRunIDsMap().values().iterator().next();
 		
 		for (int p=0; p<periods.length; p++) {
 			double period = periods[p];
@@ -56,7 +61,7 @@ public class OldVsNewCalcCheck {
 			ArrayList<Double> imlVals = new ArrayList<>();
 			for (Point2D pt : newCurve)
 				imlVals.add(pt.getX());
-			DiscretizedFunc oldCurve = oldCalc.computeHazardCurve(imlVals, runID, rd50_ims[p]);
+			DiscretizedFunc oldCurve = oldCalc.computeHazardCurve(imlVals, run.getRunID(), rd50_ims[p]);
 			
 			List<DiscretizedFunc> funcs = new ArrayList<>();
 			List<PlotCurveCharacterstics> chars = new ArrayList<>();

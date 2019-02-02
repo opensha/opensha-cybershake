@@ -21,9 +21,12 @@ import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationList;
 import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.ExceptionUtils;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
+import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeSite;
+import org.opensha.sha.cybershake.db.CybershakeSiteInfo2DB;
 import org.opensha.sha.cybershake.db.CybershakeVelocityModel;
 import org.opensha.sha.imr.param.SiteParams.DepthTo1pt0kmPerSecParam;
 import org.opensha.sha.imr.param.SiteParams.DepthTo2pt5kmPerSecParam;
@@ -194,6 +197,16 @@ public class CyberShakeSiteBuilder {
 		}
 		
 		return sites;
+	}
+	
+	public static List<Site> buildSites(CyberShakeStudy study, Vs30_Source vs30Source, List<CybershakeRun> runs) {
+		CybershakeSiteInfo2DB site2db = new CybershakeSiteInfo2DB(study.getDB());
+		List<CybershakeSite> csSites = new ArrayList<>();
+		for (CybershakeRun run : runs)
+			csSites.add(site2db.getSiteFromDB(run.getSiteID()));
+		
+		CyberShakeSiteBuilder builder = new CyberShakeSiteBuilder(vs30Source, study.getVelocityModelID());
+		return builder.buildSites(runs, csSites);
 	}
 	
 	private static Double getMapValueFromList(List<SiteDataValueList<?>> mapBasinVals, String type, int index) {

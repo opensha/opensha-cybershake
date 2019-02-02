@@ -21,6 +21,7 @@ import java.util.Map;
 import org.dom4j.DocumentException;
 import org.jfree.data.Range;
 import org.opensha.commons.calc.FaultMomentCalc;
+import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.DefaultXY_DataSet;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.function.EvenlyDiscretizedFunc;
@@ -38,13 +39,17 @@ import org.opensha.commons.util.FileNameComparator;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.RuptureProbabilityModifier;
 import org.opensha.sha.cybershake.calc.UCERF2_AleatoryMagVarRemovalMod;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.db.CybershakeVelocityModel;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.cybershake.db.RunIDFetcher;
 import org.opensha.sha.cybershake.db.Runs2DB;
+import org.opensha.sha.cybershake.db.SiteInfo2DB;
+import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeRun.Status;
+import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.gui.util.ERFSaver;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.ProbEqkRupture;
@@ -61,6 +66,7 @@ import com.google.common.collect.Table.Cell;
 import com.google.common.primitives.Doubles;
 
 import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare;
+import scratch.kevin.cybershake.simCompare.StudyRotDProvider;
 import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
 import scratch.kevin.simulators.plots.AbstractPlot;
@@ -137,7 +143,7 @@ public enum CyberShakeStudy {
 			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
 		}
 	},
-	STUDY_18_8(cal(2018, 8), 81, "Study 18.8", "study_18_8", // TODO dataset IDs will change
+	STUDY_18_8(cal(2018, 8), 85, "Study 18.8", "study_18_8", // TODO dataset IDs will change
 			"Northern California with Bay Area, CCA, and CVM-S4.26 Velocity Models, 1hz", 12,
 			new CaliforniaRegions.CYBERSHAKE_BAY_AREA_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {

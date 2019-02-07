@@ -73,7 +73,11 @@ import scratch.UCERF3.erf.ETAS.ETAS_Utils;
 import scratch.UCERF3.erf.ETAS.FaultSystemSolutionERF_ETAS;
 import scratch.UCERF3.erf.ETAS.ETAS_Params.ETAS_ParameterList;
 import scratch.UCERF3.erf.ETAS.ETAS_Params.U3ETAS_ProbabilityModelOptions;
+import scratch.UCERF3.erf.ETAS.analysis.SimulationMarkdownGenerator;
+import scratch.UCERF3.erf.ETAS.launcher.ETAS_Config;
+import scratch.UCERF3.erf.ETAS.launcher.ETAS_Config.BinaryFilteredOutputConfig;
 import scratch.UCERF3.erf.ETAS.launcher.ETAS_Launcher;
+import scratch.UCERF3.erf.ETAS.launcher.TriggerRupture;
 import scratch.UCERF3.erf.utils.ProbabilityModelsCalc;
 import scratch.UCERF3.griddedSeismicity.AbstractGridSourceProvider;
 import scratch.UCERF3.utils.FaultSystemIO;
@@ -92,132 +96,10 @@ import com.google.common.primitives.Doubles;
 
 public class ETASModProbConfig extends AbstractModProbConfig {
 	
-	public enum ETAS_CyberShake_Scenarios {
-		PARKFIELD("Parkfield Scenario", 8, triggerMap(FaultModels.FM3_1, 30473, FaultModels.FM2_1, 2099)),
-		BOMBAY_BEACH_M6("Bombay Beach Pt Scenario", 9, new Location(33.31833333333334,-115.72833333333335,5.8), 6.0),
-		BOMBAY_BEACH_BRAWLEY_FAULT_M6("Bombay Beach Scenario", -1, triggerMap(FaultModels.FM3_1, 238408)),
-		BOMBAY_BEACH_2016_SWARM("Bombay Beach 2016 Swarm", -1, new Location(33.298, -115.7126667, 2.38), 4.3) {
-			@Override
-			public long getOT() {
-				return 1474990200000l;
-			}
-		},
-		MOJAVE_S_POINT_M6("Mojave M6 Point Scenario", -1, new Location(34.42295,-117.80177,5.8), 6.0),
-		TEST_BOMBAY_M6_SUBSET("Bombay Beach M6 Scenario 50%", -1),
-		TEST_BOMBAY_M6_SUBSET_FIRST("Bombay Beach M6 Scenario First Half", -1),
-		TEST_BOMBAY_M6_SUBSET_SECOND("Bombay Beach M6 Scenario Second Half", -1),
-		TEST_NEGLIGABLE("Test Negligable Scenario", -1),
-		MAPPED_UCERF2("UCERF2 Time Indep", 10),
-		MAPPED_UCERF2_TIMEDEP("UCERF2 Time Dep, no ETAS", 11);
-		
-		private int probModelID;
-		private String name;
-		private Map<FaultModels, Integer> triggerRupIndexes;
-		private Location triggerLoc;
-		private double triggerMag;
-		
-		private static Map<FaultModels, Integer> triggerMap(FaultModels fm, int index) {
-			Map<FaultModels, Integer> triggerRupIndexes = Maps.newHashMap();
-			triggerRupIndexes.put(fm, index);
-			return triggerRupIndexes;
-		}
-		
-		private static Map<FaultModels, Integer> triggerMap(FaultModels fm1, int index1, FaultModels fm2, int index2) {
-			Map<FaultModels, Integer> triggerRupIndexes = Maps.newHashMap();
-			triggerRupIndexes.put(fm1, index1);
-			triggerRupIndexes.put(fm2, index2);
-			return triggerRupIndexes;
-		}
-		
-		private ETAS_CyberShake_Scenarios(String name, int probModelID) {
-			this(name, probModelID, null);
-		}
-		
-		private ETAS_CyberShake_Scenarios(String name, int probModelID, Map<FaultModels, Integer> triggerRupIndexes) {
-			this(name, probModelID, triggerRupIndexes, null, Double.NaN);
-		}
-		
-		private ETAS_CyberShake_Scenarios(String name, int probModelID, Location triggerLoc, double triggerMag) {
-			this(name, probModelID, null, triggerLoc, triggerMag);
-		}
-		
-		private ETAS_CyberShake_Scenarios(String name, int probModelID, Map<FaultModels, Integer> triggerRupIndexes,
-				Location triggerLoc, double triggerMag) {
-			this.triggerRupIndexes = triggerRupIndexes;
-			this.triggerLoc = triggerLoc;
-			this.triggerMag = triggerMag;
-			this.probModelID = probModelID;
-			this.name = name;
-		}
-		
-		public boolean isETAS() {
-			return triggerRupIndexes != null || triggerLoc != null;
-		}
-		
-		@Override
-		public String toString() {
-			return name;
-		}
-		
-		public int getProbModelID() {
-			return probModelID;
-		}
-
-		public int getTriggerRupIndex(FaultModels fm) {
-			if (triggerRupIndexes == null)
-				return -1;
-			return triggerRupIndexes.get(fm);
-		}
-
-		public Location getTriggerLoc() {
-			return triggerLoc;
-		}
-
-		public double getTriggerMag() {
-			return triggerMag;
-		}
-		
-		public long getOT() {
-			return Math.round((2012.0-1970.0)*ProbabilityModelsCalc.MILLISEC_PER_YEAR);
-		}
-		
-		public ETAS_EqkRupture getRupture(long ot, FaultSystemRupSet rupSet, FaultModels fm) {
-			if (!isETAS())
-				return null;
-			if (triggerRupIndexes != null) {
-				ETAS_EqkRupture mainshockRup = new ETAS_EqkRupture();
-				mainshockRup.setOriginTime(ot);
-				
-				int fssScenarioRupID = triggerRupIndexes.get(fm);
-				
-				mainshockRup.setAveRake(rupSet.getAveRakeForRup(fssScenarioRupID));
-				mainshockRup.setMag(rupSet.getMagForRup(fssScenarioRupID));
-				mainshockRup.setRuptureSurface(rupSet.getSurfaceForRupupture(fssScenarioRupID, 1d, false));
-				mainshockRup.setID(0);
-//				debug("test Mainshock: "+erf.getSource(srcID).getName());
-				
-				if (!Double.isNaN(triggerMag))
-					mainshockRup.setMag(triggerMag);
-				
-				return mainshockRup;
-			} else {
-				ETAS_EqkRupture mainshockRup = new ETAS_EqkRupture();
-				mainshockRup.setOriginTime(ot);	
-				
-				mainshockRup.setAveRake(0.0);
-				mainshockRup.setMag(triggerMag);
-				mainshockRup.setPointSurface(triggerLoc);
-				mainshockRup.setID(0);
-				
-				return mainshockRup;
-			}
-		}
-	}
-	
 	public enum ETAS_Cybershake_TimeSpans {
-		ONE_YEAR("One Year", 1, 1d),
+		ONE_DAY("One Day", 2, 1d/365.25),
 		ONE_WEEK("One Week", 4, 7d/365.25),
-		ONE_DAY("One Day", 2, 1d/365.25);
+		ONE_YEAR("One Year", 1, 1d);
 		
 		int timeSpanID;
 		String name;
@@ -246,12 +128,17 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		}
 	}
 	
+	public static final int U2_TI_PROB_MODEL_ID = 1;
+	public static final int U2_TD_PROB_MODEL_ID = 2;
+	public static final int U2_MAPPED_TI_PROB_MODEL_ID = 11;
+	public static final int U2_MAPPED_TD_PROB_MODEL_ID = 11;
+	
 	private static final boolean calc_by_add_spontaneous = true;
-	private static final boolean calc_by_treat_as_new_rupture = true;
+	private static final boolean calc_by_treat_as_new_rupture = false;
 	// if >0, all hypos within this distance will be promoted, not just closest
 	private static final double hypocenter_buffer_km = 10d;
 	
-	private ETAS_CyberShake_Scenarios scenario;
+	private ETAS_Config scenario;
 	private ETAS_Cybershake_TimeSpans timeSpan;
 	
 	private File catalogsFile;
@@ -298,19 +185,29 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 	private int erfID;
 	private int rupVarScenID;
 
-	public ETASModProbConfig(ETAS_CyberShake_Scenarios scenario, ETAS_Cybershake_TimeSpans timeSpan,
-			FaultSystemSolution sol, File catalogsFile, File mappingsCSVFile, int erfID, int rupVarScenID)
-			throws IOException {
-		super(scenario+" ("+timeSpan+")", scenario.probModelID, timeSpan.timeSpanID);
+	public ETASModProbConfig(ETAS_Config scenario, int probModelID, ETAS_Cybershake_TimeSpans timeSpan,
+			File mappingsCSVFile, int erfID, int rupVarScenID) throws IOException {
+		super(scenario.getSimulationName()+" ("+timeSpan+")", probModelID, timeSpan.timeSpanID);
 		
 		this.erfID = erfID;
 		this.rupVarScenID = rupVarScenID;
 		
-		this.catalogsFile = catalogsFile;
+		List<BinaryFilteredOutputConfig> binaryFilters = scenario.getBinaryOutputFilters();
+		if (binaryFilters != null) {
+			binaryFilters = new ArrayList<>(binaryFilters);
+			// sort so that the one with the lowest magnitude is used preferentially
+			binaryFilters.sort(SimulationMarkdownGenerator.binaryOutputComparator);
+			for (BinaryFilteredOutputConfig bin : binaryFilters) {
+				File binFile = new File(scenario.getOutputDir(), bin.getPrefix()+".bin");
+				if (binFile.exists()) {
+					catalogsFile = binFile;
+					break;
+				}
+			}
+		}
 		
-		this.sol = sol;
-//		ot = Math.round((2014.0-1970.0)*ProbabilityModelsCalc.MILLISEC_PER_YEAR); // occurs at 2014
-		ot = scenario.getOT();
+		this.sol = scenario.loadFSS();
+		ot = scenario.getSimulationStartTimeMillis();
 		endTime = ot + Math.round(timeSpan.years*ProbabilityModelsCalc.MILLISEC_PER_YEAR);
 		
 		System.out.println("Start time: "+ot);
@@ -320,10 +217,10 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		this.timeSpan = timeSpan;
 		
 		ucerf2 = MeanUCERF2_ToDB.createUCERF2ERF();
-		if (scenario == ETAS_CyberShake_Scenarios.MAPPED_UCERF2_TIMEDEP)
-			loadMappings(mappingsCSVFile, MeanUCERF2.PROB_MODEL_WGCEP_PREF_BLEND);
+		if (probModelID == U2_MAPPED_TI_PROB_MODEL_ID || probModelID == U2_TI_PROB_MODEL_ID)
+			loadMappings(mappingsCSVFile, UCERF2.PROB_MODEL_POISSON);
 		else
-			loadMappings(mappingsCSVFile);
+			loadMappings(mappingsCSVFile, MeanUCERF2.PROB_MODEL_WGCEP_PREF_BLEND);
 		
 		// TODO use time dep ERF probs?
 //		timeDepNoETAS_ERF = new FaultSystemSolutionERF(sol);
@@ -340,13 +237,30 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 //		timeDepNoETAS_ERF.getTimeSpan().setDuration(duration);
 	}
 	
+	public void setTreatAllHyposEqually(boolean triggerAllHyposEqually) {
+		this.triggerAllHyposEqually = triggerAllHyposEqually;
+	}
+	
 	private void loadCatalogs(File catalogsDirs) throws IOException {
-		catalogs = ETAS_CatalogIO.loadCatalogsBinary(catalogsFile);
+		setCatalogs(ETAS_CatalogIO.loadCatalogsBinary(catalogsFile));
+		
+		
+//		if (scenario == ETAS_CyberShake_Scenarios.TEST_BOMBAY_M6_SUBSET_FIRST)
+//			catalogs = catalogs.subList(0, catalogs.size()/2);
+//		else if (scenario == ETAS_CyberShake_Scenarios.TEST_BOMBAY_M6_SUBSET_SECOND)
+//			catalogs = catalogs.subList(catalogs.size()/2, catalogs.size());
+	}
+	
+	public void setCatalogs(List<List<ETAS_EqkRupture>> catalogs) {
+		this.rvHypoLocations = null;
+		this.rvProbs = null;
+		this.catalogs = new ArrayList<>();
+		
 		int numWithRups = 0;
 		int numFaultRups = 0;
 		for (int i=0; i<catalogs.size(); i++) {
 			List<ETAS_EqkRupture> catalog = filterCatalog(catalogs.get(i));
-			catalogs.set(i, catalog);
+			this.catalogs.add(catalog);
 			if (!catalog.isEmpty())
 				numWithRups++;
 			numFaultRups += catalog.size();
@@ -355,11 +269,6 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		System.out.println("Loaded "+catalogs.size()+" catalogs ("+numWithRups+" with "+numFaultRups+" fault rups)");
 		Preconditions.checkState(!catalogs.isEmpty(), "Must load at least one catalog!");
 		Preconditions.checkState(numWithRups > 0, "Must have at least one catalog with a fault based rupture!");
-		
-		if (scenario == ETAS_CyberShake_Scenarios.TEST_BOMBAY_M6_SUBSET_FIRST)
-			catalogs = catalogs.subList(0, catalogs.size()/2);
-		else if (scenario == ETAS_CyberShake_Scenarios.TEST_BOMBAY_M6_SUBSET_SECOND)
-			catalogs = catalogs.subList(catalogs.size()/2, catalogs.size());
 	}
 	
 	private List<ETAS_EqkRupture> filterCatalog(List<ETAS_EqkRupture> catalog) {
@@ -394,6 +303,15 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 
 		modifiedUCERF2.setParameter(UCERF2.BACK_SEIS_NAME, UCERF2.BACK_SEIS_EXCLUDE);
 		modifiedUCERF2.setParameter(UCERF2.PROB_MODEL_PARAM_NAME, u2ProbModel);
+		ucerf2.setParameter(UCERF2.PROB_MODEL_PARAM_NAME, u2ProbModel);
+		if (u2ProbModel.equals(MeanUCERF2.PROB_MODEL_WGCEP_PREF_BLEND) && scenario != null) {
+			GregorianCalendar cal = new GregorianCalendar();
+			cal.setTimeInMillis(scenario.getSimulationStartTimeMillis());
+			ucerf2.getTimeSpan().setStartTime(cal.get(GregorianCalendar.YEAR));
+			modifiedUCERF2.getTimeSpan().setStartTime(cal.get(GregorianCalendar.YEAR));
+		}
+		ucerf2.getTimeSpan().setDuration(1d);
+		ucerf2.updateForecast();
 		modifiedUCERF2.getTimeSpan().setDuration(1d);
 		modifiedUCERF2.setParameter(UCERF2.FLOATER_TYPE_PARAM_NAME, UCERF2.FULL_DDW_FLOATER);
 		modifiedUCERF2.updateForecast();
@@ -671,9 +589,9 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		RuptureProbabilityModifier probMod = getRupProbModifier();
 		
 		double prob = 1d/catalogs.size();
-		if (scenario == ETAS_CyberShake_Scenarios.TEST_NEGLIGABLE)
-			// make the probability gain super small which should result if almost zero gain if implemented correctly
-			prob = 1e-20;
+//		if (scenario == ETAS_CyberShake_Scenarios.TEST_NEGLIGABLE)
+//			// make the probability gain super small which should result if almost zero gain if implemented correctly
+//			prob = 1e-20;
 		// TODO correctly deal with exceedence probs, as a rup can happen more than once in a catalog 
 		
 		double occurMult = 1d;
@@ -878,20 +796,23 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 	public synchronized RuptureProbabilityModifier getRupProbModifier() {
 		if (rupProbMod != null)
 			return rupProbMod;
-		if (calc_by_add_spontaneous || scenario == ETAS_CyberShake_Scenarios.MAPPED_UCERF2) {
+//		if (calc_by_add_spontaneous || scenario == ETAS_CyberShake_Scenarios.MAPPED_UCERF2) {
+		if (calc_by_add_spontaneous) {
 			final double aftRateCorr = 1d; // include aftershocks
 			final double duration = timeSpan.getTimeYears();
+			final double u2dur = ucerf2.getTimeSpan().getDuration();
 			rupProbMod = new RuptureProbabilityModifier() {
 				
 				@Override
 				public double getModifiedProb(int sourceID, int rupID, double origProb) {
-					Integer fssIndex = rupMappingReverseTable.get(new IDPairing(sourceID, rupID));
-					if (fssIndex == null)
-						return 0d;
-					double rupRate = sol.getRateForRup(fssIndex);
+//					Integer fssIndex = rupMappingReverseTable.get(new IDPairing(sourceID, rupID));
+//					if (fssIndex == null)
+//						return 0d;
+//					double rupRate = sol.getRateForRup(fssIndex);
+					double rupRate = ucerf2.getRupture(sourceID, rupID).getMeanAnnualRate(u2dur);
 					double durationAdjustedRate = rupRate * duration;
 					if (triggerAllHyposEqually && fractOccurances != null && fractOccurances[sourceID] != null)
-						// this means we're applying rate increases to the whole rupture not just specifi RVs
+						// this means we're applying rate increases to the whole rupture not just specific RVs
 						durationAdjustedRate += fractOccurances[sourceID][rupID];
 					double prob = 1-Math.exp(-aftRateCorr*durationAdjustedRate);
 					return prob;
@@ -903,36 +824,29 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		return rupProbMod;
 	}
 	
-	public synchronized void setCatalogs(List<List<ETAS_EqkRupture>> catalogs) {
-		this.catalogs = catalogs;
-		this.rvHypoLocations = null;
-		this.rvProbs = null;
-	}
-	
 	public List<List<ETAS_EqkRupture>> getCatalogs() {
 		return catalogs;
 	}
 
 	@Override
 	public synchronized RuptureVariationProbabilityModifier getRupVarProbModifier() {
-		if (scenario == ETAS_CyberShake_Scenarios.MAPPED_UCERF2
-				|| scenario == ETAS_CyberShake_Scenarios.MAPPED_UCERF2_TIMEDEP || triggerAllHyposEqually)
+		if (!scenario.hasTriggers() || triggerAllHyposEqually)
 			return null;
 		try {
 			if (catalogs == null) {
-				System.out.println("Loading catalogs for "+scenario.name);
+				System.out.println("Loading catalogs for "+scenario.getSimulationName());
 				loadCatalogs(catalogsFile);
 			}
 			
 			if (rvHypoLocations == null) {
-				System.out.println("Loading Hypos for ETAS rups for "+scenario.name);
+				System.out.println("Loading Hypos for ETAS rups for "+scenario.getSimulationName());
 				loadHyposForETASRups();
 			}
 
 			if (rvProbs == null) {
-				System.out.println("Loading RV probs for "+scenario.name);
+				System.out.println("Loading RV probs for "+scenario.getSimulationName());
 				loadRVProbs();
-				System.out.println("DONE loading RV probs for "+scenario.name);
+				System.out.println("DONE loading RV probs for "+scenario.getSimulationName());
 			}
 		} catch (IOException e) {
 			ExceptionUtils.throwAsRuntimeException(e);
@@ -970,7 +884,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		return rupMappingTable;
 	}
 	
-	public ETAS_CyberShake_Scenarios getScenario() {
+	public ETAS_Config getEtasConfig() {
 		return scenario;
 	}
 	
@@ -1015,7 +929,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 	}
 	
 	static IncrementalMagFreqDist writeTriggerMFD(File outputDir, String prefix, List<List<ETAS_EqkRupture>> catalogs,
-			ETAS_CyberShake_Scenarios scenario, ETAS_Cybershake_TimeSpans timeSpan, String annotation,
+			ETAS_Config scenario, ETAS_Cybershake_TimeSpans timeSpan, String annotation,
 			IncrementalMagFreqDist longTermMFD, IncrementalMagFreqDist primaryMFD, int subIncr) throws IOException {
 		IncrementalMagFreqDist incrMFD = new IncrementalMagFreqDist(6.05, 31, 0.1d);
 		incrMFD.setName("Incremental MFD");
@@ -1091,7 +1005,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		funcs.add(cmlMFD);
 		chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.BLACK));
 		
-		PlotSpec spec = new PlotSpec(funcs, chars, scenario.name+" Scenario Supra Seis MFD",
+		PlotSpec spec = new PlotSpec(funcs, chars, scenario.getSimulationName()+" Scenario Supra Seis MFD",
 				"Magnitude", timeSpan.name+" Rate");
 		spec.setLegendVisible(true);
 		
@@ -1137,7 +1051,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		funcs.add(indepCmlMFD);
 		chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 3f, color));
 		
-		PlotSpec spec = new PlotSpec(funcs, chars, scenario.name+" Scenario Supra Seis MFD",
+		PlotSpec spec = new PlotSpec(funcs, chars, scenario.getSimulationName()+" Scenario Supra Seis MFD",
 				"Magnitude", timeSpan.name+" Rate");
 		spec.setLegendVisible(true);
 		
@@ -1233,7 +1147,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 	}
 	
 	IncrementalMagFreqDist getPrimaryMFD(File cacheDir, FaultModels fm) throws IOException {
-		if (!scenario.isETAS())
+		if (!scenario.hasTriggers())
 			return null;
 		// the following makes me feel dirty and sad
 		GriddedRegion griddedRegion = RELM_RegionUtils.getGriddedRegionInstance();
@@ -1265,8 +1179,10 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		ETAS_PrimaryEventSampler sampler = new ETAS_PrimaryEventSampler(cubeParams, erf, sourceRates,
 				null, etasParams, etas_utils, fractionSrcAtPointList, srcAtPointList, isCubeInsideFaultPolygon);
 		
-		ETAS_EqkRupture rupture = scenario.getRupture(ot, sol.getRupSet(), fm);
-		long ot = Math.round((2014.0-1970.0)*ProbabilityModelsCalc.MILLISEC_PER_YEAR);
+		List<ETAS_EqkRupture> triggerRuptures = new ETAS_Launcher(scenario).getTriggerRuptures();
+		Preconditions.checkState(triggerRuptures.size() == 1);
+		
+		ETAS_EqkRupture rupture = triggerRuptures.get(0);
 		IntegerPDF_FunctionSampler aveAveCubeSamplerForRup =
 				sampler.getAveSamplerForRupture(rupture);
 
@@ -1390,7 +1306,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 			
 			@Override
 			public String getName() {
-				return scenario.name()+" ETAS MODIFIED UCERF2";
+				return scenario.getSimulationName()+" ETAS MODIFIED UCERF2";
 			}
 			
 			@Override
@@ -1402,7 +1318,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 			public ProbEqkSource getSource(int sourceID) {
 				double probPerOccur;
 				if (catalogs == null) {
-					Preconditions.checkState(!scenario.isETAS());
+					Preconditions.checkState(scenario == null);
 					probPerOccur = 0;
 				} else {
 //					probPerOccur = 1d-Math.exp(-(1d/(double)catalogs.size()));
@@ -1488,19 +1404,19 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		FaultSystemSolution sol = FaultSystemIO.loadSol(new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/ucerf2_mapped_sol.zip"));
 		int erfID = 35;
 		int rupVarScenID = 4;
-		ETASModProbConfig conf = new ETASModProbConfig(ETAS_CyberShake_Scenarios.PARKFIELD, timeSpan, sol,
-				new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/sims/2014_09_02-parkfield-nospont/results.zip"),
-				new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/mappings.csv"), erfID, rupVarScenID);
+//		ETASModProbConfig conf = new ETASModProbConfig(ETAS_CyberShake_Scenarios.PARKFIELD, timeSpan, sol,
+//				new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/sims/2014_09_02-parkfield-nospont/results.zip"),
+//				new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/mappings.csv"), erfID, rupVarScenID);
 //		ETASModProbConfig conf = new ETASModProbConfig(ETAS_CyberShake_Scenarios.BOMBAY_M6, timeSpan, sol,
 //				new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/sims/2014_09_02-bombay_beach_m6-nospont/results.zip"),
 //				new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/mappings.csv"));
 //		ETASModProbConfig conf = new ETASModProbConfig(ETAS_CyberShake_Scenarios.MAPPED_UCERF2, timeSpan, sol,
 //				new File[0],
 //				new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/mappings.csv"));
-		
-		conf.writeTriggerMFD(new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/mfds"),
-				conf.scenario.name().toLowerCase()+"_trigger_mfd");
-		ETAS_MultiSimAnalysisTools.calcNumWithMagAbove(conf.catalogs, 0d);
+//		
+//		conf.writeTriggerMFD(new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/mfds"),
+//				conf.scenario.name().toLowerCase()+"_trigger_mfd");
+//		ETAS_MultiSimAnalysisTools.calcNumWithMagAbove(conf.catalogs, 0d);
 		
 		System.exit(0);
 	}

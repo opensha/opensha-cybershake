@@ -2,6 +2,7 @@ package scratch.kevin.cybershake.simCompare;
 
 import java.util.List;
 
+import org.opensha.sha.cybershake.ModProbConfig;
 import org.opensha.sha.cybershake.calc.RuptureProbabilityModifier;
 import org.opensha.sha.cybershake.calc.RuptureVariationProbabilityModifier;
 
@@ -16,6 +17,10 @@ public class StudyModifiedProbRotDProvider extends StudyRotDProvider {
 
 	public StudyModifiedProbRotDProvider(StudyRotDProvider prov, RuptureVariationProbabilityModifier varProbMod, String name) {
 		this(prov, null, varProbMod, name);
+	}
+
+	public StudyModifiedProbRotDProvider(StudyRotDProvider prov, ModProbConfig modProbConfig) {
+		this(prov, modProbConfig.getRupProbModifier(), modProbConfig.getRupVarProbModifier(), modProbConfig.getName());
 	}
 
 	public StudyModifiedProbRotDProvider(StudyRotDProvider prov, RuptureProbabilityModifier probMod,
@@ -44,6 +49,8 @@ public class StudyModifiedProbRotDProvider extends StudyRotDProvider {
 			return super.getIndividualSimulationRate(rupture, rupAnnualRate, simulationIndex, numSimulations);
 		double rupProb = rupture.getRup().getProbability();
 		List<Double> varProbs = varProbMod.getVariationProbs(rupture.getSourceID(), rupture.getRupID(), rupProb, null, null);
+		if (varProbs == null)
+			return super.getIndividualSimulationRate(rupture, rupAnnualRate, simulationIndex, numSimulations);
 		return varProbs.get(simulationIndex);
 	}
 

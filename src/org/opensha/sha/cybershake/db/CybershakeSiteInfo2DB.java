@@ -371,6 +371,7 @@ public class CybershakeSiteInfo2DB {
 					RSQSimProbEqkRup rsRup = (RSQSimProbEqkRup)rupture;
 					Range<Double> latRange = rsRup.getElemLatRange();
 					Range<Double> lonRange = rsRup.getElemLonRange();
+//					System.out.println("RSQSIM. latRange: "+latRange+"\tlonRange: "+lonRange);
 					if (latRange.lowerEndpoint() < minLat){
 						minLat = latRange.lowerEndpoint();
 						minLatRupId = rupIndex;

@@ -1300,7 +1300,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		return ucerf2;
 	}
 	
-	public ERF getModERFforGMPE(final boolean gmpeDirectivity) {
+	public AbstractERF getModERFforGMPE(final boolean gmpeDirectivity) {
 		final double timeRateMultiplier = timeSpan.getTimeYears();
 		return new AbstractERF() {
 			

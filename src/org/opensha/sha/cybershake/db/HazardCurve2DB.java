@@ -445,14 +445,14 @@ public class HazardCurve2DB {
 		}
 	}
 	
-	public void insertHazardCurve(CybershakeRun run, int imTypeID, DiscretizedFunc hazardFunc) {
+	public int insertHazardCurve(CybershakeRun run, int imTypeID, DiscretizedFunc hazardFunc) {
 		int datasetID = hd2db.getDefaultDatasetID(run);
 		if (datasetID < 0)
 			throw new RuntimeException("No dataset ID exists for run: "+run+"\nCurve cannot be inserted.");
-		insertHazardCurve(run.getRunID(), imTypeID, hazardFunc, datasetID);
+		return insertHazardCurve(run.getRunID(), imTypeID, hazardFunc, datasetID);
 	}
 	
-	public void insertHazardCurve(int runID, int imTypeID, DiscretizedFunc hazardFunc, int datasetID) {
+	public int insertHazardCurve(int runID, int imTypeID, DiscretizedFunc hazardFunc, int datasetID) {
 		int id = this.insertHazardCurveID(runID, imTypeID, datasetID);
 		if (datasetID >= 0) {
 			int checkDataset = getDatasetIDForCurve(id);
@@ -460,6 +460,7 @@ public class HazardCurve2DB {
 					"Got back a curve with a different dataset ID! "+datasetID+" != "+checkDataset);
 		}
 		this.insertHazardCurvePoints(id, hazardFunc);
+		return id;
 	}
 	
 	public boolean deleteHazardCurve(int curveID) {

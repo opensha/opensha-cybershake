@@ -83,7 +83,7 @@ public enum CyberShakeStudy {
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME) {
 		@Override
-		AbstractERF buildERF() {
+		public AbstractERF buildNewERF() {
 			return MeanUCERF2_ToDB.createUCERF2ERF();
 		}
 		@Override
@@ -96,7 +96,7 @@ public enum CyberShakeStudy {
 			new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
-		AbstractERF buildERF() {
+		public AbstractERF buildNewERF() {
 			return MeanUCERF2_ToDB.createUCERF2ERF();
 		}
 		@Override
@@ -109,7 +109,7 @@ public enum CyberShakeStudy {
 			new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
-		AbstractERF buildERF() {
+		public AbstractERF buildNewERF() {
 			return MeanUCERF2_ToDB.createUCERF2ERF();
 		}
 		@Override
@@ -122,7 +122,7 @@ public enum CyberShakeStudy {
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
-		AbstractERF buildERF() {
+		public AbstractERF buildNewERF() {
 			return getRSQSimERF("rundir2457");
 		}
 		@Override
@@ -135,7 +135,7 @@ public enum CyberShakeStudy {
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
-		AbstractERF buildERF() {
+		public AbstractERF buildNewERF() {
 			return getRSQSimERF("rundir2585_1myr");
 		}
 		@Override
@@ -148,7 +148,7 @@ public enum CyberShakeStudy {
 			new CaliforniaRegions.CYBERSHAKE_BAY_AREA_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
-		AbstractERF buildERF() {
+		public AbstractERF buildNewERF() {
 			return MeanUCERF2_ToDB.createUCERF2ERF();
 		}
 		@Override
@@ -161,7 +161,7 @@ public enum CyberShakeStudy {
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
-		AbstractERF buildERF() {
+		public AbstractERF buildNewERF() {
 			return getRSQSimERF("rundir2740");
 		}
 		@Override
@@ -780,12 +780,12 @@ public enum CyberShakeStudy {
 		MarkdownUtils.writeReadmeAndHTML(lines, dir);
 	}
 	
-	abstract AbstractERF buildERF();
+	public abstract AbstractERF buildNewERF();
 	
 	private AbstractERF erf;
 	public synchronized AbstractERF getERF() {
 		if (erf == null)
-			erf = buildERF();
+			erf = buildNewERF();
 		return erf;
 	}
 	

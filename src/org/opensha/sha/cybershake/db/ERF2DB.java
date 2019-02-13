@@ -953,15 +953,22 @@ public  class ERF2DB implements ERF2DBAPI{
 		}
 
 		return localStrike;
-	}	  
-
-	public void insertForecaseInDB(String erfName, String erfDescription, GriddedRegion region){
+	}
+	
+	public void insertForecastInDB(String erfName, String erfDescription, GriddedRegion region) {
 		System.out.println("Inserting erf with name: "+erfName);
 		int erfId = insertERFId(erfName, erfDescription);
 		Preconditions.checkState(erfId >= 0, "BAD ERF ID: "+erfId);
 		System.out.println("Inserted ERF ID: "+erfId);
 		Preconditions.checkState(erfId > 35);
-
+		
+		insertForecastParamsInDB(erfId);
+		
+		//inserts the rupture information in the database
+		insertSrcRupInDB(erfId, region, 0, 0);
+	}
+	
+	public void insertForecastParamsInDB(int erfId) {
 		//adding the forecast parameters
 		for (Parameter<?> param : eqkRupForecast.getAdjustableParameterList()){
 			Object paramValue = param.getValue();
@@ -979,8 +986,6 @@ public  class ERF2DB implements ERF2DBAPI{
 			paramType = paramType.replaceAll("Parameter", "");
 			insertERFParams(erfId, param.getName(), param.getValue().toString(), paramType,param.getUnits());
 		}
-		//inserts the rupture information in the database
-		insertSrcRupInDB(erfId, region, 0, 0);
 	}
 
 	public void deleteRupture(int erfID, int srcID, int rupID) {
@@ -1006,7 +1011,7 @@ public  class ERF2DB implements ERF2DBAPI{
 	}
 
 	public void insertForecaseInDB(String erfName, String erfDescription){
-		this.insertForecaseInDB(erfName, erfDescription, null);
+		this.insertForecastInDB(erfName, erfDescription, null);
 	}
 
 	/**

@@ -34,15 +34,18 @@ import org.opensha.sha.calc.mcer.CachedMCErDeterministicCalc;
 import org.opensha.sha.calc.mcer.MCErCalcUtils;
 import org.opensha.sha.calc.mcer.MCErMapGenerator;
 import org.opensha.sha.cybershake.HazardCurveFetcher;
+import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.calc.mcer.UGMS_WebToolCalc.SpectraType;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeRun;
+import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.maps.CyberShake_GMT_MapGenerator;
 import org.opensha.sha.earthquake.AbstractERF;
+import org.opensha.sha.imr.param.OtherParams.Component;
 import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
 
 import com.google.common.base.Preconditions;
@@ -54,9 +57,14 @@ import scratch.kevin.util.ReturnPeriodUtils;
 
 public class CyberShakeScatterWriter {
 	
+	public static final double bse2e_level = ReturnPeriodUtils.calcExceedanceProb(0.05, 50d, 1d);
+	public static final double bse1e_level = ReturnPeriodUtils.calcExceedanceProb(0.2, 50d, 1d);
+	public static final double sle_level = 1d-Math.exp(-1d/43d);
+	
 	public static void main(String[] args) throws IOException, GMT_MapException {
 		File outputDir = new File("/home/kevin/CyberShake/MCER/maps/study_15_4_rotd100/scatter");
 		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+		boolean calcIfNeeded = false;
 		CyberShakeComponent component = CyberShakeComponent.RotD100;
 		double[] periods = { 2,3,4,5,7.5,10 };
 		Region region = new CaliforniaRegions.CYBERSHAKE_MAP_REGION();
@@ -65,13 +73,17 @@ public class CyberShakeScatterWriter {
 		boolean reinterpolate = false;
 		double spacing = 0.002;
 		
-		DBAccess db = study.getDB();
+		DBAccess db;
+		if (calcIfNeeded)
+			db = Cybershake_OpenSHA_DBApplication.getAuthenticatedDBAccess(true, true, study.getDBHost());
+		else
+			db = study.getDB();
 		
 		AbstractERF erf = study.getERF();
 		List<CybershakeRun> runs = study.runFetcher().fetch();
 		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(db, MCERDataProductsCalc.cacheDir, erf);
 		
-		File detCacheFile = null, probCacheFile = null;
+		File detCacheFile = null, probCacheFile = null, rd50ProbCacheFile = null;
 		if (cache) {
 			// now cache
 			File cacheDir = new File(outputDir, ".cs_cache");
@@ -80,6 +92,7 @@ public class CyberShakeScatterWriter {
 			String cachePrefix = study.name()+"_"+component.name();
 			detCacheFile = new File(cacheDir, cachePrefix+"_deterministic.xml");
 			probCacheFile = new File(cacheDir, cachePrefix+"_probabilistic_curve.xml");
+			rd50ProbCacheFile = new File(cacheDir, study.name()+"_"+CyberShakeComponent.RotD50.name()+"_probabilistic_curve.xml");
 		}
 		
 		CachedMCErDeterministicCalc csDetCalc = new CachedMCErDeterministicCalc(
@@ -87,8 +100,14 @@ public class CyberShakeScatterWriter {
 		CachedCurveBasedMCErProbabilisticCalc csProbCalc = new CachedCurveBasedMCErProbabilisticCalc(
 				new CyberShakeMCErProbabilisticCalc(db, component), probCacheFile);
 		
-		double bse2e_level = ReturnPeriodUtils.calcExceedanceProb(0.05, 50d, 1d);
-		double bse1e_level = ReturnPeriodUtils.calcExceedanceProb(0.2, 50d, 1d);
+		CyberShakeMCErProbabilisticCalc rawRd50Calc = new CyberShakeMCErProbabilisticCalc(db, CyberShakeComponent.RotD50);
+		if (calcIfNeeded) {
+			HazardCurveComputation calc = new HazardCurveComputation(db);
+			calc.setPeakAmpsAccessor(new CachedPeakAmplitudesFromDB(db, new File("/data/kevin/cybershake/amps_cache/"), study.getERF()));
+			rawRd50Calc.setCalculateCurves(true, calc);
+		}
+		CachedCurveBasedMCErProbabilisticCalc csRotd50ProbCalc = new CachedCurveBasedMCErProbabilisticCalc(
+				rawRd50Calc, rd50ProbCacheFile);
 		
 		List<String> lines = new ArrayList<>();
 		lines.add("# "+study.getName()+" MCER Maps");
@@ -130,6 +149,11 @@ public class CyberShakeScatterWriter {
 		if (reinterpolate || !bse1eSpectraFile.exists())
 			bse1eSpectrumMap = new HashMap<>();
 		
+		File sleSpectraFile = new File(outputDir, SpectraType.SLE.getFileName(spacing));
+		Map<Location, DiscretizedFunc> sleSpectrumMap = null;
+		if (reinterpolate || !sleSpectraFile.exists())
+			sleSpectrumMap = new HashMap<>();
+		
 		for (double period : periods) {
 			CybershakeIM im = CyberShakeMCErProbabilisticCalc.getIMsForPeriods(db, component, Lists.newArrayList(period)).get(0);
 			System.out.println("Period "+(float)period+": "+im);
@@ -144,6 +168,7 @@ public class CyberShakeScatterWriter {
 			GeoDataSet detLowerScatter = new ArbDiscrGeoDataSet(true);
 			GeoDataSet bse2eScatter = new ArbDiscrGeoDataSet(true);
 			GeoDataSet bse1eScatter = new ArbDiscrGeoDataSet(true);
+			GeoDataSet sleScatter = new ArbDiscrGeoDataSet(true);
 			for (Site site : sites) {
 				DiscretizedFunc probCurve = csProbCalc.calcHazardCurves(site, Lists.newArrayList(period)).get(period);
 				double probVal = csProbCalc.calc(site, period);
@@ -164,12 +189,16 @@ public class CyberShakeScatterWriter {
 				double bse2e = HazardDataSetLoader.getCurveVal(probCurve, false, bse2e_level);
 				double bse1e = HazardDataSetLoader.getCurveVal(probCurve, false, bse1e_level);
 				
+				DiscretizedFunc rd50Curve = csRotd50ProbCalc.calcHazardCurves(site, Lists.newArrayList(period)).get(period);
+				double sle = HazardDataSetLoader.getCurveVal(rd50Curve, false, sle_level);
+				
 				checkSet(mcerScatter, site, mcer, "MCER");
 				checkSet(probScatter, site, probVal, "prob");
 				checkSet(detScatter, site, detVal, "det");
 				checkSet(detLowerScatter, site, detLowerVal, "det-lower");
 				checkSet(bse2eScatter, site, bse2e, "BSE-2E");
 				checkSet(bse1eScatter, site, bse1e, "BSE-1E");
+				checkSet(sleScatter, site, sle, "SLE");
 			}
 			
 			System.out.println("Done, writing...");
@@ -181,6 +210,7 @@ public class CyberShakeScatterWriter {
 					periodStr+"s Det. Lower Limit", replot);
 			File bse2ePlot = writePlot(bse2eScatter, region, period, outputDir, "bse_2e_"+periodStr+"s", periodStr+"s BSE-2E", replot);
 			File bse1ePlot = writePlot(bse1eScatter, region, period, outputDir, "bse_1e_"+periodStr+"s", periodStr+"s BSE-1E", replot);
+			File slePlot = writePlot(sleScatter, region, period, outputDir, "sle_"+periodStr+"s", periodStr+"s SLE", replot);
 			
 			lines.add("## "+periodStr+"s Maps");
 			lines.add(topLink); lines.add("");
@@ -200,12 +230,12 @@ public class CyberShakeScatterWriter {
 			lines.addAll(table.build());
 			
 			lines.add("");
-			lines.add("### "+periodStr+"s BSE-2E & BSE-1E");
+			lines.add("### "+periodStr+"s BSE-2E, BSE-1E & SLE");
 			lines.add(topLink); lines.add("");
 			
 			table = MarkdownUtils.tableBuilder();
-			table.addLine("**BSE-2E**", "**BSE-1E**");
-			table.addLine("![BSE-2E]("+bse2ePlot.getName()+")", "![BSE-1E]("+bse1ePlot.getName()+")");
+			table.addLine("**BSE-2E**", "**BSE-1E**", "**SLE**");
+			table.addLine("![BSE-2E]("+bse2ePlot.getName()+")", "![BSE-1E]("+bse1ePlot.getName()+")", "![SLE]("+slePlot.getName()+")");
 			lines.addAll(table.build());
 			
 			lines.add("");
@@ -235,11 +265,16 @@ public class CyberShakeScatterWriter {
 				GeoDataSet bse1eInterpolatedData = interpolate(bse1eScatter, region, spacing);
 				loadSpecta(bse1eSpectrumMap, bse1eInterpolatedData, period);
 			}
+			if (sleSpectrumMap != null) {
+				GeoDataSet sleInterpolatedData = interpolate(sleScatter, region, spacing);
+				loadSpecta(sleSpectrumMap, sleInterpolatedData, period);
+			}
 			
 			if (cache) {
 				try {
 					((CachedMCErDeterministicCalc)csDetCalc).flushCache();
 					((CachedCurveBasedMCErProbabilisticCalc)csProbCalc).flushCache();
+					((CachedCurveBasedMCErProbabilisticCalc)csRotd50ProbCalc).flushCache();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -259,15 +294,22 @@ public class CyberShakeScatterWriter {
 			new BinaryHazardCurveWriter(bse2eSpectraFile).writeCurves(bse2eSpectrumMap);
 		if (bse1eSpectrumMap != null)
 			new BinaryHazardCurveWriter(bse1eSpectraFile).writeCurves(bse1eSpectrumMap);
+		if (sleSpectrumMap != null)
+			new BinaryHazardCurveWriter(sleSpectraFile).writeCurves(sleSpectrumMap);
+		System.out.println("Done wiritng, files, destroying DB connection");
 		
 		db.destroy();
+		if (calcIfNeeded)
+			study.getDB().destroy();
 		
 		// add TOC
 		lines.addAll(tocIndex, MarkdownUtils.buildTOC(lines, 2, 4));
 		lines.add(tocIndex, "## Table Of Contents");
 
 		// write markdown
+		System.out.print("Writing markdown...");
 		MarkdownUtils.writeReadmeAndHTML(lines, outputDir);
+		System.out.println("DONE");
 	}
 	
 	private static void checkSet(GeoDataSet scatter, Site site, double val, String name) {
@@ -294,9 +336,18 @@ public class CyberShakeScatterWriter {
 			else
 				cpt = cpt.rescale(-2d, 0d);
 		}
+		double contour = 0.1;
+		if (prefix.contains("sle")) {
+			if (log_plot) {
+				cpt = cpt.rescale(-2.5d, -0.5d);
+			} else {
+				cpt = cpt.rescale(0d, 0.5d);
+				contour = 0.05;
+			}
+		}
 		GMT_Map map = MCErMapGenerator.buildScatterMap(region, scatter, false, period, title, cpt, log_plot);
 		map.setSymbolSet(null);
-		map.setContourIncrement(0.1);
+		map.setContourIncrement(contour);
 		FaultBasedMapGen.plotMap(outputDir, prefix, false, map);
 		Preconditions.checkState(pngFile.exists());
 		return pngFile;

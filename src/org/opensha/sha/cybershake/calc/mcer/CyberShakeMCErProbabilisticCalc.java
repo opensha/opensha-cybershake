@@ -1,5 +1,7 @@
 package org.opensha.sha.cybershake.calc.mcer;
 
+import java.awt.geom.Point2D;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -8,13 +10,16 @@ import java.util.Map;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.sha.calc.mcer.CurveBasedMCErProbabilisitCalc;
+import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
+import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.HazardCurve2DB;
 import org.opensha.sha.cybershake.db.HazardDataset2DB;
 import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
+import org.opensha.sha.gui.infoTools.IMT_Info;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -31,12 +36,25 @@ public class CyberShakeMCErProbabilisticCalc extends
 	
 	private static List<CybershakeIM> allIMs;
 	
+	private boolean calculateCurves = false;
+	private HazardCurveComputation curveCalc = null;
+	private List<Double> curveXVals = null;
+	
 	public CyberShakeMCErProbabilisticCalc(DBAccess db, CyberShakeComponent component) {
 		this.db = db;
 		this.component = component;
 		
 		this.curves2db = new HazardCurve2DB(db);
 		this.dataset2db = new HazardDataset2DB(db);
+	}
+	
+	public void setCalculateCurves(boolean calculateCurves) {
+		setCalculateCurves(calculateCurves, (calculateCurves && this.curveCalc == null) ? new HazardCurveComputation(db) : this.curveCalc);
+	}
+	
+	public void setCalculateCurves(boolean calculateCurves, HazardCurveComputation curveCalc) {
+		this.calculateCurves = calculateCurves;
+		this.curveCalc = curveCalc;
 	}
 	
 	public static synchronized List<CybershakeIM> getIMsForPeriods(DBAccess db,
@@ -141,8 +159,26 @@ public class CyberShakeMCErProbabilisticCalc extends
 			double period = PeakAmplitudesFromDB.getCleanedCS_Period(im.getVal());
 			// chop of weirdness at, for example 3.00003
 			if (curveID == null) {
-				System.out.println("Skipping period "+period+" for site "+site.getName()+", no curve exists");
-				continue;
+				if (calculateCurves) {
+					Preconditions.checkNotNull(curveCalc);
+					if (curveXVals == null) {
+						synchronized (curveCalc) {
+							DiscretizedFunc defaultCurve = new IMT_Info().getDefaultHazardCurve(SA_Param.NAME);
+							curveXVals = new ArrayList<>();
+							for (Point2D pt : defaultCurve)
+								curveXVals.add(pt.getX());
+						}
+					}
+					System.out.println("Calculating curve for site "+site.getName()+", period "+period);
+					DiscretizedFunc curve = curveCalc.computeHazardCurve(curveXVals, siteRun.getCS_Run(), im);
+					System.out.println("Inserting...");
+					curveID = curves2db.insertHazardCurve(siteRun.getCS_Run(), im.getID(), curve);
+					System.out.println("Inserted");
+				} else {
+					System.out.println("Skipping period "+period+" for site "+site.getName()
+						+", no curve exists and alculateCurves="+calculateCurves);
+					continue;
+				}
 			}
 			DiscretizedFunc curve = curves2db.getHazardCurve(curveID);
 			curves.put(period, curve);

@@ -35,6 +35,8 @@ import org.opensha.sha.calc.mcer.MCErMapGenerator;
 import org.opensha.sha.cybershake.calc.mcer.UGMS_WebToolCalc.DesignParameter;
 import org.opensha.sha.cybershake.calc.mcer.UGMS_WebToolCalc.SpectraSource;
 import org.opensha.sha.cybershake.calc.mcer.UGMS_WebToolCalc.SpectraType;
+import org.opensha.sha.imr.param.OtherParams.Component;
+import org.opensha.sha.util.component.ComponentConverter;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -47,6 +49,7 @@ import scratch.kevin.util.ReturnPeriodUtils;
 
 public class MPJ_GMPE_MCErCacheGenResultReorg {
 	
+	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
 		File mainDir = new File("/home/kevin/CyberShake/MCER/gmpe_cache_gen");
 //		String prefix = "2016_09_30-ucerf3_downsampled_ngaw2_binary_0.02_";
@@ -56,6 +59,7 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 		String prefix = "2018_10_03-ucerf3_downsampled_ngaw2_binary_curves_0.01_";
 		String dataFileName = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD100_mcer.bin";
 		String pgaPrefix = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD50_pga";
+		Component saComponent = Component.RotD100;
 		String saFilePrefix = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD100_sa_";
 		File outputDir = new File(mainDir, prefix+"results");
 		double spacing = 0.01;
@@ -71,8 +75,8 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 //		plotSpectrum(0.1, new BinaryHazardCurveReader(detFile.getAbsolutePath()).getCurveMap(), tmp, "CCD_det", spacing, region);
 //		System.exit(0);
 		
-//		double[] plotPeriods = {0.1d, 1d};
-		double[] plotPeriods = null;
+		double[] plotPeriods = {0.1d, 1d};
+//		double[] plotPeriods = null;
 		boolean replot = false;
 		
 		List<String> lines = new ArrayList<>();
@@ -136,10 +140,11 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 					plotPGA(pgaData, outputDir, identifier+", PGAM", pgaPlotPrefix, spacing, region, replot);
 			}
 			
-			// now BSE-2E and BSE-1E
+			// now BSE-2E, BSE-1E, and SLE
 			DiscretizedFunc mcerXVals = mcerMap.values().iterator().next();
 			Map<Location, ArbitrarilyDiscretizedFunc> bse2Espectra = new HashMap<>();
 			Map<Location, ArbitrarilyDiscretizedFunc> bse1Espectra = new HashMap<>();
+			Map<Location, ArbitrarilyDiscretizedFunc> sleSpectra = new HashMap<>();
 			for (int p=0; p<mcerXVals.size(); p++) {
 				double period = mcerXVals.getX(p);
 				File saFile = new File(dir, saFilePrefix+(float)period+"s.bin");
@@ -155,21 +160,33 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 					Preconditions.checkNotNull(mcerSpectrum, "No MCER spectra found for location: %s", loc);
 //					double mcer = mcerSpectrum.getY(period);
 					// TODO use ReturnPeriodUtils instead?
-					double imlAt5_50 = calculateUniformHazardVal(hazardCurve, 0.05, 50d);
-					double imlAt20_50 = calculateUniformHazardVal(hazardCurve, 0.2, 50d);
+					double imlAt5_50 = calculateUniformHazardVal(hazardCurve, CyberShakeScatterWriter.bse2e_level);
+					double imlAt20_50 = calculateUniformHazardVal(hazardCurve, CyberShakeScatterWriter.bse1e_level);
 					double bse2e = imlAt5_50;
 					double bse1e = imlAt20_50;
 					
 					ArbitrarilyDiscretizedFunc bse2Espectrum = bse2Espectra.get(loc);
 					ArbitrarilyDiscretizedFunc bse1Espectrum = bse1Espectra.get(loc);
+					ArbitrarilyDiscretizedFunc sleSpectrum = sleSpectra.get(loc);
 					if (bse2Espectrum == null) {
 						bse2Espectrum = new ArbitrarilyDiscretizedFunc();
 						bse1Espectrum = new ArbitrarilyDiscretizedFunc();
+						sleSpectrum = new ArbitrarilyDiscretizedFunc();
 						bse2Espectra.put(loc, bse2Espectrum);
 						bse1Espectra.put(loc, bse1Espectrum);
+						sleSpectra.put(loc, sleSpectrum);
 					}
 					bse2Espectrum.set(period, bse2e);
 					bse1Espectrum.set(period, bse1e);
+					
+					// now SLE, AFE = 1/43yr (approx 50% exceedance probability in 30 years), RotD50
+					DiscretizedFunc rd50curve;
+					if (saComponent == Component.RotD50)
+						rd50curve = hazardCurve;
+					else
+						rd50curve = ComponentConverter.convert(saComponent, Component.RotD50, hazardCurve, period);
+					double sleIML = calculateUniformHazardVal(rd50curve, CyberShakeScatterWriter.sle_level);
+					sleSpectrum.set(period, sleIML);
 				}
 			}
 			File bse2eOutFile = new File(outputDir, identifier+"_"+SpectraType.BSE_2E.getFileName(spacing));
@@ -180,10 +197,15 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 			String bse1ePlotPrefix = bse1eOutFile.getName().replace(".bin", "");
 			BinaryHazardCurveWriter bse1Ewriter = new BinaryHazardCurveWriter(bse1eOutFile);
 			bse1Ewriter.writeCurves(bse1Espectra);
+			File sleOutFile = new File(outputDir, identifier+"_"+SpectraType.SLE.getFileName(spacing));
+			String slePlotPrefix = sleOutFile.getName().replace(".bin", "");
+			BinaryHazardCurveWriter sleWriter = new BinaryHazardCurveWriter(sleOutFile);
+			sleWriter.writeCurves(sleSpectra);
 			if (plotPeriods != null) {
 				for (double period : plotPeriods) {
 					plotSpectra(period, bse2Espectra, outputDir, identifier+", BSE-2E", bse2ePlotPrefix, spacing, region, replot);
 					plotSpectra(period, bse1Espectra, outputDir, identifier+", BSE-1E", bse1ePlotPrefix, spacing, region, replot);
+					plotSpectra(period, sleSpectra, outputDir, identifier+", SLE", slePlotPrefix, spacing, region, replot);
 				}
 			}
 			
@@ -218,7 +240,7 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 			
 			if (plotPeriods != null)
 				lines.addAll(getPlotLines(plotPeriods, topLink, identifier, mcerPlotPrefix, pgaPlotPrefix, bse2ePlotPrefix,
-						bse1ePlotPrefix, bse2ePGAPlotPrefix));
+						bse1ePlotPrefix, bse2ePGAPlotPrefix, slePlotPrefix));
 		}
 		
 		// now calculate D_default
@@ -235,8 +257,8 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 			and do the exact same for BSE-2E and BSE-1E
 		 */
 		System.out.println("Creating D_default");
-		SpectraType[] typesForD_default = {SpectraType.MCER, SpectraType.BSE_2E, SpectraType.BSE_1E };
-		String mcerPlotPrefix = null, bse2ePlotPrefix = null, bse1ePlotPrefix = null;
+		SpectraType[] typesForD_default = {SpectraType.MCER, SpectraType.BSE_2E, SpectraType.BSE_1E, SpectraType.SLE };
+		String mcerPlotPrefix = null, bse2ePlotPrefix = null, bse1ePlotPrefix = null, slePlotPrefix = null;
 		for (SpectraType type : typesForD_default) {
 			File dIn = new File(outputDir, "classD_"+type.getFileName(spacing));
 			File cIn = new File(outputDir, "classC_"+type.getFileName(spacing));
@@ -288,6 +310,8 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 					bse2ePlotPrefix = plotPrefix;
 				else if (type == SpectraType.BSE_1E)
 					bse1ePlotPrefix = plotPrefix;
+				else if (type == SpectraType.SLE)
+					slePlotPrefix = plotPrefix;
 				for (double period : plotPeriods)
 					plotSpectra(period, dDeafultMap, outputDir, "classD (default), "+type, plotPrefix, spacing, region, replot);
 			}
@@ -329,7 +353,7 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 		
 		if (plotPeriods != null) {
 			lines.addAll(getPlotLines(plotPeriods, topLink, "classD (Default)", mcerPlotPrefix, pgaPlotPrefix, bse2ePlotPrefix,
-					bse1ePlotPrefix, bse2ePGAPlotPrefix));
+					bse1ePlotPrefix, bse2ePGAPlotPrefix, slePlotPrefix));
 			
 			// add TOC
 			lines.addAll(tocIndex, MarkdownUtils.buildTOC(lines, 2, 4));
@@ -342,7 +366,7 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 
 	private static List<String> getPlotLines(double[] plotPeriods, String topLink, String identifier,
 			String mcerPlotPrefix, String pgaPlotPrefix, String bse2ePlotPrefix, String bse1ePlotPrefix,
-			String bse2ePGAPlotPrefix) {
+			String bse2ePGAPlotPrefix, String slePlotPrefix) {
 		List<String> lines = new ArrayList<>();
 		
 		identifier = identifier.replaceAll("class", "Class ");
@@ -362,6 +386,8 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 				table.addColumn("BSE-2E");
 				table.addColumn("BSE-1E");
 			}
+			if (slePlotPrefix != null)
+				table.addColumn("SLE");
 			table.finalizeLine();
 			
 			table.initNewLine();
@@ -370,6 +396,8 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 				table.addColumn("![BSE-2E]("+bse2ePlotPrefix+"_"+(float)period+".png)");
 				table.addColumn("![BSE-1E]("+bse1ePlotPrefix+"_"+(float)period+".png)");
 			}
+			if (slePlotPrefix != null)
+				table.addColumn("![SLE]("+slePlotPrefix+"_"+(float)period+".png)");
 			table.finalizeLine();
 			
 			lines.addAll(table.build());
@@ -405,6 +433,10 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 	
 	private static double calculateUniformHazardVal(DiscretizedFunc curve, double targetProb, double targetDuration) {
 		double prob = ReturnPeriodUtils.calcExceedanceProb(targetProb, targetDuration, 1d);
+		return calculateUniformHazardVal(curve, prob);
+	}
+	
+	private static double calculateUniformHazardVal(DiscretizedFunc curve, double prob) {
 		double iml;
 		try {
 			iml = curve.getFirstInterpolatedX_inLogXLogYDomain(prob);
@@ -428,7 +460,10 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 		}
 		CPT cpt = GMT_CPT_Files.MAX_SPECTRUM.instance();
 		double contour;
-		if (period == 1d) {
+		if (prefix.contains("_sle")) {
+			cpt = cpt.rescale(0d, 0.5);
+			contour = 0.05;
+		} else if (period == 1d) {
 			cpt = cpt.rescale(0d, 2d);
 			contour = 0.1;
 		} else if (period == 0.1d) {

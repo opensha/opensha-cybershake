@@ -145,7 +145,8 @@ public class UGMS_WebToolCalc {
 	private enum CodeVersion {
 		MCER,
 		BSE_N,
-		BSE_E
+		BSE_E,
+		LATBSDC
 	}
 	
 	private static final String SPACING_REPLACE_STR = "123SPACING321";
@@ -161,7 +162,8 @@ public class UGMS_WebToolCalc {
 		BSE_2E("Site Specific BSE-2E", "BSE-2E", "BSE_2E", "bse_2e_spectrum_"+SPACING_REPLACE_STR+".bin"),
 		BSE_1E("Site Specific BSE-1E", "BSE-1E", "BSE_1E", "bse_1e_spectrum_"+SPACING_REPLACE_STR+".bin"),
 		BSE_2N("Site Specific BSE-2N", "BSE-2N", "BSE_2N", "mcer_spectrum_"+SPACING_REPLACE_STR+".bin"),
-		BSE_1N("Site Specific BSE-1N", "BSE-1N", "BSE_1N");
+		BSE_1N("Site Specific BSE-1N", "BSE-1N", "BSE_1N"),
+		SLE("Service Level Earthquake", "SLE", "SLE", "sle_spectrum_"+SPACING_REPLACE_STR+".bin");
 		
 		private String name, shortName, elementName, fileName;
 		
@@ -822,7 +824,8 @@ public class UGMS_WebToolCalc {
 	}
 	
 	private DiscretizedFunc calcCombined(SpectraType type) {
-		if (type == SpectraType.MCER || type == SpectraType.BSE_2N || type == SpectraType.BSE_2E || type == SpectraType.BSE_1E) {
+		if (type == SpectraType.MCER || type == SpectraType.BSE_2N || type == SpectraType.BSE_2E || type == SpectraType.BSE_1E
+				|| type == SpectraType.SLE) {
 			// weight average CS and GMPE
 			return MCERDataProductsCalc.calcFinalMCER(getCalcSpectrum(type, SpectraSource.CYBERSHAKE),
 					getCalcSpectrum(type, SpectraSource.GMPE));
@@ -851,7 +854,7 @@ public class UGMS_WebToolCalc {
 			return standardSpectrum;
 		}
 		if (type == SpectraType.MCER_DESIGN_STANDARD) {
-			DiscretizedFunc standardSpectrum =DesignSpectrumCalc.calcSpectrum(
+			DiscretizedFunc standardSpectrum = DesignSpectrumCalc.calcSpectrum(
 					getCalcDesignParam(DesignParameter.SDS, SpectraType.MCER_DESIGN, SpectraSource.COMBINED),
 					getCalcDesignParam(DesignParameter.SD1, SpectraType.MCER_DESIGN, SpectraSource.COMBINED),
 					getCalcDesignParam(DesignParameter.TL, null, null));
@@ -1172,6 +1175,35 @@ public class UGMS_WebToolCalc {
 			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_1N, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_1N, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_1N, SpectraSource.COMBINED);
+			break;
+			
+		case LATBSDC:
+			plot("mcer_sa_final", psv, params,
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER, Color.BLACK, PlotLineType.SOLID, 4f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.SLE, Color.GREEN.darker(), PlotLineType.SOLID, 3f));
+			plot("mcer_sa_design_final", psv, params,
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER, Color.BLACK, PlotLineType.SOLID, 4f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER_DESIGN, Color.RED, PlotLineType.SOLID, 3f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.SLE, Color.GREEN.darker(), PlotLineType.SOLID, 3f));
+			plot("mcer_sa_ingredients", psv, params,
+					new SpectrumPlotElem(SpectraSource.GMPE, SpectraType.MCER, Color.BLUE, PlotLineType.SOLID, 2f),
+					new SpectrumPlotElem(SpectraSource.CYBERSHAKE, SpectraType.MCER, Color.RED, PlotLineType.DASHED, 2f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER, Color.BLACK, PlotLineType.SOLID, 4f));
+			writeCSV("mcer_sa", getCalcSpectrum(SpectraType.MCER, SpectraSource.GMPE),
+					getCalcSpectrum(SpectraType.MCER, SpectraSource.CYBERSHAKE),
+					getCalcSpectrum(SpectraType.MCER, SpectraSource.COMBINED),
+					getCalcSpectrum(SpectraType.MCER_DESIGN, SpectraSource.COMBINED),
+					getCalcSpectrum(SpectraType.SLE, SpectraSource.COMBINED));
+			
+			// enumerating them here puts them in the XML file
+			getCalcDesignParam(DesignParameter.TL, null, null);
+			getCalcDesignParam(DesignParameter.SMS, SpectraType.MCER, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SM1, SpectraType.MCER, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SDS, SpectraType.MCER_DESIGN, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.SD1, SpectraType.MCER_DESIGN, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.TS, SpectraType.MCER, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.T0, SpectraType.MCER, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.PGAM, SpectraType.MCER, SpectraSource.COMBINED);
 			break;
 			
 		default:
@@ -1520,11 +1552,14 @@ public class UGMS_WebToolCalc {
 //			argStr += " --output-dir /tmp/ugms_web_tool/mcer";
 //			argStr += " --code-version MCER";
 			
-			argStr += " --output-dir /tmp/ugms_web_tool/bse_n";
-			argStr += " --code-version BSE_N";
+//			argStr += " --output-dir /tmp/ugms_web_tool/bse_n";
+//			argStr += " --code-version BSE_N";
 			
 //			argStr += " --output-dir /tmp/ugms_web_tool/bse_e";
 //			argStr += " --code-version BSE_E";
+			
+			argStr += " --output-dir /tmp/ugms_web_tool/latbsdc";
+			argStr += " --code-version LATBSDC";
 			
 			args = Splitter.on(" ").splitToList(argStr).toArray(new String[0]);
 		}

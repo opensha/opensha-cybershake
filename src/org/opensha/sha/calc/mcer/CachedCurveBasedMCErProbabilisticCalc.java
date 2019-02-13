@@ -52,6 +52,7 @@ public class CachedCurveBasedMCErProbabilisticCalc extends CurveBasedMCErProbabi
 			
 			if (curve == null) {
 				curve = calc.calcHazardCurves(site, Lists.newArrayList(period)).get(period);
+				Preconditions.checkNotNull(curve);
 				synchronized (this) {
 					if (!cache.contains(loc, period))
 						cache.put(loc, period, curve);

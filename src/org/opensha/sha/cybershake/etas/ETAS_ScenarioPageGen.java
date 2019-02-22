@@ -10,13 +10,26 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.jfree.data.Range;
+import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
+import org.opensha.commons.data.xyz.ArbDiscrGeoDataSet;
+import org.opensha.commons.data.xyz.GeoDataSet;
+import org.opensha.commons.data.xyz.GeoDataSetMath;
+import org.opensha.commons.exceptions.GMT_MapException;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationList;
 import org.opensha.commons.gui.plot.HeadlessGraphPanel;
@@ -24,10 +37,14 @@ import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotPreferences;
 import org.opensha.commons.gui.plot.PlotSpec;
+import org.opensha.commons.mapping.gmt.GMT_Map;
+import org.opensha.commons.mapping.gmt.elements.PSXYSymbol;
+import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.commons.util.MarkdownUtils;
 import org.opensha.commons.util.MarkdownUtils.TableBuilder;
+import org.opensha.commons.util.cpt.CPT;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
@@ -36,8 +53,13 @@ import org.opensha.sha.cybershake.calc.RuptureVariationProbabilityModifier;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
+import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
+import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.etas.ETASModProbConfig.ETAS_Cybershake_TimeSpans;
+import org.opensha.sha.cybershake.maps.CyberShake_GMT_MapGenerator;
+import org.opensha.sha.cybershake.maps.GMT_InterpolationSettings;
+import org.opensha.sha.cybershake.maps.HardCodedInterpDiffMapCreator;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.ProbEqkRupture;
 import org.opensha.sha.earthquake.ProbEqkSource;
@@ -55,6 +77,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
+import scratch.UCERF3.analysis.FaultBasedMapGen;
 import scratch.UCERF3.erf.ETAS.ETAS_CatalogIO;
 import scratch.UCERF3.erf.ETAS.ETAS_EqkRupture;
 import scratch.UCERF3.erf.ETAS.analysis.SimulationMarkdownGenerator;
@@ -86,6 +109,14 @@ public class ETAS_ScenarioPageGen {
 	private LoadingCache<CS_CurveKey, DiscretizedFunc> csCurveCache;
 	private LoadingCache<GMPE_CurveKey, DiscretizedFunc> gmpeCurveCache;
 	
+	private Map<SimulationHazardCurveCalc<CSRupture>, File> csCurveCacheFiles;
+	private Map<AbstractERF, File> gmpeCurveCacheFiles;
+	
+	private Map<SimulationHazardCurveCalc<CSRupture>, CSVFile<String>> csCurveCacheCSVs;
+	private Map<AbstractERF, CSVFile<String>> gmpeCurveCacheCSVs;
+	
+	private HashSet<CSVFile<String>> unflushedCSVs;
+	
 	private AttenRelRef gmpeRef;
 	private ModAttenRelRef directivityRef;
 	private Deque<ScalarIMR> gmpeDeque;
@@ -93,6 +124,8 @@ public class ETAS_ScenarioPageGen {
 	private DiscretizedFunc hiResXVals;
 	private DiscretizedFunc standardResXVals;
 	private DiscretizedFunc lnStandardResXVals;
+	
+	private ExecutorService exec;
 	
 	public ETAS_ScenarioPageGen(CyberShakeStudy study, Vs30_Source vs30Source, ETAS_Config etasConfig, File mappingsCSVFile,
 			ETAS_Cybershake_TimeSpans[] timeSpans, String[] highlightSiteNames, File ampsCacheDir, AttenRelRef gmpeRef) throws IOException {
@@ -149,33 +182,168 @@ public class ETAS_ScenarioPageGen {
 		for (Point2D pt : standardResXVals)
 			lnStandardResXVals.set(Math.log(pt.getX()), 1d);
 		
+		csCurveCacheFiles = new HashMap<>();
+		csCurveCacheCSVs = new HashMap<>();
+		gmpeCurveCacheFiles = new HashMap<>();
+		gmpeCurveCacheCSVs = new HashMap<>();
+		unflushedCSVs = new HashSet<>();
+		
 		csCurveCache = CacheBuilder.newBuilder().build(new CacheLoader<CS_CurveKey, DiscretizedFunc>() {
 
 			@Override
 			public DiscretizedFunc load(CS_CurveKey key) throws Exception {
-				return key.calc.calc(key.site, key.period, 1d);
+				DiscretizedFunc curve = key.calc.calc(key.site, key.period, 1d);
+				CSVFile<String> csv = csCurveCacheCSVs.get(key.calc);
+				addCurveToCSV(key.site, key.period, curve, csv);
+				return curve;
 			}
 			
 		});
 		
-		HazardCurveCalculator gmpeCalc = new HazardCurveCalculator();
 		gmpeDeque = new ArrayDeque<>();
 		directivityRef = ModAttenRelRef.BAYLESS_SOMERVILLE_2013_DIRECTIVITY;
 		gmpeCurveCache = CacheBuilder.newBuilder().build(new CacheLoader<GMPE_CurveKey, DiscretizedFunc>() {
 
 			@Override
 			public DiscretizedFunc load(GMPE_CurveKey key) throws Exception {
+				HazardCurveCalculator gmpeCalc = new HazardCurveCalculator();
 				DiscretizedFunc curve = lnStandardResXVals.deepClone();
 				ScalarIMR gmpe = checkOutGMPE();
 				SA_Param.setPeriodInSA_Param(gmpe.getIntensityMeasure(), key.period);
 				gmpeCalc.getHazardCurve(curve, key.site, gmpe, key.erf);
+				checkInGMPE(gmpe);
 				DiscretizedFunc linearCurve = new ArbitrarilyDiscretizedFunc();
 				for (int i=0; i<curve.size(); i++)
 					linearCurve.set(standardResXVals.getX(i), curve.getY(i));
+				CSVFile<String> csv = gmpeCurveCacheCSVs.get(key.erf);
+				addCurveToCSV(key.site, key.period, curve, csv);
 				return linearCurve;
 			}
 			
 		});
+		
+		exec = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
+	}
+	
+	private int unflushed_curves = 0;
+	
+	private synchronized void addCurveToCSV(Site site, double period, DiscretizedFunc curve, CSVFile<String> csv) {
+//		System.out.println("Adding curve for "+site.getName()+" to CSV");
+		List<String> line = new ArrayList<>();
+		Preconditions.checkNotNull(site.getName());
+		line.add(site.getName());
+		line.add(site.getLocation().getLatitude()+"");
+		line.add(site.getLocation().getLongitude()+"");
+		line.add(period+"");
+		for (Point2D pt : curve)
+			line.add(pt.getY()+"");
+		// we truncate the curves beyond the minimum possible prob, so  there might be extra x-values missing
+		int expectedXVals = csv.getNumCols()-4;
+		int extraXVals = expectedXVals - curve.size();
+		Preconditions.checkState(extraXVals >= 0);
+		for (int i=0; i<extraXVals; i++)
+			line.add("");
+		csv.addLine(line);
+		unflushedCSVs.add(csv);
+		unflushed_curves++;
+	}
+	
+	private void buildLoadCSV(AbstractERF erf, DiscretizedFunc xVals, File csvFile) throws IOException {
+		CSVFile<String> csv;
+		if (csvFile.exists()) {
+			csv = CSVFile.readFile(csvFile, true);
+			System.out.println("Loading "+(csv.getNumRows()-1)+" curves from "+csvFile.getName());
+			List<String> header = csv.getLine(0);
+			Preconditions.checkState(header.size() == xVals.size()+4, "X values inconsistent");
+			for (int row=1; row<csv.getNumRows(); row++) {
+				List<String> line = csv.getLine(row);
+				double lat = Double.parseDouble(line.get(1));
+				double lon = Double.parseDouble(line.get(2));
+				double period = Double.parseDouble(line.get(3));
+				Preconditions.checkState(line.size() == xVals.size()+4);
+				DiscretizedFunc curve = new ArbitrarilyDiscretizedFunc();
+				for (int i=0; i<xVals.size(); i++)
+					curve.set(xVals.getX(i), Double.parseDouble(line.get(i+4)));
+				GMPE_CurveKey key = new GMPE_CurveKey(new Location(lat, lon), period, erf);
+				gmpeCurveCache.put(key, curve);
+			}
+		} else {
+			csv = new CSVFile<>(true);
+			List<String> header = new ArrayList<>();
+			header.add("Site Name");
+			header.add("Latitude");
+			header.add("Longitude");
+			header.add("Period (s)");
+			for (Point2D pt : xVals)
+				header.add(pt.getX()+"");
+			csv.addLine(header);
+		}
+		gmpeCurveCacheCSVs.put(erf, csv);
+		gmpeCurveCacheFiles.put(erf, csvFile);
+	}
+	
+	private void buildLoadCSV(SimulationHazardCurveCalc<CSRupture> calc, File csvFile) throws IOException {
+		DiscretizedFunc xVals = calc.getXVals();
+		CSVFile<String> csv;
+		if (csvFile.exists()) {
+			csv = CSVFile.readFile(csvFile, true);
+			System.out.println("Loading "+(csv.getNumRows()-1)+" curves from "+csvFile.getName());
+			List<String> header = csv.getLine(0);
+			Preconditions.checkState(header.size() == xVals.size()+4, "X values inconsistent");
+			for (int row=1; row<csv.getNumRows(); row++) {
+				List<String> line = csv.getLine(row);
+				double lat = Double.parseDouble(line.get(1));
+				double lon = Double.parseDouble(line.get(2));
+				double period = Double.parseDouble(line.get(3));
+				Preconditions.checkState(line.size() == xVals.size()+4);
+				DiscretizedFunc curve = new ArbitrarilyDiscretizedFunc();
+				for (int i=0; i<xVals.size(); i++) {
+					String str = line.get(i+4);
+					if (!str.isEmpty())
+						// can be empty if past truncation
+						curve.set(xVals.getX(i), Double.parseDouble(str));
+				}
+				CS_CurveKey key = new CS_CurveKey(new Location(lat, lon), period, calc);
+				csCurveCache.put(key, curve);
+			}
+		} else {
+			csv = new CSVFile<>(true);
+			List<String> header = new ArrayList<>();
+			header.add("Site Name");
+			header.add("Latitude");
+			header.add("Longitude");
+			header.add("Period (s)");
+			for (Point2D pt : xVals)
+				header.add(pt.getX()+"");
+			csv.addLine(header);
+		}
+		csCurveCacheCSVs.put(calc, csv);
+		csCurveCacheFiles.put(calc, csvFile);
+	}
+	
+	private synchronized void flushCurveCaches() throws IOException {
+//		System.out.println("Flushing "+unflushedCSVs.size()+" files ("+unflushed_curves+" unflushed curves)");
+		for (SimulationHazardCurveCalc<CSRupture> calc : csCurveCacheCSVs.keySet()) {
+			CSVFile<String> csv = csCurveCacheCSVs.get(calc);
+			File file = csCurveCacheFiles.get(calc);
+//			System.out.println("CSV has "+(csv.getNumRows()-1)+" curves. Flush ? "+unflushedCSVs.contains(csv));
+			if (unflushedCSVs.contains(csv)) {
+				System.out.println("Flushing "+(csv.getNumRows()-1)+" curves to "+file.getName());
+				csv.writeToFile(file);
+				unflushedCSVs.remove(csv);
+			}
+		}
+		for (AbstractERF erf : gmpeCurveCacheCSVs.keySet()) {
+			CSVFile<String> csv = gmpeCurveCacheCSVs.get(erf);
+			File file = gmpeCurveCacheFiles.get(erf);
+//			System.out.println("CSV has "+(csv.getNumRows()-1)+" curves. Flush ? "+unflushedCSVs.contains(csv));
+			if (unflushedCSVs.contains(csv)) {
+				System.out.println("Flushing "+(csv.getNumRows()-1)+" curves to "+file.getName());
+				csv.writeToFile(file);
+				unflushedCSVs.remove(csv);
+			}
+		}
+		unflushed_curves = 0;
 	}
 	
 	private synchronized ScalarIMR checkOutGMPE() {
@@ -192,11 +360,15 @@ public class ETAS_ScenarioPageGen {
 		gmpeDeque.push(gmpe);
 	}
 	
-	public void generatePage(File outputDir, double... periods) throws IOException {
+	public void generatePage(File outputDir, double[] periods, double[] mapPeriods, boolean replotMaps) throws IOException, GMT_MapException {
 		File resourcesDir = new File(outputDir, "resources");
 		Preconditions.checkState(resourcesDir.exists() || resourcesDir.mkdir());
 		
+		File curvesDir = new File(outputDir, "curves");
+		Preconditions.checkState(curvesDir.exists() || curvesDir.mkdir());
+		
 		StudyRotDProvider rawProv = new StudyRotDProvider(study, amps2db, periods, "CyberShake-TI");
+		rawProv.setSpectraCacheDir(amps2db.getCacheDir());
 
 		List<SimulationHazardCurveCalc<CSRupture>> tiCalcs = new ArrayList<SimulationHazardCurveCalc<CSRupture>>();
 		List<SimulationHazardCurveCalc<CSRupture>> tdCalcs = new ArrayList<SimulationHazardCurveCalc<CSRupture>>();
@@ -219,21 +391,50 @@ public class ETAS_ScenarioPageGen {
 		
 		for (int i=0; i<timeSpans.length; i++) {
 			double durationYears = timeSpans[i].getTimeYears();
-			tiCalcs.add(new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
-					new NoEtasRupProbMod(study.getERF(), false, durationYears), "CyberShake-TI"), standardResXVals));
-			tdCalcs.add(new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
-					new NoEtasRupProbMod(study.getERF(), true, durationYears), "CyberShake-TD"), standardResXVals));
-			etasCalcs.add(new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
-					modProbConfigs[i].getRupProbModifier(), modProbConfigs[i].getRupVarProbModifier(), "CyberShake-ETAS"), hiResXVals));
-			etasUniformCalcs.add(new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
+			SimulationHazardCurveCalc<CSRupture> tiCalc = new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
+					new NoEtasRupProbMod(study.getERF(), false, durationYears), "CyberShake-TI"), standardResXVals);
+			SimulationHazardCurveCalc<CSRupture> tdCalc = new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
+					new NoEtasRupProbMod(study.getERF(), true, durationYears), "CyberShake-TD"), standardResXVals);
+			SimulationHazardCurveCalc<CSRupture> etasCalc = new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
+					modProbConfigs[i].getRupProbModifier(), modProbConfigs[i].getRupVarProbModifier(), "CyberShake-ETAS"), hiResXVals);
+			SimulationHazardCurveCalc<CSRupture> etasUniformCalc = new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
 					modProbConfigs[i].getRupProbModifier(), new UniformRVsRupVarProbMod(modProbConfigs[i].getRupVarProbModifier()),
-					"CyberShake-ETAS Uniform"), hiResXVals));
+					"CyberShake-ETAS Uniform"), hiResXVals);
 			
-			tiERFs.add(new ModProbERF(tiERF, durationYears));
-			tdERFs.add(new ModProbERF(tdERF, durationYears));
-			etasERFs.add(modProbConfigs[i].getModERFforGMPE(true));
-			etasUniformERFs.add(modProbConfigs[i].getModERFforGMPE(false));
+			buildLoadCSV(tiCalc, new File(curvesDir, "cs_ti_"+timeSpans[i].name()+".csv"));
+			tiCalcs.add(tiCalc);
+			buildLoadCSV(tdCalc, new File(curvesDir, "cs_td_"+timeSpans[i].name()+".csv"));
+			tdCalcs.add(tdCalc);
+			buildLoadCSV(etasCalc, new File(curvesDir, "cs_etas_"+timeSpans[i].name()+".csv"));
+			etasCalcs.add(etasCalc);
+			buildLoadCSV(etasUniformCalc, new File(curvesDir, "cs_etas_uniform_"+timeSpans[i].name()+".csv"));
+			etasUniformCalcs.add(etasUniformCalc);
+			
+			AbstractERF myTI_ERF = new ModProbERF(tiERF, durationYears);
+			AbstractERF myTD_ERF = new ModProbERF(tdERF, durationYears);
+			AbstractERF myETAS_ERF = modProbConfigs[i].getModERFforGMPE(true);
+			AbstractERF myETAS_UniformERF = modProbConfigs[i].getModERFforGMPE(false);
+			
+			buildLoadCSV(myTI_ERF, standardResXVals, new File(curvesDir, gmpeRef.getShortName()+"_ti_"+timeSpans[i].name()+".csv"));
+			tiERFs.add(myTI_ERF);
+			buildLoadCSV(myTD_ERF, standardResXVals, new File(curvesDir, gmpeRef.getShortName()+"_td_"+timeSpans[i].name()+".csv"));
+			tdERFs.add(myTD_ERF);
+			buildLoadCSV(myETAS_ERF, standardResXVals, new File(curvesDir, gmpeRef.getShortName()+"_etas_"+timeSpans[i].name()+".csv"));
+			etasERFs.add(myETAS_ERF);
+			buildLoadCSV(myETAS_UniformERF, standardResXVals, new File(curvesDir, gmpeRef.getShortName()+"_etas_uniform_"+timeSpans[i].name()+".csv"));
+			etasUniformERFs.add(myETAS_UniformERF);
 		}
+		
+		List<SimulationHazardCurveCalc<CSRupture>> allCalcs = new ArrayList<>();
+		allCalcs.addAll(tiCalcs);
+		allCalcs.addAll(tdCalcs);
+		allCalcs.addAll(etasUniformCalcs);
+		allCalcs.addAll(etasCalcs);
+		List<AbstractERF> allERFs = new ArrayList<>();
+		allERFs.addAll(tiERFs);
+		allERFs.addAll(tdERFs);
+		allERFs.addAll(etasUniformERFs);
+		allERFs.addAll(etasERFs);
 		
 		List<String> lines = new ArrayList<>();
 		
@@ -256,6 +457,9 @@ public class ETAS_ScenarioPageGen {
 			lines.add("## Hazard Curves");
 			lines.add(topLink); lines.add("");
 			for (Site site : curveSites) {
+				try {
+					rawProv.checkLoadCacheForSite(site, CyberShakeComponent.RotD50);
+				} catch (ExecutionException e) {}
 				lines.add("### "+site.getName()+" Hazard Curves");
 				lines.add(topLink); lines.add("");
 				
@@ -317,17 +521,174 @@ public class ETAS_ScenarioPageGen {
 				lines.addAll(table.build());
 				lines.add("");
 			}
+			
+			flushCurveCaches();
+		}
+		
+		System.out.println("Caching spectra and curves for map generation...");
+		
+		for (Site site : sites) {
+			try {
+				List<Callable<DiscretizedFunc>> callables = new ArrayList<>();
+				for (SimulationHazardCurveCalc<CSRupture> calc : allCalcs) {
+					for (double period : mapPeriods) {
+						CS_CurveKey key = new CS_CurveKey(site, period, calc);
+						if (csCurveCache.getIfPresent(key) == null)
+							callables.add(key);
+					}
+				}
+				boolean needsCS = !callables.isEmpty();
+				for (AbstractERF erf : allERFs) {
+					for (double period : mapPeriods) {
+						GMPE_CurveKey key = new GMPE_CurveKey(site, period, erf);
+						if (gmpeCurveCache.getIfPresent(key) == null)
+							callables.add(key);
+					}
+				}
+				if (!callables.isEmpty()) {
+					System.out.println("Caching/calculating "+callables.size()+" curves for "+site.getName());
+					if (needsCS) {
+						rawProv.checkWriteCacheForSite(site, CyberShakeComponent.RotD50);
+						rawProv.checkLoadCacheForSite(site, CyberShakeComponent.RotD50);
+					}
+					List<Future<DiscretizedFunc>> futures = new ArrayList<>();
+					for (Callable<DiscretizedFunc> callable : callables)
+						futures.add(exec.submit(callable));
+					for (Future<DiscretizedFunc> future : futures)
+						future.get();
+				}
+				if (unflushed_curves > 500)
+					flushCurveCaches();
+			} catch (ExecutionException | InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		flushCurveCaches();
+		
+		System.out.println("Done caching spectra");
+		
+		FaultBasedMapGen.LOCAL_MAPGEN = true;
+		
+		lines.add("## Hazard Maps");
+		lines.add(topLink); lines.add("");
+		
+		boolean[] isProbAtIMLs = { 	false,	false,	false,	true,	true,	true,	true };
+		double[] vals =			 {	0.0001,	0.001,	0.01,	0.01,	0.1,	0.2,	0.5 };
+		for (double period : mapPeriods) {
+			String periodStr = optionalDigitDF.format(period)+"s";
+			
+			String heading = "###";
+			if (mapPeriods.length > 1) {
+				lines.add("### "+periodStr+" Hazard Maps");
+				lines.add(topLink); lines.add("");
+				heading += "#";
+			}
+			
+			for (int t=0; t<timeSpans.length; t++) {
+				String tsLabel = timeSpans[t].toString();
+				String tsPrefix = timeSpans[t].name().toLowerCase();
+				lines.add(heading+" "+periodStr+" "+tsLabel+" Hazard Maps");
+				lines.add(topLink); lines.add("");
+				
+				TableBuilder gainsTable = MarkdownUtils.tableBuilder();
+				gainsTable.addLine("Map Value", "CyberShake ETAS/TD Gain", "CyberShake ETAS/Uniform Gain",
+						"GMPE ETAS/TD Gain", "GMPE ETAS/Uniform Gain");
+				
+				boolean logPlot = true;
+				CPT poeCPT, imlCPT;
+				CPT rawHazardCPT = CPT.loadFromStream(HardCodedInterpDiffMapCreator.class.getResourceAsStream(
+						"/org/opensha/sha/cybershake/conf/cpt/cptFile_hazard_input.cpt"));
+				rawHazardCPT.setBelowMinColor(rawHazardCPT.getMinColor());
+				rawHazardCPT.setAboveMaxColor(rawHazardCPT.getMaxColor());
+				if (logPlot) {
+					poeCPT = rawHazardCPT.rescale(-8, -1);
+					imlCPT = rawHazardCPT.rescale(-4, 0);
+				} else {
+					poeCPT = rawHazardCPT.rescale(-8, -1);
+					imlCPT = rawHazardCPT.rescale(-4, 0);
+				}
+				
+				for (int i=0; i<isProbAtIMLs.length; i++) {
+					
+					String imtLabel, imtPrefix;
+					boolean isProbAtIML = isProbAtIMLs[i];
+					double val = vals[i];
+					CPT hazardCPT;
+					if (isProbAtIML) {
+						imtLabel = tsLabel+" POE "+(float)val+" (g) "+periodStr+" SA";
+						imtPrefix = tsPrefix+"_"+periodStr+"_poe_"+(float)val+"g";
+						hazardCPT = poeCPT;
+					} else {
+						imtLabel = tsLabel+" "+periodStr+" Sa (g) with POE="+(float)val;
+						imtPrefix = tsPrefix+"_"+periodStr+"_iml_with_poe_"+(float)val;
+						hazardCPT = imlCPT;
+					}
+					imtPrefix = "map_"+imtPrefix;
+					
+					lines.add(heading+"# "+imtLabel+", Maps");
+					lines.add(topLink); lines.add("");
+					
+					lines.add(heading+"## "+imtLabel+", CyberShake Maps");
+					lines.add(topLink); lines.add("");
+					
+					System.out.println("Calculating "+imtLabel+" CyberShake Maps");
+					GeoDataSet csTI = calcCyberShakeHazardMap(tiCalcs.get(t), period, isProbAtIML, val);
+					GeoDataSet csTD = calcCyberShakeHazardMap(tdCalcs.get(t), period, isProbAtIML, val);
+					GeoDataSet csUniformETAS = calcCyberShakeHazardMap(etasUniformCalcs.get(t), period, isProbAtIML, val);
+					GeoDataSet csETAS = calcCyberShakeHazardMap(etasCalcs.get(t), period, isProbAtIML, val);
+					
+					System.out.println("Plotting "+imtLabel+" CyberShake Maps");
+					lines.addAll(buildMapLines(resourcesDir, imtLabel, imtPrefix, false, hazardCPT, logPlot,
+							csTI, csTD, csUniformETAS, csETAS, replotMaps).build());
+					lines.add("");
+					
+					lines.add(heading+"## "+imtLabel+", GMPE Maps");
+					lines.add(topLink); lines.add("");
+					
+					System.out.println("Calculating "+imtLabel+" GMPE Maps");
+					GeoDataSet gmpeTI = calcGMPEHazardMap(tiERFs.get(t), period, isProbAtIML, val);
+					GeoDataSet gmpeTD = calcGMPEHazardMap(tdERFs.get(t), period, isProbAtIML, val);
+					GeoDataSet gmpeUniformETAS = calcGMPEHazardMap(etasUniformERFs.get(t), period, isProbAtIML, val);
+					GeoDataSet gmpeETAS = calcGMPEHazardMap(etasERFs.get(t), period, isProbAtIML, val);
+					
+					System.out.println("Plotting "+imtLabel+" GMPE Maps");
+					lines.addAll(buildMapLines(resourcesDir, imtLabel, imtPrefix, true, hazardCPT, logPlot,
+							gmpeTI, gmpeTD, gmpeUniformETAS, gmpeETAS, replotMaps).build());
+					lines.add("");
+					
+					waitOnMaps();
+					
+					gainsTable.addLine("**"+imtLabel+"**",
+							imageIfExists(resourcesDir, imtPrefix+"_cs_etas_td_gain.png"),
+							imageIfExists(resourcesDir, imtPrefix+"_cs_etas_uni_gain.png"),
+							imageIfExists(resourcesDir, imtPrefix+"_gmpe_etas_td_gain.png"),
+							imageIfExists(resourcesDir, imtPrefix+"_gmpe_etas_uni_gain.png"));
+				}
+				
+				lines.add(heading+" "+periodStr+" "+tsLabel+" EATS Gains Table");
+				lines.add(topLink); lines.add("");
+				lines.addAll(gainsTable.build());
+				lines.add("");
+			}
 		}
 		
 		// add TOC
-		lines.addAll(tocIndex, MarkdownUtils.buildTOC(lines, 2, 4));
+		lines.addAll(tocIndex, MarkdownUtils.buildTOC(lines, 2, 5));
 		lines.add(tocIndex, "## Table Of Contents");
 
 		// write markdown
 		MarkdownUtils.writeReadmeAndHTML(lines, outputDir);
+		
+		exec.shutdown();
+		try {
+			exec.awaitTermination(120, TimeUnit.MINUTES);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 	
-	private class CS_CurveKey {
+	private class CS_CurveKey implements Callable<DiscretizedFunc> {
 		private final Site site;
 		private final Location loc;
 		private final double period;
@@ -336,6 +697,13 @@ public class ETAS_ScenarioPageGen {
 		public CS_CurveKey(Site site, double period, SimulationHazardCurveCalc<CSRupture> calc) {
 			this.site = site;
 			this.loc = site.getLocation();
+			this.period = period;
+			this.calc = calc;
+		}
+		
+		public CS_CurveKey(Location loc, double period, SimulationHazardCurveCalc<CSRupture> calc) {
+			this.site = null;
+			this.loc = loc;
 			this.period = period;
 			this.calc = calc;
 		}
@@ -382,9 +750,14 @@ public class ETAS_ScenarioPageGen {
 		private ETAS_ScenarioPageGen getOuterType() {
 			return ETAS_ScenarioPageGen.this;
 		}
+
+		@Override
+		public DiscretizedFunc call() throws Exception {
+			return csCurveCache.get(this);
+		}
 	}
 	
-	private class GMPE_CurveKey {
+	private class GMPE_CurveKey implements Callable<DiscretizedFunc> {
 		private final Site site;
 		private final Location loc;
 		private final double period;
@@ -393,6 +766,13 @@ public class ETAS_ScenarioPageGen {
 		public GMPE_CurveKey(Site site, double period, AbstractERF erf) {
 			this.site = site;
 			this.loc = site.getLocation();
+			this.period = period;
+			this.erf = erf;
+		}
+		
+		public GMPE_CurveKey(Location loc, double period, AbstractERF erf) {
+			this.site = null;
+			this.loc = loc;
 			this.period = period;
 			this.erf = erf;
 		}
@@ -438,6 +818,11 @@ public class ETAS_ScenarioPageGen {
 
 		private ETAS_ScenarioPageGen getOuterType() {
 			return ETAS_ScenarioPageGen.this;
+		}
+
+		@Override
+		public DiscretizedFunc call() throws Exception {
+			return gmpeCurveCache.get(this);
 		}
 	}
 	
@@ -542,6 +927,287 @@ public class ETAS_ScenarioPageGen {
 		File pdfFile = new File(resourcesDir, prefix+".pdf");
 		gp.saveAsPDF(pdfFile.getAbsolutePath());
 		return pngFile;
+	}
+	
+	private class CSCurveCallable implements Callable<DiscretizedFunc> {
+		
+		private final CS_CurveKey key;
+
+		public CSCurveCallable(CS_CurveKey key) {
+			this.key = key;
+		}
+
+		@Override
+		public DiscretizedFunc call() throws Exception {
+			return csCurveCache.get(key);
+		}
+		
+	}
+	
+	private class GMPECurveCallable implements Callable<DiscretizedFunc> {
+		
+		private final GMPE_CurveKey key;
+
+		public GMPECurveCallable(GMPE_CurveKey key) {
+			this.key = key;
+		}
+
+		@Override
+		public DiscretizedFunc call() throws Exception {
+			return gmpeCurveCache.get(key);
+		}
+		
+	}
+	
+	private GeoDataSet calcCyberShakeHazardMap(SimulationHazardCurveCalc<CSRupture> calc, double period, boolean isProbAtIML, double value) {
+		GeoDataSet ret = new ArbDiscrGeoDataSet(false);
+		
+//		Map<Site, Future<DiscretizedFunc>> futresMap = new HashMap<>();
+//		
+//		for (Site site : sites)
+//			futresMap.put(site, exec.submit(new CSCurveCallable(new CS_CurveKey(site, period, calc))));
+//		
+//		for (Site site : sites) {
+//			DiscretizedFunc curve;
+//			try {
+//				curve = futresMap.get(site).get();
+//			} catch (ExecutionException | InterruptedException e) {
+//				throw ExceptionUtils.asRuntimeException(e);
+//			}
+		for (Site site : sites) {
+			DiscretizedFunc curve;
+			try {
+				curve = new CSCurveCallable(new CS_CurveKey(site, period, calc)).call();
+			} catch (Exception e) {
+				throw ExceptionUtils.asRuntimeException(e);
+			}
+			double z = getCurveVal(curve, isProbAtIML, value);
+			ret.set(site.getLocation(), z);
+		}
+		
+		return ret;
+	}
+	
+	private GeoDataSet calcGMPEHazardMap(AbstractERF erf, double period, boolean isProbAtIML, double value) {
+		GeoDataSet ret = new ArbDiscrGeoDataSet(false);
+		
+		Map<Site, Future<DiscretizedFunc>> futresMap = new HashMap<>();
+		
+		for (Site site : sites)
+			futresMap.put(site, exec.submit(new GMPECurveCallable(new GMPE_CurveKey(site, period, erf))));
+		
+		for (Site site : sites) {
+			DiscretizedFunc curve;
+			try {
+				curve = futresMap.get(site).get();
+			} catch (ExecutionException | InterruptedException e) {
+				throw ExceptionUtils.asRuntimeException(e);
+			}
+			double z = getCurveVal(curve, isProbAtIML, value);
+			ret.set(site.getLocation(), z);
+		}
+		
+		return ret;
+	}
+	
+	private double getCurveVal(DiscretizedFunc curve, boolean isProbAtIML, double value) {
+		if (isProbAtIML) {
+			if (value > curve.getMaxX())
+				return 0d;
+			return curve.getInterpolatedY_inLogXLogYDomain(value);
+		}
+		if (value > curve.getMaxY())
+			// nothing with probability this high
+			return 0d;
+		if (value < curve.getMinY())
+			// everything above this probability
+			return curve.getMaxX();
+		return curve.getFirstInterpolatedX_inLogXLogYDomain(value);
+	}
+	
+	private TableBuilder buildMapLines(File resourcesDir, String imtLabel, String imtPrefix, boolean gmpe, CPT hazardCPT,
+			boolean logPlot, GeoDataSet ti, GeoDataSet td, GeoDataSet etasUniform, GeoDataSet etas, boolean replotMaps)
+					throws GMT_MapException, IOException {
+		String labelAdd = gmpe ? "GMPE" : "CS";
+		if (gmpe)
+			imtPrefix += "_gmpe";
+		else
+			imtPrefix += "_cs";
+		
+		if (logPlot)
+			labelAdd = "Log10 "+labelAdd;
+		
+		// regular maps
+		plotMap(logPlot ? asLog10(ti, hazardCPT.getMinValue()) : ti,
+				labelAdd+" TI, "+imtLabel, hazardCPT, resourcesDir, imtPrefix+"_ti", replotMaps);
+		plotMap(logPlot ? asLog10(td, hazardCPT.getMinValue()) : td,
+				labelAdd+" TD, "+imtLabel, hazardCPT, resourcesDir, imtPrefix+"_td", replotMaps);
+		plotMap(logPlot ? asLog10(etasUniform, hazardCPT.getMinValue()) : etasUniform,
+				labelAdd+" ETAS (Uniform), "+imtLabel, hazardCPT, resourcesDir, imtPrefix+"_etas_uni", replotMaps);
+		plotMap(logPlot ? asLog10(etas, hazardCPT.getMinValue()) : etas,
+				labelAdd+" ETAS, "+imtLabel, hazardCPT, resourcesDir, imtPrefix+"_etas", replotMaps);
+		
+		imtLabel = imtLabel.replaceAll(" (g)", "");
+		labelAdd = labelAdd.replaceAll("Log10 ", "");
+		
+		// diffs/gains
+		plotDiffGainMaps(td, ti, labelAdd+" TD - TI, "+imtLabel, labelAdd+" TD/TI, "+imtLabel,
+				resourcesDir, imtPrefix+"_td_ti", replotMaps);
+		plotDiffGainMaps(etasUniform, ti, labelAdd+" UniETAS - TI, "+imtLabel, labelAdd+" UniETAS/TI, "+imtLabel,
+				resourcesDir, imtPrefix+"_etas_uni_ti", replotMaps);
+		plotDiffGainMaps(etas, ti, labelAdd+" ETAS - TI, "+imtLabel, labelAdd+" ETAS/TI, "+imtLabel,
+				resourcesDir, imtPrefix+"_etas_ti", replotMaps);
+		plotDiffGainMaps(etasUniform, td, labelAdd+" UniETAS - TD, "+imtLabel, labelAdd+" UniETAS/TD, "+imtLabel,
+				resourcesDir, imtPrefix+"_etas_uni_td", replotMaps);
+		plotDiffGainMaps(etas, td, labelAdd+" ETAS - TD, "+imtLabel, labelAdd+" ETAS/TD, "+imtLabel,
+				resourcesDir, imtPrefix+"_etas_td", replotMaps);
+		plotDiffGainMaps(etas, etasUniform, labelAdd+" ETAS - Uni, "+imtLabel, labelAdd+" ETAS/Uni, "+imtLabel,
+				resourcesDir, imtPrefix+"_etas_uni", replotMaps);
+		
+		TableBuilder table = MarkdownUtils.tableBuilder();
+		
+		waitOnMaps();
+		
+		table.addLine("", labelAdd+"-TI", labelAdd+"-TD", labelAdd+"-ETAS-Uniform", labelAdd+"-ETAS");
+		table.addLine("**"+labelAdd+"-TI**",
+				imageIfExists(resourcesDir, imtPrefix+"_ti.png"),
+				imageIfExists(resourcesDir, imtPrefix+"_td_ti_diff.png"),
+				imageIfExists(resourcesDir, imtPrefix+"_etas_uni_ti_diff.png"),
+				imageIfExists(resourcesDir, imtPrefix+"_etas_ti_diff.png"));
+		table.addLine("**"+labelAdd+"-TD**", 
+				imageIfExists(resourcesDir, imtPrefix+"_td_ti_gain.png"),
+				imageIfExists(resourcesDir, imtPrefix+"_td.png"),
+				imageIfExists(resourcesDir, imtPrefix+"_etas_uni_td_diff.png"),
+				imageIfExists(resourcesDir, imtPrefix+"_etas_td_diff.png"));
+		table.addLine("**"+labelAdd+"-ETAS (Uniform)**",
+				imageIfExists(resourcesDir, imtPrefix+"_etas_uni_ti_gain.png"),
+				imageIfExists(resourcesDir, imtPrefix+"_etas_uni_td_gain.png"),
+				imageIfExists(resourcesDir, imtPrefix+"_etas_uni.png"),
+				imageIfExists(resourcesDir, imtPrefix+"_etas_uni_diff.png"));
+		table.addLine("**"+labelAdd+"-ETAS**",
+				imageIfExists(resourcesDir, imtPrefix+"_etas_ti_gain.png"),
+				imageIfExists(resourcesDir, imtPrefix+"_etas_td_gain.png"),
+				imageIfExists(resourcesDir, imtPrefix+"_etas_uni_gain.png"),
+				imageIfExists(resourcesDir, imtPrefix+"_etas.png"));
+		
+		return table;
+	}
+	
+	private static String imageIfExists(File resourcesDir, String fileName) {
+		File file = new File(resourcesDir, fileName);
+		if (file.exists())
+			return "![Plot](resources/"+fileName+")";
+		return "*(N/A)*";
+	}
+	
+	private static GeoDataSet asLog10(GeoDataSet xyz, double minVal) {
+		GeoDataSet ret = xyz.copy();
+		ret.log10();
+		for (int i=0; i<ret.size(); i++)
+			if (!Double.isFinite(ret.get(i)))
+				ret.set(i, minVal);
+		return ret;
+	}
+	
+	private static final double interp_spacing = 0.02;
+	
+	private boolean plotDiffGainMaps(GeoDataSet xyz1, GeoDataSet xyz2, String diffLabel, String gainLabel, File resourcesDir, String prefix, boolean replotMaps)
+			throws GMT_MapException, IOException {
+		GeoDataSet diffXYZ = GeoDataSetMath.subtract(xyz1, xyz2);
+		GeoDataSet gainXYZ = GeoDataSetMath.divide(xyz1, xyz2);
+		gainXYZ.log10();
+		gainLabel = "Log10 "+gainLabel;
+		
+//		CPT gainCPT = new CPT(-2, 2, new Color(0, 120, 0), Color.GREEN, new Color(100, 255, 100),
+//				new Color(255, 255, 200), new Color(255, 100, 100), Color.RED, new Color(120, 0, 0));
+		CPT diffCPT = CyberShake_GMT_MapGenerator.getDiffCPT();
+		CPT gainCPT = diffCPT.rescale(-2, 2);
+		double maxDiff = Math.max(Math.abs(diffXYZ.getMinZ()), Math.abs(diffXYZ.getMaxZ()));
+		if (maxDiff == 0d)
+			return false;
+		diffCPT = diffCPT.rescale(-maxDiff, maxDiff);
+		
+		if (!plotMap(gainXYZ, gainLabel, gainCPT, resourcesDir, prefix+"_gain", replotMaps))
+			return false;
+		plotMap(diffXYZ, diffLabel, diffCPT, resourcesDir, prefix+"_diff", replotMaps);
+		return true;
+	}
+	
+	private ArrayDeque<Future<?>> mapFutures = new ArrayDeque<>();
+	
+	private void waitOnMaps() {
+		if (map_parallel)
+			System.out.println("Waiting on "+mapFutures.size()+" futures");
+		while (!mapFutures.isEmpty()) {
+			try {
+				mapFutures.pop().get();
+			} catch (InterruptedException | ExecutionException e) {
+				throw ExceptionUtils.asRuntimeException(e);
+			}
+		}
+	}
+	
+	private static boolean map_parallel = true;
+	
+	private boolean plotMap(GeoDataSet xyz, String label, CPT cpt, File resourcesDir, String prefix, boolean replotMaps)
+			throws GMT_MapException, IOException {
+		if (!replotMaps && new File(resourcesDir, prefix+".png").exists())
+			return true;
+		boolean hasFinite = false;
+		for (int i=0; i<xyz.size(); i++) {
+			if (Double.isFinite(xyz.get(i))) {
+				hasFinite = true;
+				break;
+			}
+		}
+		if (!hasFinite)
+			return false;
+//		if (Double.isNaN(Double.NaN))
+//			return;
+		if (map_parallel) {
+			mapFutures.add(exec.submit(new Runnable() {
+				
+				@Override
+				public void run() {
+					try {
+						doPlotMap(xyz, label, cpt, resourcesDir, prefix);
+					} catch (GMT_MapException | IOException e) {
+						throw ExceptionUtils.asRuntimeException(e);
+					}
+				}
+			}));
+		} else {
+			doPlotMap(xyz, label, cpt, resourcesDir, prefix);
+		}
+		
+		return true;
+	}
+	
+	private void doPlotMap(GeoDataSet xyz, String label, CPT cpt, File resourcesDir, String prefix)
+			throws GMT_MapException, IOException {
+		cpt.setNanColor(Color.GRAY);
+		
+		GMT_Map map = new GMT_Map(study.getRegion(), xyz, interp_spacing, cpt);
+		map.setInterpSettings(GMT_InterpolationSettings.getDefaultSettings());
+		map.setTopoResolution(TopographicSlopeFile.US_EIGHTEEN);
+		map.setMaskIfNotRectangular(true);
+		map.setCustomLabel(label);
+		map.setBlackBackground(false);
+		map.setRescaleCPT(false);
+		map.setCustomScaleMin((double)cpt.getMinValue());
+		map.setCustomScaleMax((double)cpt.getMaxValue());
+		
+		ArrayList<PSXYSymbol> xySymbols = new ArrayList<>();
+		for (Location loc : xyz.getLocationList()) {
+			xySymbols.add(new PSXYSymbol(new Point2D.Double(loc.getLongitude(), loc.getLatitude()),
+					PSXYSymbol.Symbol.INVERTED_TRIANGLE, 0.05f, 0.01f, Color.BLACK, Color.BLACK));
+		}
+		
+		map.setSymbols(xySymbols);
+		
+		System.out.println("Data range for "+prefix+": "+xyz.getMinZ()+" "+xyz.getMaxZ());
+		
+		FaultBasedMapGen.plotMap(resourcesDir, prefix, false, map);
 	}
 	
 	static final DecimalFormat optionalDigitDF = new DecimalFormat("0.##");
@@ -689,10 +1355,10 @@ public class ETAS_ScenarioPageGen {
 		
 		File mappingsCSVFile = new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/u2_mapped_mappings.csv");
 		
-//		File configFile = new File(simsDir, "2019_01_11-2009BombayBeachM48-u2mapped-noSpont-10yr-8threads/config.json");
+		File configFile = new File(simsDir, "2019_01_11-2009BombayBeachM48-u2mapped-noSpont-10yr-8threads/config.json");
 //		File configFile = new File(simsDir, "2019_01_11-2009BombayBeachM6-u2mapped-noSpont-10yr-8threads/config.json");
 //		File configFile = new File(simsDir, "2019_01_11-MojavePointM6-u2mapped-noSpont-10yr-8threads/config.json");
-		File configFile = new File(simsDir, "2019_01_11-ParkfieldM6-u2mapped-noSpont-10yr-8threads/config.json");
+//		File configFile = new File(simsDir, "2019_01_11-ParkfieldM6-u2mapped-noSpont-10yr-8threads/config.json");
 		
 		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
 		Vs30_Source vs30Source = Vs30_Source.Wills2015;
@@ -701,9 +1367,11 @@ public class ETAS_ScenarioPageGen {
 		AttenRelRef gmpeRef = AttenRelRef.ASK_2014;
 		
 		boolean replotETAS = false;
+		boolean replotMaps = false;
 		
 		String[] highlightSiteNames = { "SBSM", "MRSD", "STNI" };
 		double[] periods = { 3d, 5d, 10d };
+		double[] mapPeriods = { 5d };
 		
 		String dirPrefix = config.getSimulationName().replaceAll("\\W+", "_");
 		File outputDir = new File(gitDir, dirPrefix);
@@ -721,12 +1389,13 @@ public class ETAS_ScenarioPageGen {
 		}
 		
 		try {
-			pageGen.generatePage(outputDir, periods);
+			pageGen.generatePage(outputDir, periods, mapPeriods, replotMaps);
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
 			study.getDB().destroy();
 		}
+		pageGen.exec.shutdown();
 		System.exit(0);
 	}
 

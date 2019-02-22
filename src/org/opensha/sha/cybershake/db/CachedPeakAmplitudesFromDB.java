@@ -122,6 +122,10 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 		sites2db = new SiteInfo2DB(dbaccess);
 		runs2db = new Runs2DB(dbaccess);
 	}
+	
+	public File getCacheDir() {
+		return cacheDir;
+	}
 
 	@Override
 	public List<Double> getIM_Values(int runID, int srcId, int rupId,

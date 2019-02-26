@@ -163,7 +163,7 @@ public class UGMS_WebToolCalc {
 		BSE_1E("Site Specific BSE-1E", "BSE-1E", "BSE_1E", "bse_1e_spectrum_"+SPACING_REPLACE_STR+".bin"),
 		BSE_2N("Site Specific BSE-2N", "BSE-2N", "BSE_2N", "mcer_spectrum_"+SPACING_REPLACE_STR+".bin"),
 		BSE_1N("Site Specific BSE-1N", "BSE-1N", "BSE_1N"),
-		SLE("Service Level Earthquake", "SLE", "SLE", "sle_spectrum_"+SPACING_REPLACE_STR+".bin");
+		SLE("Site-Specific Service Level Earthquake", "SLE", "SLE", "sle_spectrum_"+SPACING_REPLACE_STR+".bin");
 		
 		private String name, shortName, elementName, fileName;
 		
@@ -617,6 +617,13 @@ public class UGMS_WebToolCalc {
 	}
 	
 	private DiscretizedFunc calcCyberShake(SpectraType type) {
+		if (type == SpectraType.BSE_1N) {
+			DiscretizedFunc designResponseSpectrum = getCalcSpectrum(SpectraType.BSE_2N, SpectraSource.CYBERSHAKE);
+			designResponseSpectrum = designResponseSpectrum.deepClone();
+			designResponseSpectrum.scale(2d/3d);
+			designResponseSpectrum.setName(type.getName());
+			return designResponseSpectrum;
+		}
 		if (csDataDir != null) {
 			System.out.println("Calculating CyberShake "+type+" with precomputed data file");
 			String fileName = type.getFileName(csDataSpacing);
@@ -678,6 +685,13 @@ public class UGMS_WebToolCalc {
 	}
 	
 	private DiscretizedFunc calcGMPE(SpectraType type) {
+		if (type == SpectraType.BSE_1N) {
+			DiscretizedFunc designResponseSpectrum = getCalcSpectrum(SpectraType.BSE_2N, SpectraSource.GMPE);
+			designResponseSpectrum = designResponseSpectrum.deepClone();
+			designResponseSpectrum.scale(2d/3d);
+			designResponseSpectrum.setName(type.getName());
+			return designResponseSpectrum;
+		}
 		System.out.println("Calculating GMPE");
 		File gmpeDir = new File(this.gmpeDir, gmpeERF);
 		Preconditions.checkState(gmpeDir.exists(), "GMPE/ERF dir doesn't exist: %s", gmpeDir.getAbsolutePath());
@@ -1112,9 +1126,15 @@ public class UGMS_WebToolCalc {
 					new SpectrumPlotElem(SpectraSource.GMPE, SpectraType.BSE_2N, Color.BLUE, PlotLineType.SOLID, 2f),
 					new SpectrumPlotElem(SpectraSource.CYBERSHAKE, SpectraType.BSE_2N, Color.RED, PlotLineType.DASHED, 2f),
 					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_2N, Color.BLACK, PlotLineType.SOLID, 4f));
+			plot("bse_1n_sa_ingredients", psv, params,
+					new SpectrumPlotElem(SpectraSource.GMPE, SpectraType.BSE_1N, Color.BLUE, PlotLineType.SOLID, 2f),
+					new SpectrumPlotElem(SpectraSource.CYBERSHAKE, SpectraType.BSE_1N, Color.RED, PlotLineType.DASHED, 2f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_1N, Color.BLACK, PlotLineType.SOLID, 4f));
 			writeCSV("bse_2n_1n_sa", getCalcSpectrum(SpectraType.BSE_2N, SpectraSource.GMPE),
 					getCalcSpectrum(SpectraType.BSE_2N, SpectraSource.CYBERSHAKE),
 					getCalcSpectrum(SpectraType.BSE_2N, SpectraSource.COMBINED),
+					getCalcSpectrum(SpectraType.BSE_1N, SpectraSource.GMPE),
+					getCalcSpectrum(SpectraType.BSE_1N, SpectraSource.CYBERSHAKE),
 					getCalcSpectrum(SpectraType.BSE_1N, SpectraSource.COMBINED));
 			
 			// enumerating them here puts them in the XML file
@@ -1131,12 +1151,9 @@ public class UGMS_WebToolCalc {
 			break;
 			
 		case BSE_E:
-			Color bseNcolor = Color.GREEN.darker();
 			plot("bse_2e_sa_final", psv, params,
-					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_2N, bseNcolor, PlotLineType.SOLID, 3f),
 					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_2E, Color.BLACK, PlotLineType.SOLID, 4f));
 			plot("bse_1e_sa_final", psv, params,
-					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_1N, bseNcolor, PlotLineType.SOLID, 3f),
 					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.BSE_1E, Color.BLACK, PlotLineType.SOLID, 4f));
 			plot("bse_2e_sa_ingredients", psv, params,
 					new SpectrumPlotElem(SpectraSource.GMPE, SpectraType.BSE_2E, Color.BLUE, PlotLineType.SOLID, 2f),
@@ -1149,11 +1166,9 @@ public class UGMS_WebToolCalc {
 			writeCSV("bse_2e_1e_sa", getCalcSpectrum(SpectraType.BSE_2E, SpectraSource.GMPE),
 					getCalcSpectrum(SpectraType.BSE_2E, SpectraSource.CYBERSHAKE),
 					getCalcSpectrum(SpectraType.BSE_2E, SpectraSource.COMBINED),
-					getCalcSpectrum(SpectraType.BSE_2N, SpectraSource.COMBINED),
 					getCalcSpectrum(SpectraType.BSE_1E, SpectraSource.GMPE),
 					getCalcSpectrum(SpectraType.BSE_1E, SpectraSource.CYBERSHAKE),
-					getCalcSpectrum(SpectraType.BSE_1E, SpectraSource.COMBINED),
-					getCalcSpectrum(SpectraType.BSE_1N, SpectraSource.COMBINED));
+					getCalcSpectrum(SpectraType.BSE_1E, SpectraSource.COMBINED));
 			
 			// enumerating them here puts them in the XML file
 			getCalcDesignParam(DesignParameter.TL, null, null);
@@ -1166,15 +1181,6 @@ public class UGMS_WebToolCalc {
 			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_1E, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_1E, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_1E, SpectraSource.COMBINED);
-			getCalcDesignParam(DesignParameter.SXS, SpectraType.BSE_2N, SpectraSource.COMBINED);
-			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_2N, SpectraSource.COMBINED);
-			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_2N, SpectraSource.COMBINED);
-			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_2N, SpectraSource.COMBINED);
-			getCalcDesignParam(DesignParameter.PGAM, SpectraType.BSE_2N, SpectraSource.COMBINED);
-			getCalcDesignParam(DesignParameter.SXS, SpectraType.BSE_1N, SpectraSource.COMBINED);
-			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_1N, SpectraSource.COMBINED);
-			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_1N, SpectraSource.COMBINED);
-			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_1N, SpectraSource.COMBINED);
 			break;
 			
 		case LATBSDC:
@@ -1193,6 +1199,8 @@ public class UGMS_WebToolCalc {
 					getCalcSpectrum(SpectraType.MCER, SpectraSource.CYBERSHAKE),
 					getCalcSpectrum(SpectraType.MCER, SpectraSource.COMBINED),
 					getCalcSpectrum(SpectraType.MCER_DESIGN, SpectraSource.COMBINED),
+					getCalcSpectrum(SpectraType.SLE, SpectraSource.GMPE),
+					getCalcSpectrum(SpectraType.SLE, SpectraSource.CYBERSHAKE),
 					getCalcSpectrum(SpectraType.SLE, SpectraSource.COMBINED));
 			
 			// enumerating them here puts them in the XML file
@@ -1555,11 +1563,11 @@ public class UGMS_WebToolCalc {
 //			argStr += " --output-dir /tmp/ugms_web_tool/bse_n";
 //			argStr += " --code-version BSE_N";
 			
-//			argStr += " --output-dir /tmp/ugms_web_tool/bse_e";
-//			argStr += " --code-version BSE_E";
+			argStr += " --output-dir /tmp/ugms_web_tool/bse_e";
+			argStr += " --code-version BSE_E";
 			
-			argStr += " --output-dir /tmp/ugms_web_tool/latbsdc";
-			argStr += " --code-version LATBSDC";
+//			argStr += " --output-dir /tmp/ugms_web_tool/latbsdc";
+//			argStr += " --code-version LATBSDC";
 			
 			args = Splitter.on(" ").splitToList(argStr).toArray(new String[0]);
 		}

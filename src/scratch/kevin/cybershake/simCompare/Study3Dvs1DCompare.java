@@ -475,7 +475,7 @@ public class Study3Dvs1DCompare {
 		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance(rsqsimCatalogBaseDir);
 		double catalogMinMag = 6.5;
 		File bbpFile1D = new File("/data/kevin/bbp/parallel/2018_09_10-rundir2740-all-m6.5-skipYears5000-noHF-csLASites/results_rotD.zip");
-		double vs30_1d = VelocityModel.LA_BASIN.getVs30();
+		double vs30_1d = VelocityModel.LA_BASIN_863.getVs30(); // TODO CHANGE WHEN NEW RUNS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 //		String[] siteNames = { "PAS", "s279", "s119", "s480" };
 		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
 		double[] periods = {3d, 5d, 7.5, 10d};

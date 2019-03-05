@@ -54,10 +54,8 @@ import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
-import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.etas.ETASModProbConfig.ETAS_Cybershake_TimeSpans;
-import org.opensha.sha.cybershake.maps.CyberShake_GMT_MapGenerator;
 import org.opensha.sha.cybershake.maps.GMT_InterpolationSettings;
 import org.opensha.sha.cybershake.maps.HardCodedInterpDiffMapCreator;
 import org.opensha.sha.earthquake.AbstractERF;
@@ -215,6 +213,7 @@ public class ETAS_ScenarioPageGen {
 				DiscretizedFunc linearCurve = new ArbitrarilyDiscretizedFunc();
 				for (int i=0; i<curve.size(); i++)
 					linearCurve.set(standardResXVals.getX(i), curve.getY(i));
+				linearCurve.setName(key.erf.getName());
 				CSVFile<String> csv = gmpeCurveCacheCSVs.get(key.erf);
 				addCurveToCSV(key.site, key.period, curve, csv);
 				return linearCurve;
@@ -264,6 +263,7 @@ public class ETAS_ScenarioPageGen {
 				DiscretizedFunc curve = new ArbitrarilyDiscretizedFunc();
 				for (int i=0; i<xVals.size(); i++)
 					curve.set(xVals.getX(i), Double.parseDouble(line.get(i+4)));
+				curve.setName(erf.getName());
 				GMPE_CurveKey key = new GMPE_CurveKey(new Location(lat, lon), period, erf);
 				gmpeCurveCache.put(key, curve);
 			}
@@ -303,6 +303,7 @@ public class ETAS_ScenarioPageGen {
 						// can be empty if past truncation
 						curve.set(xVals.getX(i), Double.parseDouble(str));
 				}
+				curve.setName(calc.getSimProv().getName());
 				CS_CurveKey key = new CS_CurveKey(new Location(lat, lon), period, calc);
 				csCurveCache.put(key, curve);
 			}
@@ -392,14 +393,14 @@ public class ETAS_ScenarioPageGen {
 		for (int i=0; i<timeSpans.length; i++) {
 			double durationYears = timeSpans[i].getTimeYears();
 			SimulationHazardCurveCalc<CSRupture> tiCalc = new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
-					new NoEtasRupProbMod(study.getERF(), false, durationYears), "CyberShake-TI"), standardResXVals);
+					new NoEtasRupProbMod(study.getERF(), false, durationYears), "CyberShake, TI"), standardResXVals);
 			SimulationHazardCurveCalc<CSRupture> tdCalc = new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
-					new NoEtasRupProbMod(study.getERF(), true, durationYears), "CyberShake-TD"), standardResXVals);
+					new NoEtasRupProbMod(study.getERF(), true, durationYears), "CyberShake, TD"), standardResXVals);
 			SimulationHazardCurveCalc<CSRupture> etasCalc = new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
-					modProbConfigs[i].getRupProbModifier(), modProbConfigs[i].getRupVarProbModifier(), "CyberShake-ETAS"), hiResXVals);
+					modProbConfigs[i].getRupProbModifier(), modProbConfigs[i].getRupVarProbModifier(), "CyberShake, ETAS"), hiResXVals);
 			SimulationHazardCurveCalc<CSRupture> etasUniformCalc = new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
 					modProbConfigs[i].getRupProbModifier(), new UniformRVsRupVarProbMod(modProbConfigs[i].getRupVarProbModifier()),
-					"CyberShake-ETAS Uniform"), hiResXVals);
+					"CyberShake, Uniform ETAS"), hiResXVals);
 			
 			buildLoadCSV(tiCalc, new File(curvesDir, "cs_ti_"+timeSpans[i].name()+".csv"));
 			tiCalcs.add(tiCalc);
@@ -410,10 +411,11 @@ public class ETAS_ScenarioPageGen {
 			buildLoadCSV(etasUniformCalc, new File(curvesDir, "cs_etas_uniform_"+timeSpans[i].name()+".csv"));
 			etasUniformCalcs.add(etasUniformCalc);
 			
-			AbstractERF myTI_ERF = new ModProbERF(tiERF, durationYears);
-			AbstractERF myTD_ERF = new ModProbERF(tdERF, durationYears);
-			AbstractERF myETAS_ERF = modProbConfigs[i].getModERFforGMPE(true);
-			AbstractERF myETAS_UniformERF = modProbConfigs[i].getModERFforGMPE(false);
+			AbstractERF myTI_ERF = new ModProbERF(tiERF, durationYears, gmpeRef.getShortName()+", TI");
+			AbstractERF myTD_ERF = new ModProbERF(tdERF, durationYears, gmpeRef.getShortName()+", TD");
+			AbstractERF myETAS_ERF = new ModNameERF(modProbConfigs[i].getModERFforGMPE(true),
+					gmpeRef.getShortName()+"+"+directivityRef.getShortName().replaceAll("_", " ")+", ETAS");
+			AbstractERF myETAS_UniformERF = new ModNameERF(modProbConfigs[i].getModERFforGMPE(false), gmpeRef.getShortName()+", ETAS");
 			
 			buildLoadCSV(myTI_ERF, standardResXVals, new File(curvesDir, gmpeRef.getShortName()+"_ti_"+timeSpans[i].name()+".csv"));
 			tiERFs.add(myTI_ERF);
@@ -884,11 +886,11 @@ public class ETAS_ScenarioPageGen {
 		funcs.add(tdCurve);
 		chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.GREEN.darker()));
 		
-		funcs.add(etasCurve);
-		chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.RED));
-		
 		funcs.add(uniformCurve);
 		chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 1.5f, Color.RED));
+		
+		funcs.add(etasCurve);
+		chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.RED));
 		
 		PlotSpec spec = new PlotSpec(funcs, chars, title,
 				optionalDigitDF.format(period)+"s SA", timeSpan+" Probability of Exceedance");
@@ -1028,40 +1030,40 @@ public class ETAS_ScenarioPageGen {
 	private TableBuilder buildMapLines(File resourcesDir, String imtLabel, String imtPrefix, boolean gmpe, CPT hazardCPT,
 			boolean logPlot, GeoDataSet ti, GeoDataSet td, GeoDataSet etasUniform, GeoDataSet etas, boolean replotMaps)
 					throws GMT_MapException, IOException {
-		String labelAdd = gmpe ? "GMPE" : "CS";
+		String labelAdd = gmpe ? gmpeRef.getShortName() : "CS";
 		if (gmpe)
 			imtPrefix += "_gmpe";
 		else
 			imtPrefix += "_cs";
 		
 		if (logPlot)
-			labelAdd = "Log10 "+labelAdd;
+			labelAdd = "Log@-10@- "+labelAdd;
 		
 		// regular maps
 		plotMap(logPlot ? asLog10(ti, hazardCPT.getMinValue()) : ti,
-				labelAdd+" TI, "+imtLabel, hazardCPT, resourcesDir, imtPrefix+"_ti", replotMaps);
+				labelAdd+", TI, "+imtLabel, hazardCPT, resourcesDir, imtPrefix+"_ti", replotMaps);
 		plotMap(logPlot ? asLog10(td, hazardCPT.getMinValue()) : td,
-				labelAdd+" TD, "+imtLabel, hazardCPT, resourcesDir, imtPrefix+"_td", replotMaps);
+				labelAdd+", TD, "+imtLabel, hazardCPT, resourcesDir, imtPrefix+"_td", replotMaps);
 		plotMap(logPlot ? asLog10(etasUniform, hazardCPT.getMinValue()) : etasUniform,
-				labelAdd+" ETAS (Uniform), "+imtLabel, hazardCPT, resourcesDir, imtPrefix+"_etas_uni", replotMaps);
+				labelAdd+", Uniform ETAS, "+imtLabel, hazardCPT, resourcesDir, imtPrefix+"_etas_uni", replotMaps);
 		plotMap(logPlot ? asLog10(etas, hazardCPT.getMinValue()) : etas,
-				labelAdd+" ETAS, "+imtLabel, hazardCPT, resourcesDir, imtPrefix+"_etas", replotMaps);
+				labelAdd+", ETAS, "+imtLabel, hazardCPT, resourcesDir, imtPrefix+"_etas", replotMaps);
 		
 		imtLabel = imtLabel.replaceAll(" (g)", "");
-		labelAdd = labelAdd.replaceAll("Log10 ", "");
+		labelAdd = labelAdd.replaceAll("Log@-10@- ", "");
 		
 		// diffs/gains
-		plotDiffGainMaps(td, ti, labelAdd+" TD - TI, "+imtLabel, labelAdd+" TD/TI, "+imtLabel,
+		plotDiffGainMaps(td, ti, labelAdd+", TD - TI, "+imtLabel, labelAdd+", TD/TI, "+imtLabel,
 				resourcesDir, imtPrefix+"_td_ti", replotMaps);
-		plotDiffGainMaps(etasUniform, ti, labelAdd+" UniETAS - TI, "+imtLabel, labelAdd+" UniETAS/TI, "+imtLabel,
+		plotDiffGainMaps(etasUniform, ti, labelAdd+", UniETAS - TI, "+imtLabel, labelAdd+", UniETAS/TI, "+imtLabel,
 				resourcesDir, imtPrefix+"_etas_uni_ti", replotMaps);
-		plotDiffGainMaps(etas, ti, labelAdd+" ETAS - TI, "+imtLabel, labelAdd+" ETAS/TI, "+imtLabel,
+		plotDiffGainMaps(etas, ti, labelAdd+", ETAS - TI, "+imtLabel, labelAdd+", ETAS/TI, "+imtLabel,
 				resourcesDir, imtPrefix+"_etas_ti", replotMaps);
-		plotDiffGainMaps(etasUniform, td, labelAdd+" UniETAS - TD, "+imtLabel, labelAdd+" UniETAS/TD, "+imtLabel,
+		plotDiffGainMaps(etasUniform, td, labelAdd+", UniETAS - TD, "+imtLabel, labelAdd+", UniETAS/TD, "+imtLabel,
 				resourcesDir, imtPrefix+"_etas_uni_td", replotMaps);
-		plotDiffGainMaps(etas, td, labelAdd+" ETAS - TD, "+imtLabel, labelAdd+" ETAS/TD, "+imtLabel,
+		plotDiffGainMaps(etas, td, labelAdd+", ETAS - TD, "+imtLabel, labelAdd+", ETAS/TD, "+imtLabel,
 				resourcesDir, imtPrefix+"_etas_td", replotMaps);
-		plotDiffGainMaps(etas, etasUniform, labelAdd+" ETAS - Uni, "+imtLabel, labelAdd+" ETAS/Uni, "+imtLabel,
+		plotDiffGainMaps(etas, etasUniform, labelAdd+", ETAS - Uni, "+imtLabel, labelAdd+", ETAS/Uni, "+imtLabel,
 				resourcesDir, imtPrefix+"_etas_uni", replotMaps);
 		
 		TableBuilder table = MarkdownUtils.tableBuilder();
@@ -1111,21 +1113,52 @@ public class ETAS_ScenarioPageGen {
 	
 	private static final double interp_spacing = 0.02;
 	
+	private static CPT divergentCPT;
+	
+	private synchronized static CPT getDivergentCPT(double min, double max) {
+		if (divergentCPT == null) {
+			// original CyberShake one
+//			divergent = new CPT(-1d, 1d,
+//					new Color(0, 104, 55),
+//					new Color(26, 152, 80),
+//					new Color(102, 189, 99),
+//					new Color(166, 217, 106),
+//					new Color(217, 239, 139),
+//					new Color(255, 255, 191),
+//					new Color(254, 224, 139),
+//					new Color(253, 174, 97),
+//					new Color(244, 109, 67),
+//					new Color(215, 48, 39),
+//					new Color(165, 0, 38));
+			// modified to be slightly whiter in the middle and then get darker sooner
+			divergentCPT = new CPT(-1d, 1d,
+					new Color(0, 104, 55),
+					new Color(26, 152, 80),
+					new Color(102, 189, 99),
+					new Color(158, 217, 117),
+					new Color(206, 239, 170),
+					new Color(255, 255, 230),
+					new Color(254, 213, 170),
+					new Color(253, 165, 107),
+					new Color(244, 109, 67),
+					new Color(215, 48, 39),
+					new Color(165, 0, 38));
+		}
+		return divergentCPT.rescale(min, max);
+	}
+	
 	private boolean plotDiffGainMaps(GeoDataSet xyz1, GeoDataSet xyz2, String diffLabel, String gainLabel, File resourcesDir, String prefix, boolean replotMaps)
 			throws GMT_MapException, IOException {
 		GeoDataSet diffXYZ = GeoDataSetMath.subtract(xyz1, xyz2);
 		GeoDataSet gainXYZ = GeoDataSetMath.divide(xyz1, xyz2);
 		gainXYZ.log10();
-		gainLabel = "Log10 "+gainLabel;
+		gainLabel = "Log@-10@- "+gainLabel;
 		
-//		CPT gainCPT = new CPT(-2, 2, new Color(0, 120, 0), Color.GREEN, new Color(100, 255, 100),
-//				new Color(255, 255, 200), new Color(255, 100, 100), Color.RED, new Color(120, 0, 0));
-		CPT diffCPT = CyberShake_GMT_MapGenerator.getDiffCPT();
-		CPT gainCPT = diffCPT.rescale(-2, 2);
 		double maxDiff = Math.max(Math.abs(diffXYZ.getMinZ()), Math.abs(diffXYZ.getMaxZ()));
 		if (maxDiff == 0d)
 			return false;
-		diffCPT = diffCPT.rescale(-maxDiff, maxDiff);
+		CPT gainCPT = getDivergentCPT(-2, 2);
+		CPT diffCPT = getDivergentCPT(-maxDiff, maxDiff);
 		
 		if (!plotMap(gainXYZ, gainLabel, gainCPT, resourcesDir, prefix+"_gain", replotMaps))
 			return false;
@@ -1271,16 +1304,50 @@ public class ETAS_ScenarioPageGen {
 		
 	}
 	
-	public class ModProbERF extends AbstractERF {
+	private class ModNameERF extends AbstractERF {
+
+		private AbstractERF erf;
+		private String name;
+
+		public ModNameERF(AbstractERF erf, String name) {
+			this.erf = erf;
+			this.name = name;
+		}
+
+		@Override
+		public int getNumSources() {
+			return erf.getNumSources();
+		}
+
+		@Override
+		public ProbEqkSource getSource(int idx) {
+			return erf.getSource(idx);
+		}
+
+		@Override
+		public void updateForecast() {
+			erf.updateForecast();
+		}
+
+		@Override
+		public String getName() {
+			return name;
+		}
+		
+	}
+	
+	private class ModProbERF extends AbstractERF {
 
 		private AbstractERF erf;
 		private double timeYears;
 		private double origDuration;
+		private String name;
 
-		public ModProbERF(AbstractERF erf, double timeYears) {
+		public ModProbERF(AbstractERF erf, double timeYears, String name) {
 			this.erf = erf;
 			this.timeYears = timeYears;
 			origDuration = erf.getTimeSpan().getDuration();
+			this.name = name;
 		}
 
 		@Override
@@ -1300,7 +1367,7 @@ public class ETAS_ScenarioPageGen {
 
 		@Override
 		public String getName() {
-			return erf.getName();
+			return name;
 		}
 		
 	}
@@ -1355,14 +1422,15 @@ public class ETAS_ScenarioPageGen {
 		
 		File mappingsCSVFile = new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/u2_mapped_mappings.csv");
 		
-		File configFile = new File(simsDir, "2019_01_11-2009BombayBeachM48-u2mapped-noSpont-10yr-8threads/config.json");
-//		File configFile = new File(simsDir, "2019_01_11-2009BombayBeachM6-u2mapped-noSpont-10yr-8threads/config.json");
-//		File configFile = new File(simsDir, "2019_01_11-MojavePointM6-u2mapped-noSpont-10yr-8threads/config.json");
-//		File configFile = new File(simsDir, "2019_01_11-ParkfieldM6-u2mapped-noSpont-10yr-8threads/config.json");
+		File[] configFiles = {
+				new File(simsDir, "2019_01_11-2009BombayBeachM48-u2mapped-noSpont-10yr-8threads/config.json"),
+				new File(simsDir, "2019_01_11-2009BombayBeachM6-u2mapped-noSpont-10yr-8threads/config.json"),
+				new File(simsDir, "2019_01_11-MojavePointM6-u2mapped-noSpont-10yr-8threads/config.json"),
+				new File(simsDir, "2019_01_11-ParkfieldM6-u2mapped-noSpont-10yr-8threads/config.json")
+		};
 		
 		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
 		Vs30_Source vs30Source = Vs30_Source.Wills2015;
-		ETAS_Config config = ETAS_Config.readJSON(configFile);
 		
 		AttenRelRef gmpeRef = AttenRelRef.ASK_2014;
 		
@@ -1373,29 +1441,31 @@ public class ETAS_ScenarioPageGen {
 		double[] periods = { 3d, 5d, 10d };
 		double[] mapPeriods = { 5d };
 		
-		String dirPrefix = config.getSimulationName().replaceAll("\\W+", "_");
-		File outputDir = new File(gitDir, dirPrefix);
-		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
-		
 		ETAS_Cybershake_TimeSpans[] timeSpans = ETAS_Cybershake_TimeSpans.values();
 		
-		ETAS_ScenarioPageGen pageGen = new ETAS_ScenarioPageGen(study, vs30Source, config, mappingsCSVFile, timeSpans,
-				highlightSiteNames, ampsCacheDir, gmpeRef);
-		
-		File etasPlotsDir = new File(outputDir, "etas_plots");
-		if (!etasPlotsDir.exists() || !new File(etasPlotsDir, "README.md").exists() || replotETAS) {
-			System.out.println("Writing standard ETAS plots...");
-			SimulationMarkdownGenerator.generateMarkdown(configFile, pageGen.catalogsFile, config, etasPlotsDir, false);
+		for (File configFile : configFiles) {
+			ETAS_Config config = ETAS_Config.readJSON(configFile);
+			String dirPrefix = config.getSimulationName().replaceAll("\\W+", "_");
+			File outputDir = new File(gitDir, dirPrefix);
+			Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
+			
+			ETAS_ScenarioPageGen pageGen = new ETAS_ScenarioPageGen(study, vs30Source, config, mappingsCSVFile, timeSpans,
+					highlightSiteNames, ampsCacheDir, gmpeRef);
+			
+			File etasPlotsDir = new File(outputDir, "etas_plots");
+			if (!etasPlotsDir.exists() || !new File(etasPlotsDir, "README.md").exists() || replotETAS) {
+				System.out.println("Writing standard ETAS plots...");
+				SimulationMarkdownGenerator.generateMarkdown(configFile, pageGen.catalogsFile, config, etasPlotsDir, false);
+			}
+			
+			try {
+				pageGen.generatePage(outputDir, periods, mapPeriods, replotMaps);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			pageGen.exec.shutdown();
 		}
-		
-		try {
-			pageGen.generatePage(outputDir, periods, mapPeriods, replotMaps);
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			study.getDB().destroy();
-		}
-		pageGen.exec.shutdown();
+		study.getDB().destroy();
 		System.exit(0);
 	}
 

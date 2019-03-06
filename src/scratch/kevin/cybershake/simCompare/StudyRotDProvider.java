@@ -183,7 +183,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 		this.spectraCacheDir = spectraCacheDir;
 	}
 	
-	private CSRupture getCSRupture(int sourceID, int rupID, int erfID, int rvScenID, int numRVs) {
+	public CSRupture getCSRupture(int sourceID, int rupID, int erfID, int rvScenID, int numRVs) {
 		if (csRups[sourceID] != null && csRups[sourceID][rupID] != null)
 			return csRups[sourceID][rupID];
 		synchronized (csRups) {

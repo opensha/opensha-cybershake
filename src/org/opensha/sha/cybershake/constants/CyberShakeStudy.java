@@ -65,14 +65,21 @@ import com.google.common.collect.Table;
 import com.google.common.collect.Table.Cell;
 import com.google.common.primitives.Doubles;
 
+import scratch.UCERF3.enumTreeBranches.DeformationModels;
+import scratch.UCERF3.enumTreeBranches.FaultModels;
 import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare;
 import scratch.kevin.cybershake.simCompare.StudyRotDProvider;
+import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
+import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
 import scratch.kevin.simulators.plots.AbstractPlot;
 import scratch.kevin.simulators.plots.MFDPlot;
 import scratch.kevin.simulators.plots.MagAreaScalingPlot;
 import scratch.kevin.simulators.plots.RuptureVelocityPlot;
+import scratch.kevin.simulators.ruptures.RotatedRupVariabilityConfig;
+import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
+
 import org.opensha.commons.util.MarkdownUtils;
 import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 
@@ -143,7 +150,7 @@ public enum CyberShakeStudy {
 			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
 		}
 	},
-	STUDY_18_8(cal(2018, 8), 85, "Study 18.8", "study_18_8", // TODO dataset IDs will change
+	STUDY_18_8(cal(2018, 8), 87, "Study 18.8", "study_18_8",
 			"Northern California with Bay Area, CCA, and CVM-S4.26 Velocity Models, 1hz", 12,
 			new CaliforniaRegions.CYBERSHAKE_BAY_AREA_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
@@ -168,25 +175,47 @@ public enum CyberShakeStudy {
 		public RunIDFetcher runFetcher() {
 			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
 		}
+	},
+	STUDY_19_2_RSQSIM_ROT_2740(cal(2019, 2), 88, "RSQSim RotRup 2740",
+			"study_19_2_rsqsim_rot_2740", "RSQSim rotated-rupture variability study with catalog 2740", 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return getRSQSimRotRupERF("rundir2740");
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
+		}
 	};
 	
 	private static AbstractERF getRSQSimERF(String catalogDirName) {
-		File catsDir = new File("/home/scec-02/kmilner/simulators/catalogs/");
-		if (!catsDir.exists())
-			catsDir = new File("/data/kevin/simulators/catalogs");
-		Preconditions.checkState(catsDir.exists(), "No known catalog dirs exist");
-		File catDir = new File(catsDir, catalogDirName);
-		if (!catDir.exists() && new File(catsDir, "bruce").exists())
-			catDir = new File(new File(catsDir, "bruce"), catalogDirName);
+		File catDir = RSQSimCatalog.locateCatalog(catalogDirName, "erf_params.xml");
 		Preconditions.checkState(catDir.exists(), "Could not find catalog dir for "+catalogDirName);
 		File xmlFile = new File(catDir, "erf_params.xml");
-		Preconditions.checkState(xmlFile.exists(), "Catalog dir found, but no 'erf_params.xml' in %s", catDir.getAbsolutePath());
 		AbstractERF erf;
 		try {
 			erf = ERFSaver.LOAD_ERF_FROM_FILE(xmlFile.getAbsolutePath());
 		} catch (Exception e) {
 			throw ExceptionUtils.asRuntimeException(e);
 		}
+		erf.updateForecast();
+		return erf;
+	}
+	
+	private static AbstractERF getRSQSimRotRupERF(String catalogDirName) {
+		File catDir = RSQSimCatalog.locateCatalog(catalogDirName, "cybershake_rotation_inputs");
+		Preconditions.checkState(catDir.exists(), "Could not find catalog dir for "+catalogDirName);
+		RSQSimCatalog catalog = new RSQSimCatalog(catDir, catalogDirName, FaultModels.FM3_1, DeformationModels.GEOLOGIC);
+		File csRotDir = new File(catalog.getCatalogDir(), "cybershake_rotation_inputs");
+		Map<Scenario, RotatedRupVariabilityConfig> rotConfigs;
+		try {
+			rotConfigs = RSQSimRotatedRuptureFakeERF.loadRotationConfigs(catalog, csRotDir, false);
+		} catch (IOException e) {
+			throw ExceptionUtils.asRuntimeException(e);
+		}
+		RSQSimRotatedRuptureFakeERF erf = new RSQSimRotatedRuptureFakeERF(catalog, rotConfigs);
 		erf.updateForecast();
 		return erf;
 	}

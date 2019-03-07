@@ -186,7 +186,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
+			return new RunIDFetcher(this.getDB()).forERF(50).hasAmplitudes();
 		}
 	};
 	

@@ -35,6 +35,7 @@ public class RunIDFetcher {
 	
 	// external fields
 	private boolean hasCurves;
+	private boolean hasAmps;
 	private int[] hazardDatasetIDs;
 	private Integer imTypeID;
 	
@@ -154,6 +155,16 @@ public class RunIDFetcher {
 		return this;
 	}
 	
+	public RunIDFetcher hasAmplitudes() {
+		return hasAmplitudes(this.imTypeID);
+	}
+	
+	public RunIDFetcher hasAmplitudes(Integer imTypeID) {
+		this.hasAmps = true;
+		this.imTypeID = imTypeID;
+		return this;
+	}
+	
 	public List<CybershakeRun> fetch() {
 		String sql = buildSelectSQL();
 		
@@ -226,6 +237,13 @@ public class RunIDFetcher {
 		
 		if (!wheres.isEmpty())
 			sql += "\nWHERE "+Joiner.on(" AND ").join(wheres);
+		
+		if (hasAmps) {
+			sql = "SELECT R.* FROM (\n"+sql+"\n) R WHERE EXISTS(SELECT * FROM PeakAmplitudes WHERE Run_ID=R.Run_ID";
+			if (imTypeID != null)
+				sql += " AND IM_Type_ID="+imTypeID;
+			sql += ")";
+		}
 		
 		return sql;
 	}

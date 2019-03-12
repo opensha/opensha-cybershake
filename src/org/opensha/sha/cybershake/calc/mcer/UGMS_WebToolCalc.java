@@ -1191,6 +1191,10 @@ public class UGMS_WebToolCalc {
 					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER, Color.BLACK, PlotLineType.SOLID, 4f),
 					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER_DESIGN, Color.RED, PlotLineType.SOLID, 3f),
 					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.SLE, Color.GREEN.darker(), PlotLineType.SOLID, 3f));
+			plot("sle_sa_ingredients", psv, params,
+					new SpectrumPlotElem(SpectraSource.GMPE, SpectraType.SLE, Color.BLUE, PlotLineType.SOLID, 2f),
+					new SpectrumPlotElem(SpectraSource.CYBERSHAKE, SpectraType.SLE, Color.RED, PlotLineType.DASHED, 2f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.SLE, Color.BLACK, PlotLineType.SOLID, 4f));
 			plot("mcer_sa_ingredients", psv, params,
 					new SpectrumPlotElem(SpectraSource.GMPE, SpectraType.MCER, Color.BLUE, PlotLineType.SOLID, 2f),
 					new SpectrumPlotElem(SpectraSource.CYBERSHAKE, SpectraType.MCER, Color.RED, PlotLineType.DASHED, 2f),
@@ -1563,11 +1567,11 @@ public class UGMS_WebToolCalc {
 //			argStr += " --output-dir /tmp/ugms_web_tool/bse_n";
 //			argStr += " --code-version BSE_N";
 			
-			argStr += " --output-dir /tmp/ugms_web_tool/bse_e";
-			argStr += " --code-version BSE_E";
+//			argStr += " --output-dir /tmp/ugms_web_tool/bse_e";
+//			argStr += " --code-version BSE_E";
 			
-//			argStr += " --output-dir /tmp/ugms_web_tool/latbsdc";
-//			argStr += " --code-version LATBSDC";
+			argStr += " --output-dir /tmp/ugms_web_tool/latbsdc";
+			argStr += " --code-version LATBSDC";
 			
 			args = Splitter.on(" ").splitToList(argStr).toArray(new String[0]);
 		}

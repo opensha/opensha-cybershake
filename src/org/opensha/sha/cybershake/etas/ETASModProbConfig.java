@@ -586,7 +586,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 	
 	private void loadRVProbs() {
 		// loads in probabilities for rupture variations from the ETAS catalogs
-		RuptureProbabilityModifier probMod = getRupProbModifier();
+		getRupProbModifier();
 		
 		double prob = 1d/catalogs.size();
 //		if (scenario == ETAS_CyberShake_Scenarios.TEST_NEGLIGABLE)
@@ -784,6 +784,10 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		System.out.println("\tMax:"+StatUtils.max(vals));
 		System.out.println("\tMean:"+StatUtils.mean(vals));
 		System.out.println("\tMedian:"+DataUtils.median(vals));
+	}
+	
+	public List<Double> getRVCounts() {
+		return rvCountTrack;
 	}
 	
 	public void setTriggerAllHyposEqually(boolean triggerAllHyposEqually) {

@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -30,13 +31,17 @@ import java.util.StringTokenizer;
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.geo.GriddedRegion;
+import org.opensha.commons.geo.Location;
+import org.opensha.commons.geo.LocationUtils;
 import org.opensha.commons.gui.UserAuthDialog;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.sha.earthquake.ERF;
+import org.opensha.sha.simulators.RSQSimEvent;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Ints;
 
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
@@ -445,7 +450,7 @@ public class Cybershake_OpenSHA_DBApplication {
 		
 		// *** RSQSim ***
 		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
-		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance(localBaseDir);
+		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(localBaseDir);
 		// regular RSQSim ERF
 //		double minMag = 6.5;
 //		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
@@ -478,8 +483,12 @@ public class Cybershake_OpenSHA_DBApplication {
 		}
 		int rotsPerSite = numRots/numRotSites;
 		String erfName = "RSQSim Rot/Var Study, "+catalog.getName()+", "+rotsPerSite+" rots/site";
+		if (erfName.length() > 50)
+			erfName = erfName.substring(0, 50);
 		String erfDescription = "RSQSim Rot/Var fake ERF for catalog "+catalog.getName()+"; "+numScenarios+" scenarios, "
 				+numSoruceAz+" sourceAz, "+numSiteToSoruceAz+" siteSourceAz, "+numDist+" dists, max "+numEvents+" events";
+		if (erfDescription.length() > 150)
+			erfDescription = erfDescription.substring(0, 150);
 		
 		erf.updateForecast();
 		ERF2DB erfDB = new ERF2DB(db, erf);
@@ -508,8 +517,8 @@ public class Cybershake_OpenSHA_DBApplication {
 //		double gridSpacing = 0.2;
 //		region = new GriddedRegion(corners, gridSpacing);
 		
-//		// this inserts it
-//		// COMMENT THIS OUT AFTER INSERTING!!!! will insert with new ID if duplicate
+		// this inserts it
+		// COMMENT THIS OUT AFTER INSERTING!!!! will insert with new ID if duplicate
 //		Preconditions.checkState(erfID < 0, "ERF ID is positive but you're trying to insert: %s", erfID);
 //		erfDB.insertForecastInDB(erfName, erfDescription, region);
 ////		erfDB.insertForecastParamsInDB(erfID);
@@ -545,9 +554,9 @@ public class Cybershake_OpenSHA_DBApplication {
 		
 //		sites.add(sites2db.getSiteFromDB("TEST"));
 		
-		sites.add(sites2db.getSiteFromDB("USC"));
-		sites.add(sites2db.getSiteFromDB("PAS"));
-//		sites.add(sites2db.getSiteFromDB("SBSM"));
+//		sites.add(sites2db.getSiteFromDB("USC"));
+//		sites.add(sites2db.getSiteFromDB("PAS"));
+		sites.add(sites2db.getSiteFromDB("SBSM"));
 //		sites.add(sites2db.getSiteFromDB("WNGC"));
 //		sites.add(sites2db.getSiteFromDB("STNI"));
 //		sites.add(sites2db.getSiteFromDB("LAPD"));

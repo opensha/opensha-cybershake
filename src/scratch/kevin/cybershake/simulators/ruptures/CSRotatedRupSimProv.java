@@ -44,6 +44,7 @@ public class CSRotatedRupSimProv implements SimulationRotDProvider<RotationSpec>
 			
 			System.out.println("Initializing rupture rotation mapping for "+erf.getNumSources()+" sources...");
 			for (int sourceID=0; sourceID<erf.getNumSources(); sourceID++) {
+//				System.out.println("Source "+sourceID);
 				RSQSimRotatedRuptureSource source = erf.getSource(sourceID);
 				List<RotationSpec> rotations = source.getRotations();
 				for (int rupID=0; rupID<rotations.size(); rupID++) {

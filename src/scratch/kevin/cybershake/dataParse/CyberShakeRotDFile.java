@@ -5,6 +5,7 @@ import java.io.DataInput;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.text.DecimalFormat;
 
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
@@ -28,7 +29,11 @@ public class CyberShakeRotDFile {
 	}
 	
 	public static CyberShakeRotDFile read(File file) throws IOException {
-		DataInput din = new LittleEndianDataInputStream(new FileInputStream(file));
+		return read(new FileInputStream(file));
+	}
+	
+	public static CyberShakeRotDFile read(InputStream is) throws IOException {
+		DataInput din = new LittleEndianDataInputStream(is);
 		return read(din);
 	}
 	

@@ -21,6 +21,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.math3.stat.StatUtils;
 import org.jfree.data.Range;
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
@@ -40,6 +41,7 @@ import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.mapping.gmt.GMT_Map;
 import org.opensha.commons.mapping.gmt.elements.PSXYSymbol;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
+import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.commons.util.MarkdownUtils;
@@ -74,6 +76,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.primitives.Doubles;
 
 import scratch.UCERF3.analysis.FaultBasedMapGen;
 import scratch.UCERF3.erf.ETAS.ETAS_CatalogIO;
@@ -455,6 +458,27 @@ public class ETAS_ScenarioPageGen {
 		int tocIndex = lines.size();
 		String topLink = "*[(top)](#table-of-contents)*";
 		
+		lines.add("## Mapping Information");
+		lines.add("");
+		TableBuilder table = MarkdownUtils.tableBuilder();
+		table.addLine("Num Catalogs", etasConfig.getNumSimulations());
+		List<Double> rvCounts = null;
+		double countDuration = 0d;
+		for (int i=0; i<timeSpans.length; i++) {
+			if (timeSpans[i].getTimeYears() > countDuration) {
+				countDuration = timeSpans[i].getTimeYears();
+				rvCounts = modProbConfigs[i].getRVCounts();
+			}
+		}
+		table.addLine("Mapped Ruptures", rvCounts.size());
+		double[] countArray = Doubles.toArray(rvCounts);
+		table.addLine("Mean variations per ruptures", (float)StatUtils.mean(countArray));
+		table.addLine("Median variations per ruptures", (float)DataUtils.median(countArray));
+		table.addLine("Min variations per ruptures", (float)StatUtils.min(countArray));
+		table.addLine("Max variations per ruptures", (float)StatUtils.max(countArray));
+		lines.addAll(table.build());
+		lines.add("");
+		
 		if (curveSites != null) {
 			lines.add("## Hazard Curves");
 			lines.add(topLink); lines.add("");
@@ -469,7 +493,7 @@ public class ETAS_ScenarioPageGen {
 				if (!mapFile.exists())
 					FileUtils.downloadURL(new URL(SiteHazardCurveComarePageGen.getMiniMap(site.getLocation())), mapFile);
 				
-				TableBuilder table = MarkdownUtils.tableBuilder();
+				table = MarkdownUtils.tableBuilder();
 				table.addLine("Site Location Map");
 				table.addLine("![site map](resources/"+mapFile.getName()+")");
 				lines.addAll(table.build());
@@ -499,6 +523,29 @@ public class ETAS_ScenarioPageGen {
 				lines.addAll(table.build());
 				lines.add("");
 				
+				for (double period : mapPeriods) {
+					lines.add("#### CyberShake "+site.getName()+" "+optionalDigitDF.format(period)+"s Hazard Gain Table");
+					lines.add(topLink); lines.add("");
+					
+					DiscretizedFunc tiCurves[] = new DiscretizedFunc[timeSpans.length];
+					DiscretizedFunc tdCurves[] = new DiscretizedFunc[timeSpans.length];
+					DiscretizedFunc etasUniformCurves[] = new DiscretizedFunc[timeSpans.length];
+					DiscretizedFunc etasCurves[] = new DiscretizedFunc[timeSpans.length];
+					try {
+						for (int i=0; i<timeSpans.length; i++) {
+							tiCurves[i] = csCurveCache.get(new CS_CurveKey(site, period, tiCalcs.get(i)));
+							tdCurves[i] = csCurveCache.get(new CS_CurveKey(site, period, tdCalcs.get(i)));
+							etasUniformCurves[i] = csCurveCache.get(new CS_CurveKey(site, period, etasUniformCalcs.get(i)));
+							etasCurves[i] = csCurveCache.get(new CS_CurveKey(site, period, etasCalcs.get(i)));
+						}
+					} catch (ExecutionException e) {
+						throw ExceptionUtils.asRuntimeException(e);
+					}
+					
+					lines.addAll(buildGainsTable(site, timeSpans, tiCurves, tdCurves, etasUniformCurves, etasCurves).build());
+					lines.add("");
+				}
+				
 				lines.add("#### GMPE "+site.getName()+" Hazard Curves");
 				lines.add(topLink); lines.add("");
 				
@@ -522,6 +569,29 @@ public class ETAS_ScenarioPageGen {
 				}
 				lines.addAll(table.build());
 				lines.add("");
+				
+				for (double period : mapPeriods) {
+					lines.add("#### GMPE "+site.getName()+" "+optionalDigitDF.format(period)+"s Hazard Gain Table");
+					lines.add(topLink); lines.add("");
+					
+					DiscretizedFunc tiCurves[] = new DiscretizedFunc[timeSpans.length];
+					DiscretizedFunc tdCurves[] = new DiscretizedFunc[timeSpans.length];
+					DiscretizedFunc etasUniformCurves[] = new DiscretizedFunc[timeSpans.length];
+					DiscretizedFunc etasCurves[] = new DiscretizedFunc[timeSpans.length];
+					try {
+						for (int i=0; i<timeSpans.length; i++) {
+							tiCurves[i] = gmpeCurveCache.get(new GMPE_CurveKey(site, period, tiERFs.get(i)));
+							tdCurves[i] = gmpeCurveCache.get(new GMPE_CurveKey(site, period, tdERFs.get(i)));
+							etasUniformCurves[i] = gmpeCurveCache.get(new GMPE_CurveKey(site, period, etasUniformERFs.get(i)));
+							etasCurves[i] = gmpeCurveCache.get(new GMPE_CurveKey(site, period, etasERFs.get(i)));
+						}
+					} catch (ExecutionException e) {
+						throw ExceptionUtils.asRuntimeException(e);
+					}
+					
+					lines.addAll(buildGainsTable(site, timeSpans, tiCurves, tdCurves, etasUniformCurves, etasCurves).build());
+					lines.add("");
+				}
 			}
 			
 			flushCurveCaches();
@@ -827,6 +897,71 @@ public class ETAS_ScenarioPageGen {
 			return gmpeCurveCache.get(this);
 		}
 	}
+	
+	private TableBuilder buildGainsTable(Site site, ETAS_Cybershake_TimeSpans[] timeSpans,
+			DiscretizedFunc[] tiCurves, DiscretizedFunc[] tdCurves, DiscretizedFunc[] etasUniformCurves,
+			DiscretizedFunc[] etasCurves) {
+		TableBuilder table = MarkdownUtils.tableBuilder();
+		
+		table.initNewLine();
+		table.addColumn("Dividend");
+		table.addColumn("Divisor");
+		for (ETAS_Cybershake_TimeSpans timeSpan : timeSpans) {
+			table.addColumn(timeSpan.toString()+" Min");
+			table.addColumn(timeSpan.toString()+" Max");
+		}
+		table.finalizeLine();
+
+		addGainTableLine(table, tdCurves, tiCurves);
+		addGainTableLine(table, etasUniformCurves, tdCurves);
+		addGainTableLine(table, etasCurves, tdCurves);
+		addGainTableLine(table, etasCurves, etasUniformCurves);
+		
+		return table;
+	}
+	
+	private void addGainTableLine(TableBuilder table, DiscretizedFunc[] dividend, DiscretizedFunc[] divisor) {
+		table.initNewLine();
+		table.addColumn(dividend[0].getName());
+		table.addColumn(divisor[0].getName());
+		for (int i=0; i<dividend.length; i++) {
+			double minMaxX = Double.min(dividend[i].getMaxX(), divisor[i].getMaxX());
+			HashSet<Double> possibleXs = new HashSet<>();
+			for (Point2D pt : dividend[i])
+				if (pt.getX() <= minMaxX)
+					possibleXs.add(pt.getX());
+			for (Point2D pt : divisor[i])
+				if (pt.getX() <= minMaxX)
+					possibleXs.add(pt.getX());
+			
+			double min = Double.POSITIVE_INFINITY;
+			double imlAtMin = Double.NaN;
+			double max = Double.NEGATIVE_INFINITY;
+			double imlAtMax = Double.NaN;
+			for (double x : possibleXs) {
+				if (x < 1e-2)
+					continue;
+				double gain = dividend[i].getInterpolatedY_inLogXLogYDomain(x) /
+						divisor[i].getInterpolatedY_inLogXLogYDomain(x);
+				if (!Double.isFinite(gain))
+					continue;
+				if (gain > max) {
+					max = gain;
+					imlAtMax = x;
+				}
+				if (gain < min) {
+					min = gain;
+					imlAtMin = x;
+				}
+			}
+			
+			table.addColumn(gainDF.format(min)+" at "+gainDF.format(imlAtMin)+" g");
+			table.addColumn(gainDF.format(max)+" at "+gainDF.format(imlAtMax)+" g");
+		}
+		table.finalizeLine();
+	}
+	
+	private static final DecimalFormat gainDF = new DecimalFormat("0.000");
 	
 	private File plotHazardCurves(File resourcesDir, Site site, double period, ETAS_Cybershake_TimeSpans timeSpan,
 			SimulationHazardCurveCalc<CSRupture> tiCalc, SimulationHazardCurveCalc<CSRupture> tdCalc,

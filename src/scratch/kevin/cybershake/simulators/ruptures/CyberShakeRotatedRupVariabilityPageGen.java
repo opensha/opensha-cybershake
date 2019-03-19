@@ -78,6 +78,7 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 			
 			Preconditions.checkState(study.getERF() instanceof RSQSimRotatedRuptureFakeERF);
 			RSQSimRotatedRuptureFakeERF erf = (RSQSimRotatedRuptureFakeERF)study.getERF();
+			erf.setLoadRuptures(false);
 			
 			CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, erf);
 			CSRotatedRupSimProv simProv = new CSRotatedRupSimProv(study, amps2db, calcPeriods);
@@ -139,6 +140,7 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 		}
 		
 		study.getDB().destroy();
+		System.exit(0);
 	}
 
 }

@@ -188,6 +188,12 @@ public enum CyberShakeStudy {
 		public RunIDFetcher runFetcher() {
 			return new RunIDFetcher(this.getDB()).forERF(50).hasAmplitudes();
 		}
+		@Override
+		public List<String> writeStandardDiagnosticPlots(File outputDir, int skipYears, double minMag, boolean replot,
+				String topLink) throws IOException {
+			// standard plots are not relevant for this variability study
+			return new ArrayList<>();
+		}
 	};
 	
 	private static AbstractERF getRSQSimERF(String catalogDirName) {
@@ -368,6 +374,9 @@ public enum CyberShakeStudy {
 		
 		String hazardMapLink = null;
 		
+		List<String> rotatedRupLinks = new ArrayList<>();
+		List<String> rotatedRupNames = new ArrayList<>();
+		
 		File[] dirList = dir.listFiles();
 		Arrays.sort(dirList, new FileNameComparator());
 		for (File subDir : dirList) {
@@ -420,6 +429,13 @@ public enum CyberShakeStudy {
 				study_3d_vs_1d_link = name;
 			} else if (name.equals("hazard_maps")) {
 				hazardMapLink = name;
+			} else if (name.startsWith("rotated_ruptures_")) {
+				for (Scenario scenario : Scenario.values()) {
+					if (name.contains(scenario.getPrefix())) {
+						rotatedRupLinks.add(name);
+						rotatedRupNames.add(scenario.getName());
+					}
+				}
 			}
 		}
 		
@@ -494,6 +510,14 @@ public enum CyberShakeStudy {
 			lines.add(topLink);
 			lines.add("");
 			lines.add("[3-D vs 1-D Comparisons Plotted Here]("+study_3d_vs_1d_link+"/)");
+		}
+		if (!rotatedRupLinks.isEmpty()) {
+			lines.add("");
+			lines.add("### Rotated Rupture Variability Comparisons");
+			lines.add(topLink);
+			lines.add("");
+			for (int i=0; i<rotatedRupLinks.size(); i++)
+				lines.add("* ["+rotatedRupNames.get(i)+"]("+rotatedRupLinks.get(i)+"/)");
 		}
 		
 		File resourcesDir = new File(dir, "resources");
@@ -735,6 +759,7 @@ public enum CyberShakeStudy {
 		for (DiscretizedFunc func : funcs) {
 			minY = Math.min(minY, AbstractPlot.minNonZero(func));
 			maxY = Math.max(maxY, func.getMaxY());
+//			System.out.println(func);
 		}
 		Range yRange;
 		if (!Doubles.isFinite(minY))

@@ -170,7 +170,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 		gmtCommandLines.add("cd " + dir);
 		gmtCommandLines.add("");
 		gmtCommandLines.addAll(GMT_MapGenerator.getGMTPathEnvLines());
-		String regionVals = "-R" + minLon + "/" + maxLon + "/" + minLat + "/" + maxLat;
+		String regionVals = "-R" + (float)minLon + "/" + (float)maxLon + "/" + (float)minLat + "/" + (float)maxLat;
 		gmtCommandLines.add("REGION=\""+regionVals+"\"");
 		String region = " $REGION ";
 		double plotWdth = 6.5;

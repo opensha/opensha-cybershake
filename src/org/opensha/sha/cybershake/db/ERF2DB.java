@@ -850,6 +850,14 @@ public  class ERF2DB implements ERF2DBAPI{
 			Range<Double> depthRange = rsRup.getElemDepthRange();
 			surfaceStartLocation = new Location(latRange.lowerEndpoint(), lonRange.lowerEndpoint(), depthRange.lowerEndpoint());
 			surfaceEndLocation = new Location(latRange.upperEndpoint(), lonRange.upperEndpoint(), depthRange.upperEndpoint());
+		} else if (rupSurface instanceof PointSurface) {
+			Location loc = ((PointSurface)rupSurface).getLocation();
+			numRows = 1;
+			numCols = 1;
+			numPoints = numRows * numCols;
+			gridSpacing = 1;
+			surfaceStartLocation = loc;
+			surfaceEndLocation = loc;
 		} else {
 			Preconditions.checkState(rupSurface instanceof EvenlyGriddedSurface);
 			AbstractEvenlyGriddedSurface gridSurface = new EvenlyGridCenteredSurface(

@@ -83,6 +83,7 @@ import scratch.UCERF3.erf.ETAS.ETAS_CatalogIO;
 import scratch.UCERF3.erf.ETAS.ETAS_EqkRupture;
 import scratch.UCERF3.erf.ETAS.analysis.SimulationMarkdownGenerator;
 import scratch.UCERF3.erf.ETAS.launcher.ETAS_Config;
+import scratch.UCERF3.erf.ETAS.launcher.TriggerRupture;
 import scratch.UCERF3.erf.ETAS.launcher.ETAS_Config.BinaryFilteredOutputConfig;
 import scratch.kevin.cybershake.simCompare.CSRupture;
 import scratch.kevin.cybershake.simCompare.StudyModifiedProbRotDProvider;
@@ -96,6 +97,7 @@ public class ETAS_ScenarioPageGen {
 	
 	private File catalogsFile;
 	private List<List<ETAS_EqkRupture>> catalogs;
+	private Location scenarioLoc;
 	
 	private ETAS_Config etasConfig;
 	private ETAS_Cybershake_TimeSpans[] timeSpans;
@@ -134,6 +136,11 @@ public class ETAS_ScenarioPageGen {
 		this.timeSpans = timeSpans;
 		this.etasConfig = etasConfig;
 		this.gmpeRef = gmpeRef;
+		
+		if (etasConfig.getTriggerRuptures().size() == 1 && etasConfig.getTriggerRuptures().get(0) instanceof TriggerRupture.Point) {
+			// get hypocenter
+			scenarioLoc = etasConfig.getTriggerRuptures().get(0).buildRupture(null, Long.MIN_VALUE).getHypocenterLocation();
+		}
 		
 		// first load catalogs
 		List<BinaryFilteredOutputConfig> binaryFilters = etasConfig.getBinaryOutputFilters();
@@ -1005,7 +1012,7 @@ public class ETAS_ScenarioPageGen {
 		}
 		
 		String prefix = "hazard_curves_gmpe_"+site.getName()+"_"+optionalDigitDF.format(period)+"s_"+timeSpan.name().toLowerCase();
-		return plotHazardCurves(resourcesDir, site, period, site.getName()+" GMPE Hazard Curves", prefix, timeSpan,
+		return plotHazardCurves(resourcesDir, site, period, site.getName()+" Empirical Hazard Curves", prefix, timeSpan,
 				tiCurve, tdCurve, etasCurve, uniformCurve);
 	}
 
@@ -1357,7 +1364,7 @@ public class ETAS_ScenarioPageGen {
 		
 		GMT_Map map = new GMT_Map(study.getRegion(), xyz, interp_spacing, cpt);
 		map.setInterpSettings(GMT_InterpolationSettings.getDefaultSettings());
-		map.setTopoResolution(TopographicSlopeFile.US_EIGHTEEN);
+		map.setTopoResolution(TopographicSlopeFile.US_SIX);
 		map.setMaskIfNotRectangular(true);
 		map.setCustomLabel(label);
 		map.setBlackBackground(false);
@@ -1370,6 +1377,10 @@ public class ETAS_ScenarioPageGen {
 			xySymbols.add(new PSXYSymbol(new Point2D.Double(loc.getLongitude(), loc.getLatitude()),
 					PSXYSymbol.Symbol.INVERTED_TRIANGLE, 0.05f, 0.01f, Color.BLACK, Color.BLACK));
 		}
+		
+		if (scenarioLoc != null)
+			xySymbols.add(new PSXYSymbol(new Point2D.Double(scenarioLoc.getLongitude(), scenarioLoc.getLatitude()),
+					PSXYSymbol.Symbol.STAR, 0.2f, 0.01f, Color.RED.darker(), Color.RED.darker()));
 		
 		map.setSymbols(xySymbols);
 		
@@ -1572,7 +1583,7 @@ public class ETAS_ScenarioPageGen {
 		boolean replotETAS = false;
 		boolean replotMaps = false;
 		
-		String[] highlightSiteNames = { "SBSM", "MRSD", "STNI" };
+		String[] highlightSiteNames = { "SBSM", "MRSD", "STNI", "PDU" };
 		double[] periods = { 3d, 5d, 10d };
 		double[] mapPeriods = { 5d };
 		

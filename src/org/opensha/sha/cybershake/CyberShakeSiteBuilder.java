@@ -10,6 +10,7 @@ import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
 import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.SiteDataValue;
 import org.opensha.commons.data.siteData.SiteDataValueList;
+import org.opensha.commons.data.siteData.impl.CS_Study18_8_BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVMHBasinDepth;
@@ -309,16 +310,14 @@ public class CyberShakeSiteBuilder {
 			} else if (velModelID == CybershakeVelocityModel.Models.STUDY_18_8.getID()) {
 				/*		Depth to 2.5					 */
 				try {
-					providers.add(new CachedSiteDataWrapper<Double>(new USGSBayAreaBasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
-					providers.add(new CachedSiteDataWrapper<Double>(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
+					providers.add(new CachedSiteDataWrapper<Double>(new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
 				} catch (IOException e) {
 					ExceptionUtils.throwAsRuntimeException(e);
 				}
 
 				/*		CVM4i26 Depth to 1.0					 */
 				try {
-					providers.add(new CachedSiteDataWrapper<Double>(new USGSBayAreaBasinDepth(SiteData.TYPE_DEPTH_TO_1_0)));
-					providers.add(new CachedSiteDataWrapper<Double>(new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0)));
+					providers.add(new CachedSiteDataWrapper<Double>(new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0)));
 				} catch (IOException e) {
 					ExceptionUtils.throwAsRuntimeException(e);
 				}

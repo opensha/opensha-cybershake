@@ -241,6 +241,12 @@ public class UGMS_WebToolCalc {
 				case BSE_2E:
 					fileName = "bse_2e_pga_m_"+SPACING_REPLACE_STR+".bin";
 					break;
+				case BSE_1E:
+					fileName = "bse_1e_pga_m_"+SPACING_REPLACE_STR+".bin";
+					break;
+				case SLE:
+					fileName = "sle_pga_m_"+SPACING_REPLACE_STR+".bin";
+					break;
 
 				default:
 					throw new IllegalStateException("PGAM not supported for "+type+", "+source);
@@ -1181,6 +1187,7 @@ public class UGMS_WebToolCalc {
 			getCalcDesignParam(DesignParameter.SX1, SpectraType.BSE_1E, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.TS, SpectraType.BSE_1E, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.T0, SpectraType.BSE_1E, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.PGAM, SpectraType.BSE_1E, SpectraSource.COMBINED);
 			break;
 			
 		case LATBSDC:
@@ -1216,6 +1223,7 @@ public class UGMS_WebToolCalc {
 			getCalcDesignParam(DesignParameter.TS, SpectraType.MCER, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.T0, SpectraType.MCER, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.PGAM, SpectraType.MCER, SpectraSource.COMBINED);
+			getCalcDesignParam(DesignParameter.PGAM, SpectraType.SLE, SpectraSource.COMBINED);
 			break;
 			
 		default:

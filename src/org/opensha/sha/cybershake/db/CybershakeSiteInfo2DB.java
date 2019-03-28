@@ -39,6 +39,7 @@ import org.opensha.sha.faultSurface.EvenlyGridCenteredSurface;
 import org.opensha.sha.faultSurface.AbstractEvenlyGriddedSurface;
 import org.opensha.sha.faultSurface.EvenlyGriddedSurface;
 import org.opensha.sha.faultSurface.InterpolatedEvenlyGriddedSurface;
+import org.opensha.sha.faultSurface.PointSurface;
 import org.opensha.sha.faultSurface.RuptureSurface;
 
 import com.google.common.base.Preconditions;
@@ -389,6 +390,30 @@ public class CybershakeSiteInfo2DB {
 					}
 					if (lonRange.upperEndpoint() > maxLon){
 						maxLon = lonRange.upperEndpoint();
+						maxLonRupId = rupIndex;
+						maxLonSrcId = csSource;
+					}
+				} else if (rupture.getRuptureSurface() instanceof PointSurface) {
+					Location ptLoc = ((PointSurface)rupture.getRuptureSurface()).getLocation();
+					double lat = ptLoc.getLatitude();
+					double lon = ptLoc.getLongitude();
+					if (lat < minLat){
+						minLat = lat;
+						minLatRupId = rupIndex;
+						minLatSrcId = csSource;
+					}
+					if (lat > maxLat){
+						maxLat = lat;
+						maxLatRupId = rupIndex;
+						maxLatSrcId = csSource;
+					}
+					if (lon < minLon){
+						minLon = lon;
+						minLonRupId = rupIndex;
+						minLonSrcId = csSource;
+					}
+					if (lon > maxLon){
+						maxLon = lon;
 						maxLonRupId = rupIndex;
 						maxLonSrcId = csSource;
 					}

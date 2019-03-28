@@ -37,12 +37,16 @@ import org.opensha.commons.gui.UserAuthDialog;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.sha.earthquake.ERF;
 import org.opensha.sha.simulators.RSQSimEvent;
+import org.opensha.sha.simulators.srf.SRF_PointData;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 
+import scratch.kevin.cybershake.GriddedPointSourceFakeERF;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
@@ -449,51 +453,76 @@ public class Cybershake_OpenSHA_DBApplication {
 		// *** END UCERF2 ***
 		
 		// *** RSQSim ***
-		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
-		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(localBaseDir);
-		// regular RSQSim ERF
-//		double minMag = 6.5;
-//		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
-//		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
-//				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
-//		String erfName = "RSQSim "+catalog.getName()+" M"+(float)minMag;
-//		String erfDescription = "RSQSim ERF for catalog "+catalog.getName()+", M"+(float)minMag;
-		
-		// rotated rupture variability ERF
-//		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
-//		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
-//				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
-		File csRotDir = new File(catalog.getCatalogDir(), "cybershake_rotation_inputs");
-		Map<Scenario, RotatedRupVariabilityConfig> rotConfigs = RSQSimRotatedRuptureFakeERF.loadRotationConfigs(catalog, csRotDir, true);
-		RSQSimRotatedRuptureFakeERF erf = new RSQSimRotatedRuptureFakeERF(catalog, rotConfigs);
-		int numRotSites = -1;
-		int numSoruceAz = -1;
-		int numSiteToSoruceAz = -1;
-		int numDist = -1;
-		int numEvents = 0;
-		int numScenarios = rotConfigs.size();
-		int numRots = 0;
-		for (RotatedRupVariabilityConfig config : rotConfigs.values()) {
-			numRotSites = config.getValues(Site.class, Quantity.SITE).size();
-			numSiteToSoruceAz = config.getValues(Float.class, Quantity.SITE_TO_SOURTH_AZIMUTH).size();
-			numSoruceAz = config.getValues(Float.class, Quantity.SOURCE_AZIMUTH).size();
-			numDist = config.getValues(Float.class, Quantity.DISTANCE).size();
-			numEvents = Integer.max(numEvents, config.getValues(Integer.class, Quantity.EVENT_ID).size());
-			numRots += config.getRotations().size();
-		}
-		int rotsPerSite = numRots/numRotSites;
-		String erfName = "RSQSim Rot/Var Study, "+catalog.getName()+", "+rotsPerSite+" rots/site";
-		if (erfName.length() > 50)
-			erfName = erfName.substring(0, 50);
-		String erfDescription = "RSQSim Rot/Var fake ERF for catalog "+catalog.getName()+"; "+numScenarios+" scenarios, "
-				+numSoruceAz+" sourceAz, "+numSiteToSoruceAz+" siteSourceAz, "+numDist+" dists, max "+numEvents+" events";
-		if (erfDescription.length() > 150)
-			erfDescription = erfDescription.substring(0, 150);
-		
-		erf.updateForecast();
-		ERF2DB erfDB = new ERF2DB(db, erf);
+//		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(localBaseDir);
+//		// regular RSQSim ERF
+////		double minMag = 6.5;
+////		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
+////		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
+////				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
+////		String erfName = "RSQSim "+catalog.getName()+" M"+(float)minMag;
+////		String erfDescription = "RSQSim ERF for catalog "+catalog.getName()+", M"+(float)minMag;
+//		
+//		// rotated rupture variability ERF
+////		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
+////		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
+////				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
+//		File csRotDir = new File(catalog.getCatalogDir(), "cybershake_rotation_inputs");
+//		Map<Scenario, RotatedRupVariabilityConfig> rotConfigs = RSQSimRotatedRuptureFakeERF.loadRotationConfigs(catalog, csRotDir, true);
+//		RSQSimRotatedRuptureFakeERF erf = new RSQSimRotatedRuptureFakeERF(catalog, rotConfigs);
+//		int numRotSites = -1;
+//		int numSoruceAz = -1;
+//		int numSiteToSoruceAz = -1;
+//		int numDist = -1;
+//		int numEvents = 0;
+//		int numScenarios = rotConfigs.size();
+//		int numRots = 0;
+//		for (RotatedRupVariabilityConfig config : rotConfigs.values()) {
+//			numRotSites = config.getValues(Site.class, Quantity.SITE).size();
+//			numSiteToSoruceAz = config.getValues(Float.class, Quantity.SITE_TO_SOURTH_AZIMUTH).size();
+//			numSoruceAz = config.getValues(Float.class, Quantity.SOURCE_AZIMUTH).size();
+//			numDist = config.getValues(Float.class, Quantity.DISTANCE).size();
+//			numEvents = Integer.max(numEvents, config.getValues(Integer.class, Quantity.EVENT_ID).size());
+//			numRots += config.getRotations().size();
+//		}
+//		int rotsPerSite = numRots/numRotSites;
+//		String erfName = "RSQSim Rot/Var Study, "+catalog.getName()+", "+rotsPerSite+" rots/site";
+//		if (erfName.length() > 50)
+//			erfName = erfName.substring(0, 50);
+//		String erfDescription = "RSQSim Rot/Var fake ERF for catalog "+catalog.getName()+"; "+numScenarios+" scenarios, "
+//				+numSoruceAz+" sourceAz, "+numSiteToSoruceAz+" siteSourceAz, "+numDist+" dists, max "+numEvents+" events";
+//		if (erfDescription.length() > 150)
+//			erfDescription = erfDescription.substring(0, 150);
+//		
+//		erf.updateForecast();
 		// *** END RSQSim ***
 		
+		// Gridded Point Source
+		double[] depths = { 1,2,4,6,8,10,12,15,20,25 };
+		double[] dists = GriddedPointSourceFakeERF.getDiscretized(10, 20, 10, false);
+		double[] azimuths = GriddedPointSourceFakeERF.getDiscretized(315, 19, 5, true);
+		System.out.println("Depths: "+Joiner.on(",").join(Doubles.asList(depths)));
+		System.out.println("Distances: "+Joiner.on(",").join(Doubles.asList(dists)));
+		System.out.println("Azimuths: "+Joiner.on(",").join(Doubles.asList(azimuths)));
+		
+		File mainDir = new File("/home/kevin/CyberShake/point_source_grid_erf");
+		File sourceRupDir = new File(mainDir, "cs_input_files");
+		Preconditions.checkState(sourceRupDir.exists() || sourceRupDir.mkdir());
+		
+		File inputSRF_file = new File(mainDir, "point-dt0.05.srf");
+		SRF_PointData inputSRF = SRF_PointData.readSRF(inputSRF_file).get(0);
+		
+		String siteName = "s1262";
+		Location siteLoc = new SiteInfo2DB(db).getLocationForSite(siteName);
+		
+		GriddedPointSourceFakeERF erf = new GriddedPointSourceFakeERF(siteLoc, inputSRF, dists, depths, azimuths);
+		
+		erf.writePointsAndSRFs(sourceRupDir);
+		String erfName = erf.getName()+" For "+siteName;
+		String erfDescription = erfName+" with "+erf.getNumSources()+" locations and "+depths.length+" depths";
+		// END Gridded Point Source
+
+		ERF2DB erfDB = new ERF2DB(db, erf);
 		System.out.println("ERF NAME: " + erfName);
 		int erfID = erfDB.getInserted_ERF_ID(erfName);
 		System.out.println("ERF ID: " + erfID);
@@ -525,7 +554,7 @@ public class Cybershake_OpenSHA_DBApplication {
 ////		erfDB.insertSrcRupInDB(erfID, null, 0, 0);
 ////		erfID = erfDB.getInserted_ERF_ID(erfName);
 //		System.out.println("Inserted ERF ID: "+erfID);
-////		System.exit(0);
+//		System.exit(0);
 		
 		// if you have to reinsert a rupture surface for some reason, do this
 //		int startSourceID = 0;
@@ -556,7 +585,7 @@ public class Cybershake_OpenSHA_DBApplication {
 		
 //		sites.add(sites2db.getSiteFromDB("USC"));
 //		sites.add(sites2db.getSiteFromDB("PAS"));
-		sites.add(sites2db.getSiteFromDB("SBSM"));
+//		sites.add(sites2db.getSiteFromDB("SBSM"));
 //		sites.add(sites2db.getSiteFromDB("WNGC"));
 //		sites.add(sites2db.getSiteFromDB("STNI"));
 //		sites.add(sites2db.getSiteFromDB("LAPD"));
@@ -564,6 +593,8 @@ public class Cybershake_OpenSHA_DBApplication {
 //		sites.add(sites2db.getSiteFromDB("s279"));
 //		sites.add(sites2db.getSiteFromDB("s480"));
 //		sites.add(sites2db.getSiteFromDB("SMCA"));
+		
+		sites.add(sites2db.getSiteFromDB("s1262"));
 		
 //		sites.add(sites2db.getSiteFromDB("OSI"));
 //		sites.add(sites2db.getSiteFromDB("PARK"));

@@ -55,6 +55,7 @@ public class StudyHazardMapPageGen {
 		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
 		SiteData<?>[] siteDatas = { new WillsMap2015(), new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
 				new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+		Region zoomRegion = new Region(new Location(38.5, -121.5), new Location(37, -123));
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_17_3_3D;
 //		double[] periods = { 2d, 3d, 5d, 10d };
@@ -62,12 +63,14 @@ public class StudyHazardMapPageGen {
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
 //		SiteData<?>[] siteDatas = { new WillsMap2015(), new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
 //				new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+//		Region zoomRegion = null;
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_17_3_1D;
 //		double[] periods = { 2d, 3d, 5d, 10d };
 //		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
 //		SiteData<?>[] siteDatas = null;
+//		Region zoomRegion = null;
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
 //		double[] periods = { 2d, 3d, 5d, 10d };
@@ -75,6 +78,7 @@ public class StudyHazardMapPageGen {
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
 //		SiteData<?>[] siteDatas = { new WillsMap2015(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
 //				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+//		Region zoomRegion = null;
 		
 		boolean replot = false;
 		
@@ -170,151 +174,183 @@ public class StudyHazardMapPageGen {
 		System.out.println(runs.size()+" runs found");
 		
 		try {
-			for (double period : periods) {
-				for (CyberShakeComponent component : components) {
-					CybershakeIM im = CybershakeIM.getSA(component, period);
-					
-					String periodLabel = optionalDigitDF.format(period)+"sec SA, "+component.getShortName();
-					String periodFileLabel = optionalDigitDF.format(period)+"s_"+component.getShortName();
-					
-					if (probLevels.size() > 1)
-						lines.add("## "+periodLabel);
-					
-					System.out.println("Doing "+periodLabel);
-					
-					HazardCurveFetcher fetch = null;
-					
-					for (int i=0; i<probLevels.size(); i++) {
-						double probLevel = probLevels.get(i);
-						String probLabel = probLabels.get(i);
-						String probFileLabel = probFileLables.get(i);
+			List<Region> mapRegions = new ArrayList<>();
+			mapRegions.add(region);
+			if (zoomRegion != null)
+				mapRegions.add(zoomRegion);
+			for (Region mapRegion : mapRegions) {
+				String heading = "##";
+				if (mapRegion != region) {
+					lines.add(heading+" Zoomed Maps");
+					lines.add(topLink); lines.add("");
+					heading += "#";
+				}
+				for (double period : periods) {
+					for (CyberShakeComponent component : components) {
+						CybershakeIM im = CybershakeIM.getSA(component, period);
 						
-						String title = periodLabel+", "+probLabel;
+						String periodLabel = optionalDigitDF.format(period)+"sec SA, "+component.getShortName();
+						String periodFileLabel = optionalDigitDF.format(period)+"s_"+component.getShortName();
 						
-						String prefix = "map_"+periodFileLabel+"_"+probFileLabel;
+						if (probLevels.size() > 1)
+							lines.add(heading+" "+periodLabel);
 						
-						List<InterpDiffMapType> typesToPlot = new ArrayList<>();
-						for (InterpDiffMapType type : mapTypes) {
-							File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
-							if (replot || !pngFile.exists())
-								typesToPlot.add(type);
-						}
+						System.out.println("Doing "+periodLabel);
 						
-						if (!typesToPlot.isEmpty()) {
-							System.out.println("Plotting "+typesToPlot.size()+" maps");
+						HazardCurveFetcher fetch = null;
+						
+						for (int i=0; i<probLevels.size(); i++) {
+							double probLevel = probLevels.get(i);
+							String probLabel = probLabels.get(i);
+							String probFileLabel = probFileLables.get(i);
 							
-							GeoDataSet baseMap = null;
-							if (baseMapGMPE != null) {
-								// load the basemap
-								System.out.println("Loading basemap");
-								baseMap = HardCodedInterpDiffMapCreator.loadBaseMap(
-										baseMapGMPE, isProbAt_IML, probLevel, study.getVelocityModelID(),im.getID(), region);
-							}
-							if (fetch == null)
-								fetch = new HazardCurveFetcher(study.getDB(), runs, im.getID());
-							GeoDataSet scatterData = HardCodedInterpDiffMapCreator.getMainScatter(
-									isProbAt_IML, probLevel, fetch, im.getID(), null);
+							String title = periodLabel+", "+probLabel;
 							
-							System.out.println("Creating map instance...");
-							GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
+							String prefix = "map_"+periodFileLabel+"_"+probFileLabel;
+							if (mapRegion != region)
+								prefix += "_zoomed";
 							
-							double cptMax;
-							if (period >= 10d)
-								cptMax = 0.4d;
-							else if (period >= 5d)
-								cptMax = 0.6d;
-							else
-								cptMax = 1d;
-							
-							CPT cpt = hazardCPT.rescale(0d, cptMax);
-							
-							InterpDiffMap map = new InterpDiffMap(region, baseMap, baseMapRes, cpt, scatterData,
-									interpSettings, typesToPlot.toArray(new InterpDiffMapType[0]));
-							map.setCustomLabel(title);
-							map.setTopoResolution(TopographicSlopeFile.CA_THREE);
-							map.setLogPlot(logPlot);
-							map.setDpi(300);
-							map.setXyzFileName("base_map.xyz");
-							map.setCustomScaleMin(0d);
-							map.setCustomScaleMax(cptMax);
-							
-							String metadata = "isProbAt_IML: " + isProbAt_IML + "\n" +
-											"val: " + probLevel + "\n" +
-											"imTypeID: " + im.getID() + "\n";
-							
-							System.out.println("Making map...");
-							String addr;
-							if (LOCAL_MAPGEN)
-								addr = HardCodedInterpDiffMapCreator.plotLocally(map);
-							else
-								addr = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
-							
-							System.out.println("Done, downloading");
-							
-							for (InterpDiffMapType type : typesToPlot) {
+							List<InterpDiffMapType> typesToPlot = new ArrayList<>();
+							for (InterpDiffMapType type : mapTypes) {
 								File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
-								File psFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".ps");
-								if (LOCAL_MAPGEN) {
-									File inFile = new File(addr, pngFile.getName());
-									Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
-									Files.copy(inFile, pngFile);
-									if (psSaveTypes.contains(type)) {
-										inFile = new File(addr, psFile.getName());
+								if (replot || !pngFile.exists())
+									typesToPlot.add(type);
+							}
+							
+							if (!typesToPlot.isEmpty()) {
+								System.out.println("Plotting "+typesToPlot.size()+" maps");
+								
+								GeoDataSet baseMap = null;
+								if (baseMapGMPE != null) {
+									// load the basemap
+									System.out.println("Loading basemap");
+									baseMap = HardCodedInterpDiffMapCreator.loadBaseMap(
+											baseMapGMPE, isProbAt_IML, probLevel, study.getVelocityModelID(),im.getID(), region);
+								}
+								if (fetch == null)
+									fetch = new HazardCurveFetcher(study.getDB(), runs, im.getID());
+								GeoDataSet scatterData = HardCodedInterpDiffMapCreator.getMainScatter(
+										isProbAt_IML, probLevel, fetch, im.getID(), null);
+								
+								System.out.println("Creating map instance...");
+								GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
+								
+								double cptMax;
+								if (period >= 10d)
+									cptMax = 0.4d;
+								else if (period >= 5d)
+									cptMax = 0.6d;
+								else
+									cptMax = 1d;
+								
+								CPT cpt = hazardCPT.rescale(0d, cptMax);
+								
+								InterpDiffMap map = new InterpDiffMap(mapRegion, baseMap, baseMapRes, cpt, scatterData,
+										interpSettings, typesToPlot.toArray(new InterpDiffMapType[0]));
+								map.setCustomLabel(title);
+								map.setTopoResolution(TopographicSlopeFile.CA_THREE);
+								map.setLogPlot(logPlot);
+								map.setDpi(300);
+								map.setXyzFileName("base_map.xyz");
+								map.setCustomScaleMin(0d);
+								map.setCustomScaleMax(cptMax);
+								
+								String metadata = "isProbAt_IML: " + isProbAt_IML + "\n" +
+												"val: " + probLevel + "\n" +
+												"imTypeID: " + im.getID() + "\n";
+								
+								System.out.println("Making map...");
+								String addr;
+								if (LOCAL_MAPGEN)
+									addr = HardCodedInterpDiffMapCreator.plotLocally(map);
+								else
+									addr = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
+								
+								System.out.println("Done, downloading");
+								
+								for (InterpDiffMapType type : typesToPlot) {
+									File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
+									File psFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".ps");
+									if (LOCAL_MAPGEN) {
+										File inFile = new File(addr, pngFile.getName());
 										Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
-										Files.copy(inFile, psFile);
+										Files.copy(inFile, pngFile);
+										if (psSaveTypes.contains(type)) {
+											inFile = new File(addr, psFile.getName());
+											Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
+											Files.copy(inFile, psFile);
+										}
+									} else {
+										if (!addr.endsWith("/"))
+											addr += "/";
+										FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
+										if (psSaveTypes.contains(type))
+											FileUtils.downloadURL(addr+type.getPrefix()+".ps", psFile);
 									}
-								} else {
-									if (!addr.endsWith("/"))
-										addr += "/";
-									FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
-									if (psSaveTypes.contains(type))
-										FileUtils.downloadURL(addr+type.getPrefix()+".ps", psFile);
 								}
 							}
-						}
-						
-						String headings = "##";
-						if (probLevels.size() > 1)
-							headings += "#";
-						
-						lines.add(headings+" "+title);
-						lines.add(topLink); lines.add("");
-						
-						TableBuilder table = MarkdownUtils.tableBuilder();
-						for (InterpDiffMapType[] row : typeTable) {
-							table.initNewLine();
-							for (InterpDiffMapType type : row)
-								table.addColumn("<p align=\"center\">**"+type.getName()+"**</p>");
-							table.finalizeLine();
-							table.initNewLine();
-							for (InterpDiffMapType type : row) {
-								File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
-								Preconditions.checkState(pngFile.exists(), "Map doesn't exist: %s", pngFile.getAbsolutePath());
-								table.addColumn("!["+type.getName()+"](resources/"+pngFile.getName()+")");
+							
+							String myHeading = heading;
+							if (probLevels.size() > 1)
+								myHeading += "#";
+							
+							lines.add(myHeading+" "+title);
+							lines.add(topLink); lines.add("");
+							
+							TableBuilder table = MarkdownUtils.tableBuilder();
+							for (InterpDiffMapType[] row : typeTable) {
+								table.initNewLine();
+								for (InterpDiffMapType type : row)
+									table.addColumn("<p align=\"center\">**"+type.getName()+"**</p>");
+								table.finalizeLine();
+								table.initNewLine();
+								for (InterpDiffMapType type : row) {
+									File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
+									Preconditions.checkState(pngFile.exists(), "Map doesn't exist: %s", pngFile.getAbsolutePath());
+									table.addColumn("!["+type.getName()+"](resources/"+pngFile.getName()+")");
+								}
+								table.finalizeLine();
 							}
-							table.finalizeLine();
+//							table.addLine("**Map Type**", "**Map**");
+//							for (InterpDiffMapType type : mapTypes) {
+//								File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
+//								Preconditions.checkState(pngFile.exists(), "Map doesn't exist: %s", pngFile.getAbsolutePath());
+//								table.addLine("**"+type.getName()+"**", "!["+type.getName()+"](resources/"+pngFile.getName()+")");
+//							}
+							lines.addAll(table.build());
+							lines.add("");
 						}
-//						table.addLine("**Map Type**", "**Map**");
-//						for (InterpDiffMapType type : mapTypes) {
-//							File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
-//							Preconditions.checkState(pngFile.exists(), "Map doesn't exist: %s", pngFile.getAbsolutePath());
-//							table.addLine("**"+type.getName()+"**", "!["+type.getName()+"](resources/"+pngFile.getName()+")");
-//						}
-						lines.addAll(table.build());
-						lines.add("");
 					}
 				}
-			}
-			
-			if (siteDatas != null && siteDatas.length > 0) {
-				lines.add("## Site Data Maps");
-				for (SiteData<?> siteData : siteDatas) {
-					System.out.println("Site data: "+siteData.getDataType()+": "+siteData.getName());
-					lines.add("### "+siteData.getDataType()+": "+siteData.getName());
-					lines.add("");
-					File pngFile = BatchBaseMapPlot.checkMakeSiteDataPlot(
-							(SiteData<Double>)siteData, region, resourcesDir, replot);
-					lines.add("!["+siteData.getName()+"](resources/"+pngFile.getName()+")");
+				
+				if (siteDatas != null && siteDatas.length > 0) {
+					if (mapRegion == region)
+						lines.add(heading+" Site Data Maps");
+					else
+						lines.add(heading+" Zoomed Site Data Maps");
+					for (SiteData<?> siteData : siteDatas) {
+						System.out.println("Site data: "+siteData.getDataType()+": "+siteData.getName());
+						String prefix = siteData.getShortName();
+						if (siteData.getDataType().equals(SiteData.TYPE_VS30)) {
+							prefix += "_vs30";
+						} else if (siteData.getDataType().equals(SiteData.TYPE_DEPTH_TO_1_0)) {
+							prefix += "_z1p0";
+						} else if (siteData.getDataType().equals(SiteData.TYPE_DEPTH_TO_2_5)) {
+							prefix += "_2p5";
+						} else {
+							throw new IllegalStateException();
+						}
+						if (mapRegion != region) {
+							prefix += "_zoomed";
+							lines.add(heading+"# Zoomed "+siteData.getDataType()+": "+siteData.getName());
+						} else {
+							lines.add(heading+"# "+siteData.getDataType()+": "+siteData.getName());
+						}
+						lines.add(topLink); lines.add("");
+						File pngFile = BatchBaseMapPlot.checkMakeSiteDataPlot(
+								(SiteData<Double>)siteData, mapRegion, resourcesDir, prefix, replot);
+						lines.add("!["+siteData.getName()+"](resources/"+pngFile.getName()+")");
+					}
 				}
 			}
 			

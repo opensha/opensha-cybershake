@@ -27,9 +27,9 @@ public class RotDZipDBInsert {
 		DBAccess db = Cybershake_OpenSHA_DBApplication.getAuthenticatedDBAccess(
 				true, true, Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
 		
-		int runID = 6979;
+		int runID = 7024;
 		
-		File zipFile = new File("/tmp/USC_6979_rotd.zip");
+		File zipFile = new File("/tmp/PAS_7024_rotd.zip");
 		ZipFile zip = new ZipFile(zipFile);
 		
 		CyberShakeComponent comp = CyberShakeComponent.RotD50;

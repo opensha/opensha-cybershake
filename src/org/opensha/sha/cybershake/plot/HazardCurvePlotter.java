@@ -1594,13 +1594,16 @@ public class HazardCurvePlotter {
 			String confDir = "src/org/opensha/sha/cybershake/conf/";
 			File outputDir = new File("/tmp/cs_test");
 			Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
-			String[] newArgs = { "-R", "5816",
-					"--output-dir", outputDir.getAbsolutePath(), "--type", "pdf,png",
-					"--erf-file", confDir+"MeanUCERF.xml",
-					"--atten-rel-file", confDir+"cb2014.xml,"
-					+confDir+"bssa2014.xml,"+confDir+"cy2014.xml,"+confDir+"ask2014.xml"
-					, "--plot-chars-file", confDir+"tomPlot.xml", "--component", "RotD50", "--period", "3", "--cvm-vs30"};
-			args = newArgs;
+//			String[] newArgs = { "-R", "5816",
+//					"--output-dir", outputDir.getAbsolutePath(), "--type", "pdf,png",
+//					"--erf-file", confDir+"MeanUCERF.xml",
+//					"--atten-rel-file", confDir+"cb2014.xml,"
+//					+confDir+"bssa2014.xml,"+confDir+"cy2014.xml,"+confDir+"ask2014.xml"
+//					, "--plot-chars-file", confDir+"tomPlot.xml", "--component", "RotD50", "--period", "3", "--cvm-vs30"};
+//			
+			String newArgs = "--site s4456 --run-id 7020 --erf-file "+confDir+"MeanUCERF.xml --atten-rel-file "+confDir+"ask2014.xml"
+					+ " --period 3,5,10,2 --output-dir "+outputDir.getAbsolutePath()+" --type pdf,png";
+			args = newArgs.split(" ");
 		}
 		Stopwatch watch = Stopwatch.createStarted();
 		try {

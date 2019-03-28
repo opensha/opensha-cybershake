@@ -313,6 +313,11 @@ public class BatchBaseMapPlot {
 	
 	public static File checkMakeSiteDataPlot(SiteData<Double> prov, Region region, File dir, boolean replot)
 			throws IOException, ClassNotFoundException, GMT_MapException {
+		return checkMakeSiteDataPlot(prov, region, dir, null, replot);
+	}
+	
+	public static File checkMakeSiteDataPlot(SiteData<Double> prov, Region region, File dir, String prefix, boolean replot)
+			throws IOException, ClassNotFoundException, GMT_MapException {
 		String shortType;
 		Double customMin, customMax;
 		if (prov.getDataType().equals(SiteData.TYPE_VS30)) {
@@ -331,7 +336,8 @@ public class BatchBaseMapPlot {
 			throw new IllegalStateException();
 		}
 		
-		String prefix = prov.getShortName()+"_"+shortType;
+		if (prefix == null)
+			prefix = prov.getShortName()+"_"+shortType;
 		File outputFile = new File(dir, prefix+".png");
 		if (outputFile.exists() && !replot)
 			return outputFile;

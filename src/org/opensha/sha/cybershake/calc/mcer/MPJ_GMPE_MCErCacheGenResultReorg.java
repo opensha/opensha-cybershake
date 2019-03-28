@@ -209,38 +209,66 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 				}
 			}
 			
-			// now BSE-2E PGA M
+			// now BSE-1/2E and SLE PGA M
 			File pgaCurvesFile = new File(dir, pgaPrefix+".bin");
 			String bse2ePGAPlotPrefix = null;
+			String bse1ePGAPlotPrefix = null;
+			String slePGAPlotPrefix = null;
 			if (pgaCurvesFile.exists()) {
-				System.out.println("Doing BSE-2E PGA M");
+				System.out.println("Doing BSE-1/2E and SLE PGA M");
 				reader = new BinaryHazardCurveReader(pgaCurvesFile.getAbsolutePath());
 				Map<Location, ArbitrarilyDiscretizedFunc> curveMap = reader.getCurveMap();
 				Preconditions.checkState(mcerMap.size() == curveMap.size(),
 						"curve size mismatch. have %s MCER, %s PGA", mcerMap.size(), curveMap.size());
 				
-				ArbDiscrGeoDataSet pgaData = new ArbDiscrGeoDataSet(false);
+				ArbDiscrGeoDataSet pgaData1 = new ArbDiscrGeoDataSet(false);
+				ArbDiscrGeoDataSet pgaData2 = new ArbDiscrGeoDataSet(false);
+				ArbDiscrGeoDataSet pgaDataSLE = new ArbDiscrGeoDataSet(false);
 				for (Location loc : curveMap.keySet()) {
 					DiscretizedFunc hazardCurve = curveMap.get(loc);
-					double imlAt5_50 = calculateUniformHazardVal(hazardCurve, 0.05, 50d);
-					pgaData.set(loc, imlAt5_50);
+					double imlAt5_50 = calculateUniformHazardVal(hazardCurve, CyberShakeScatterWriter.bse2e_level);
+					double imlAt20_50 = calculateUniformHazardVal(hazardCurve, CyberShakeScatterWriter.bse1e_level);
+					pgaData2.set(loc, imlAt5_50);
+					pgaData1.set(loc, imlAt20_50);
+					double sleIML = calculateUniformHazardVal(hazardCurve, CyberShakeScatterWriter.sle_level);
+					pgaDataSLE.set(loc, sleIML);
 				}
-				for (int i=0; i<pgaData.size(); i++)
-					Preconditions.checkState(Doubles.isFinite(pgaData.get(i)),
-							"Non Finite PGA M at index %s/%s: %s", i, pgaData.size(), pgaData.get(i));
+				for (int i=0; i<pgaData1.size(); i++)
+					Preconditions.checkState(Doubles.isFinite(pgaData1.get(i)),
+							"Non Finite PGA M at index %s/%s: %s", i, pgaData1.size(), pgaData1.get(i));
+				for (int i=0; i<pgaData2.size(); i++)
+					Preconditions.checkState(Doubles.isFinite(pgaData2.get(i)),
+							"Non Finite PGA M at index %s/%s: %s", i, pgaData2.size(), pgaData2.get(i));
+				for (int i=0; i<pgaDataSLE.size(); i++)
+					Preconditions.checkState(Doubles.isFinite(pgaDataSLE.get(i)),
+							"Non Finite PGA M at index %s/%s: %s", i, pgaDataSLE.size(), pgaDataSLE.get(i));
 				System.out.println("All PGA M values validated\n");
-				File pgaOutFile = new File(outputDir,
-						identifier+"_"+DesignParameter.PGAM.getFileName(spacing, SpectraType.BSE_2E, SpectraSource.COMBINED));
-				BinaryGeoDatasetRandomAccessFile.writeGeoDataset(pgaData, BinaryCurveArchiver.byteOrder, pgaOutFile);
-				bse2ePGAPlotPrefix = pgaOutFile.getName().replace(".bin", "");
 				
-				if (plotPeriods != null)
-					plotPGA(pgaData, outputDir, identifier+", BSE-2E PGAM", bse2ePGAPlotPrefix, spacing, region, replot);
+				File pgaOutFile2 = new File(outputDir,
+						identifier+"_"+DesignParameter.PGAM.getFileName(spacing, SpectraType.BSE_2E, SpectraSource.COMBINED));
+				BinaryGeoDatasetRandomAccessFile.writeGeoDataset(pgaData2, BinaryCurveArchiver.byteOrder, pgaOutFile2);
+				bse2ePGAPlotPrefix = pgaOutFile2.getName().replace(".bin", "");
+				
+				File pgaOutFile1 = new File(outputDir,
+						identifier+"_"+DesignParameter.PGAM.getFileName(spacing, SpectraType.BSE_1E, SpectraSource.COMBINED));
+				BinaryGeoDatasetRandomAccessFile.writeGeoDataset(pgaData1, BinaryCurveArchiver.byteOrder, pgaOutFile1);
+				bse1ePGAPlotPrefix = pgaOutFile1.getName().replace(".bin", "");
+				
+				File pgaOutFileSLE = new File(outputDir,
+						identifier+"_"+DesignParameter.PGAM.getFileName(spacing, SpectraType.SLE, SpectraSource.COMBINED));
+				BinaryGeoDatasetRandomAccessFile.writeGeoDataset(pgaDataSLE, BinaryCurveArchiver.byteOrder, pgaOutFileSLE);
+				slePGAPlotPrefix = pgaOutFileSLE.getName().replace(".bin", "");
+				
+				if (plotPeriods != null) {
+					plotPGA(pgaData2, outputDir, identifier+", BSE-2E PGAM", bse2ePGAPlotPrefix, spacing, region, replot);
+					plotPGA(pgaData1, outputDir, identifier+", BSE-1E PGAM", bse1ePGAPlotPrefix, spacing, region, replot);
+					plotPGA(pgaDataSLE, outputDir, identifier+", SLE PGAM", slePGAPlotPrefix, spacing, region, replot);
+				}
 			}
 			
 			if (plotPeriods != null)
 				lines.addAll(getPlotLines(plotPeriods, topLink, identifier, mcerPlotPrefix, pgaPlotPrefix, bse2ePlotPrefix,
-						bse1ePlotPrefix, bse2ePGAPlotPrefix, slePlotPrefix));
+						bse1ePlotPrefix, bse2ePGAPlotPrefix, bse1ePGAPlotPrefix, slePlotPrefix, slePGAPlotPrefix));
 		}
 		
 		// now calculate D_default
@@ -318,8 +346,8 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 		}
 		
 		// now the same but for PGA
-		SpectraType[] pgaTypes = { SpectraType.MCER, SpectraType.BSE_2E };
-		String pgaPlotPrefix = null, bse2ePGAPlotPrefix = null;
+		SpectraType[] pgaTypes = { SpectraType.MCER, SpectraType.BSE_2E, SpectraType.BSE_1E, SpectraType.SLE };
+		String pgaPlotPrefix = null, bse2ePGAPlotPrefix = null, bse1ePGAPlotPrefix = null, slePGAPlotPrefix = null;
 		for (SpectraType type : pgaTypes) {
 			String fileName = DesignParameter.PGAM.getFileName(spacing, type, SpectraSource.COMBINED);
 			File dInPGA = new File(outputDir, "classD_"+fileName);
@@ -345,6 +373,10 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 						pgaPlotPrefix = plotPrefix;
 					else if (type == SpectraType.BSE_2E)
 						bse2ePGAPlotPrefix = plotPrefix;
+					else if (type == SpectraType.BSE_1E)
+						bse1ePGAPlotPrefix = plotPrefix;
+					else if (type == SpectraType.SLE)
+						slePGAPlotPrefix = plotPrefix;
 					plotPGA(dDefaultPGAData, outputDir, title, plotPrefix, spacing, region, replot);
 				}
 			}
@@ -353,7 +385,7 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 		
 		if (plotPeriods != null) {
 			lines.addAll(getPlotLines(plotPeriods, topLink, "classD (Default)", mcerPlotPrefix, pgaPlotPrefix, bse2ePlotPrefix,
-					bse1ePlotPrefix, bse2ePGAPlotPrefix, slePlotPrefix));
+					bse1ePlotPrefix, bse2ePGAPlotPrefix, bse1ePGAPlotPrefix, slePlotPrefix, slePGAPlotPrefix));
 			
 			// add TOC
 			lines.addAll(tocIndex, MarkdownUtils.buildTOC(lines, 2, 4));
@@ -366,7 +398,7 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 
 	private static List<String> getPlotLines(double[] plotPeriods, String topLink, String identifier,
 			String mcerPlotPrefix, String pgaPlotPrefix, String bse2ePlotPrefix, String bse1ePlotPrefix,
-			String bse2ePGAPlotPrefix, String slePlotPrefix) {
+			String bse2ePGAPlotPrefix, String bse1ePGAPlotPrefix, String slePlotPrefix, String slePGAPlotPrefix) {
 		List<String> lines = new ArrayList<>();
 		
 		identifier = identifier.replaceAll("class", "Class ");
@@ -415,6 +447,10 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 				table.addColumn("PGAM");
 			if (bse2ePGAPlotPrefix != null)
 				table.addColumn("BSE-2E PGAM");
+			if (bse1ePGAPlotPrefix != null)
+				table.addColumn("BSE-2E PGAM");
+			if (slePGAPlotPrefix != null)
+				table.addColumn("SLE PGAM");
 			table.finalizeLine();
 			
 			table.initNewLine();
@@ -422,6 +458,10 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 				table.addColumn("![PGAM]("+pgaPlotPrefix+".png)");
 			if (bse2ePGAPlotPrefix != null)
 				table.addColumn("![PGAM]("+bse2ePGAPlotPrefix+".png)");
+			if (bse1ePGAPlotPrefix != null)
+				table.addColumn("![PGAM]("+bse1ePGAPlotPrefix+".png)");
+			if (slePGAPlotPrefix != null)
+				table.addColumn("![PGAM]("+slePGAPlotPrefix+".png)");
 			table.finalizeLine();
 			
 			lines.addAll(table.build());

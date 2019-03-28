@@ -65,7 +65,7 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 		
-		String[] siteNames = { "USC" };
+		String[] siteNames = { "USC", "PAS" };
 		
 		double[] calcPeriods = { 3, 4, 5, 7.5, 10 };
 		double[] periods = { 3, 5, 10 };

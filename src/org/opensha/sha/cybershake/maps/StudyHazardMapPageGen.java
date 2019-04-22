@@ -12,6 +12,7 @@ import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.impl.CS_Study18_8_BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
+import org.opensha.commons.data.siteData.impl.WillsMap2006;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.data.xyz.AbstractGeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSet;
@@ -49,13 +50,13 @@ public class StudyHazardMapPageGen {
 	public static void main(String[] args) throws IOException {
 		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
-		double[] periods = { 2d, 3d, 5d, 10d };
-		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
-		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
-		SiteData<?>[] siteDatas = { new WillsMap2015(), new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
-				new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
-		Region zoomRegion = new Region(new Location(38.5, -121.5), new Location(37, -123));
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+//		double[] periods = { 2d, 3d, 5d, 10d };
+//		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
+//		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+//		SiteData<?>[] siteDatas = { new WillsMap2015(), new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+//				new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+//		Region zoomRegion = new Region(new Location(38.5, -121.5), new Location(37, -123));
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_17_3_3D;
 //		double[] periods = { 2d, 3d, 5d, 10d };
@@ -79,6 +80,21 @@ public class StudyHazardMapPageGen {
 //		SiteData<?>[] siteDatas = { new WillsMap2015(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
 //				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 //		Region zoomRegion = null;
+		
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_14_2_CVM_S426;
+//		double[] periods = { 3d, 5d, 10d };
+//		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
+//		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
+//		SiteData<?>[] siteDatas = { new WillsMap2006(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+//				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+//		Region zoomRegion = null;
+		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_14_2_1D;
+		double[] periods = { 3d, 5d, 10d };
+		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
+		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
+		SiteData<?>[] siteDatas = null;
+		Region zoomRegion = null;
 		
 		boolean replot = false;
 		
@@ -294,7 +310,10 @@ public class StudyHazardMapPageGen {
 							if (probLevels.size() > 1)
 								myHeading += "#";
 							
-							lines.add(myHeading+" "+title);
+							if (mapRegion == region)
+								lines.add(myHeading+" "+title);
+							else
+								lines.add(myHeading+" Zoomed "+title);
 							lines.add(topLink); lines.add("");
 							
 							TableBuilder table = MarkdownUtils.tableBuilder();

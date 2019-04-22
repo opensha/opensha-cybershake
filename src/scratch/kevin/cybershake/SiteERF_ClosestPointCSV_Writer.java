@@ -32,7 +32,7 @@ import com.google.common.base.Preconditions;
 public class SiteERF_ClosestPointCSV_Writer {
 
 	public static void main(String[] args) throws IOException, InterruptedException, ExecutionException {
-		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
 		
 		DBAccess db = study.getDB();
 		

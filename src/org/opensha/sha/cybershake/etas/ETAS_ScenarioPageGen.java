@@ -8,6 +8,7 @@ import java.net.URL;
 import java.text.DecimalFormat;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
@@ -22,31 +23,43 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.math3.stat.StatUtils;
+import org.jfree.chart.plot.CombinedDomainXYPlot;
+import org.jfree.chart.plot.DatasetRenderingOrder;
+import org.jfree.chart.plot.XYPlot;
 import org.jfree.data.Range;
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
+import org.opensha.commons.data.function.DefaultXY_DataSet;
 import org.opensha.commons.data.function.DiscretizedFunc;
+import org.opensha.commons.data.function.HistogramFunction;
+import org.opensha.commons.data.function.LightFixedXFunc;
+import org.opensha.commons.data.function.XY_DataSet;
 import org.opensha.commons.data.xyz.ArbDiscrGeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSetMath;
 import org.opensha.commons.exceptions.GMT_MapException;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationList;
+import org.opensha.commons.geo.LocationUtils;
 import org.opensha.commons.gui.plot.HeadlessGraphPanel;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotPreferences;
 import org.opensha.commons.gui.plot.PlotSpec;
+import org.opensha.commons.gui.plot.PlotSymbol;
 import org.opensha.commons.mapping.gmt.GMT_Map;
 import org.opensha.commons.mapping.gmt.elements.PSXYSymbol;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
+import org.opensha.commons.util.ComparablePairing;
 import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.FileUtils;
+import org.opensha.commons.util.IDPairing;
 import org.opensha.commons.util.MarkdownUtils;
 import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 import org.opensha.commons.util.cpt.CPT;
+import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
@@ -78,6 +91,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.primitives.Doubles;
 
+import scratch.UCERF3.FaultSystemRupSet;
 import scratch.UCERF3.analysis.FaultBasedMapGen;
 import scratch.UCERF3.erf.ETAS.ETAS_CatalogIO;
 import scratch.UCERF3.erf.ETAS.ETAS_EqkRupture;
@@ -485,6 +499,62 @@ public class ETAS_ScenarioPageGen {
 		table.addLine("Max variations per ruptures", (float)StatUtils.max(countArray));
 		lines.addAll(table.build());
 		lines.add("");
+		
+		lines.add("## Conditional Hypocenter Distributions");
+		lines.add(topLink); lines.add("");
+		
+		FaultSystemRupSet rupSet = modProbConfigs[0].getSol().getRupSet();
+		Map<Integer, String> parentSectNames = new HashMap<>();
+		Map<Integer, Integer> triggeredParentCounts = new HashMap<>();
+		int minRupsForParent = 100;
+		for (List<ETAS_EqkRupture> catalog : catalogs) {
+			for (ETAS_EqkRupture rup : catalog) {
+				if (rup.getFSSIndex() < 0)
+					continue;
+				for (Integer parentID : rupSet.getParentSectionsForRup(rup.getFSSIndex())) {
+					Integer count = triggeredParentCounts.get(parentID);
+					if (count == null)
+						count = 0;
+					triggeredParentCounts.put(parentID, count+1);
+				}
+			}
+		}
+		List<Integer> sortedParentIDs = ComparablePairing.getSortedData(triggeredParentCounts);
+		Collections.reverse(sortedParentIDs);
+		if (sortedParentIDs.size() > 5)
+			sortedParentIDs = sortedParentIDs.subList(0, 5);
+		for (Integer parentID : sortedParentIDs) {
+			Integer count = triggeredParentCounts.get(parentID);
+			if (count < minRupsForParent)
+				break;
+			String parentSectionName = null;
+			for (FaultSectionPrefData sect : rupSet.getFaultSectionDataList()) {
+				if (sect.getParentSectionId() == parentID) {
+					parentSectionName = sect.getParentSectionName();
+					break;
+				}
+			}
+			
+			lines.add("### "+parentSectionName+" CHD");
+			lines.add(topLink); lines.add("");
+			
+			System.out.println("Doing CHD for "+parentSectionName);
+			
+			File[] plots = plotCHDs(resourcesDir, rupSet, parentID, true);
+			table = MarkdownUtils.tableBuilder();
+			table.initNewLine();
+			for (int i=0; i<timeSpans.length; i++)
+				table.addColumn(timeSpans[i]);
+			table.finalizeLine();
+			table.initNewLine();
+			for (int i=0; i<timeSpans.length; i++)
+				table.addColumn("![CHD](resources/"+plots[i].getName()+")");
+			table.finalizeLine();
+			lines.addAll(table.build());
+			lines.add("");
+			
+			plotCHDs(resourcesDir, rupSet, parentID, false); // build plots without CS as well
+		}
 		
 		if (curveSites != null) {
 			lines.add("## Hazard Curves");
@@ -1389,6 +1459,289 @@ public class ETAS_ScenarioPageGen {
 		FaultBasedMapGen.plotMap(resourcesDir, prefix, false, map);
 	}
 	
+	private File[] plotCHDs(File resourcesDir, FaultSystemRupSet rupSet, int parentSectionID, boolean plotCS) throws IOException {
+		File[] ret = new File[timeSpans.length];
+		
+		List<FaultSectionPrefData> sects = new ArrayList<>();
+		for (FaultSectionPrefData sect : rupSet.getFaultSectionDataList())
+			if (sect.getParentSectionId() == parentSectionID)
+				sects.add(sect);
+		Preconditions.checkState(!sects.isEmpty());
+		
+		String parentName = sects.get(0).getParentSectionName();
+		String parentPrefix = parentName.replaceAll("\\W+", "_");
+		
+		HashSet<Integer> rupIDs = new HashSet<>(rupSet.getRupturesForParentSection(parentSectionID));
+		
+		Location firstLoc = sects.get(0).getFaultTrace().first();
+		Location lastLoc = sects.get(sects.size()-1).getFaultTrace().last();
+		double latSpan = Math.abs(firstLoc.getLatitude() - lastLoc.getLatitude());
+		double lonSpan = Math.abs(firstLoc.getLongitude() - lastLoc.getLongitude());
+		
+		boolean latitude = latSpan > lonSpan;
+		
+		double minX, maxX;
+		if (latitude) {
+			minX = Math.min(firstLoc.getLatitude(), lastLoc.getLatitude());
+			maxX = Math.max(firstLoc.getLatitude(), lastLoc.getLatitude());
+		} else {
+			minX = Math.min(firstLoc.getLongitude(), lastLoc.getLongitude());
+			maxX = Math.max(firstLoc.getLongitude(), lastLoc.getLongitude());
+		}
+		
+		for (int t=0; t<timeSpans.length; t++) {
+			ETASModProbConfig modProbConfig = modProbConfigs[t];
+			
+			// build list of raw hypocenter locations
+			List<Location> rawHypos = new ArrayList<>();
+			List<List<ETAS_EqkRupture>> catalogs = modProbConfig.getCatalogs();
+			HashSet<Integer> triggeredMatchingRupIDs = new HashSet<>();
+			for (List<ETAS_EqkRupture> catalog : catalogs) {
+				for (ETAS_EqkRupture rup : catalog) {
+					if (rup.getFSSIndex() >= 0 && rupIDs.contains(rup.getFSSIndex())) {
+						triggeredMatchingRupIDs.add(rup.getFSSIndex());
+						Location hypo = rup.getHypocenterLocation();
+						// find out if hypo is on this section
+						
+						if (isHypocenterOnParentSect(rup.getFSSIndex(), hypo, rupSet, parentSectionID)) {
+							// it's on this section
+							rawHypos.add(hypo);
+						}
+					}
+				}
+			}
+			
+			HistogramFunction csCHD = null;
+			HistogramFunction csUniformCHD = null;
+			List<Location> mappedHypos = null;
+			List<Location> csUniformHypos = null;
+			if (plotCS) {
+				// build list of mapped hypocenters
+				mappedHypos = new ArrayList<>();
+				csUniformHypos = new ArrayList<>();
+				Map<Integer, IDPairing> fssToERFmappings = modProbConfig.getRupMappingTable();
+				Map<IDPairing, Map<Integer, Double>> rvCounts = modProbConfig.getRVOccuranceCounts();
+				List<Double> mappedFractionalOccurences = new ArrayList<>();
+				List<Double> csUniformWeights = new ArrayList<>();
+				for (int fssIndex : triggeredMatchingRupIDs) {
+					IDPairing erfMapping = fssToERFmappings.get(fssIndex);
+					if (erfMapping == null)
+						continue;
+					Map<Integer, Location> hypoLocs = modProbConfig.getRVHypocenters(erfMapping);
+					Map<Integer, Double> rvOccurs = rvCounts.get(erfMapping);
+					double uniWeight = 0d;
+					if (rvOccurs != null) {
+						for (Integer rvID : rvOccurs.keySet()) {
+							if (rvOccurs.get(rvID) == 0d)
+								continue;
+							Location hypo = hypoLocs.get(rvID);
+							if (isHypocenterOnParentSect(fssIndex, hypo, rupSet, parentSectionID)) {
+								// it's on this section
+								mappedHypos.add(hypo);
+								double weight = rvOccurs.get(rvID);
+								uniWeight += weight;
+								mappedFractionalOccurences.add(weight);
+							}
+						}
+					}
+					for (Location hypo : hypoLocs.values()) {
+						if (isHypocenterOnParentSect(fssIndex, hypo, rupSet, parentSectionID)) {
+							csUniformHypos.add(hypo);
+							csUniformWeights.add(uniWeight);
+						}
+					}
+				}
+				csCHD = calcCHD(mappedHypos, mappedFractionalOccurences, latitude, minX, maxX);
+				csUniformCHD = calcCHD(csUniformHypos, csUniformWeights, latitude, minX, maxX);
+			}
+			
+			
+			HistogramFunction etasCHD = calcCHD(rawHypos, null, latitude, minX, maxX);
+			
+			List<XY_DataSet> funcs = new ArrayList<>();
+			List<PlotCurveCharacterstics> chars = new ArrayList<>();
+			
+			funcs.add(etasCHD);
+			etasCHD.setName("ETAS CHD");
+			chars.add(new PlotCurveCharacterstics(PlotLineType.HISTOGRAM, 3f, Color.BLACK));
+			
+			if (plotCS) {
+				funcs.add(csCHD);
+				csCHD.setName("CyberShake Mapped CHD");
+				chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 2f, PlotSymbol.FILLED_CIRCLE, 3f, Color.BLUE));
+				
+				funcs.add(csUniformCHD);
+				csUniformCHD.setName("CyberShake Uniform CHD");
+				chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 2f, PlotSymbol.CIRCLE, 3f, Color.RED));
+			}
+			
+			String title = timeSpans[t]+" "+parentName+" CHDs";
+			String prefix = "chd_"+parentPrefix+"_"+timeSpans[t].name();
+			if (!plotCS)
+				prefix += "_etas_only";
+			
+			String xAxisLabel = latitude ? "Latitude (degrees)" : "Longitude (degrees)";
+			
+			PlotSpec spec = new PlotSpec(funcs, chars, title, xAxisLabel, "Conditional Probability");
+			spec.setLegendVisible(plotCS);
+			
+			PlotPreferences plotPrefs = PlotPreferences.getDefault();
+			plotPrefs.setTickLabelFontSize(18);
+			plotPrefs.setAxisLabelFontSize(20);
+			plotPrefs.setPlotLabelFontSize(21);
+			plotPrefs.setBackgroundColor(Color.WHITE);
+			
+			HeadlessGraphPanel gp = new HeadlessGraphPanel(plotPrefs);
+			
+			Range xRange = new Range(minX, maxX);
+			Range yRange = new Range(0d, 1d);
+			
+			gp.drawGraphPanel(spec, false, false, xRange, yRange);
+			gp.getChartPanel().setSize(800, 600);
+			
+			File pngFile = new File(resourcesDir, prefix+".png");
+			gp.saveAsPNG(pngFile.getAbsolutePath());
+			File pdfFile = new File(resourcesDir, prefix+".pdf");
+			gp.saveAsPDF(pdfFile.getAbsolutePath());
+			
+			// now make hypo plot
+			funcs = new ArrayList<>();
+			chars = new ArrayList<>();
+			
+			XY_DataSet etasHypoFunc = getHypoFunc(rawHypos, latitude);
+			etasHypoFunc.setName("ETAS Hypocenters");
+			funcs.add(etasHypoFunc);
+			chars.add(new PlotCurveCharacterstics(PlotSymbol.BOLD_X, 4f, Color.BLACK));
+			
+			double maxDepth = etasHypoFunc.getMaxY();
+			
+			if (plotCS) {
+				XY_DataSet csHypoFunc = getHypoFunc(mappedHypos, latitude);
+				csHypoFunc.setName("CyberShake Mapped Hypocenters");
+				funcs.add(csHypoFunc);
+				chars.add(new PlotCurveCharacterstics(PlotSymbol.FILLED_CIRCLE, 2f, new Color(0, 0, 255, 180)));
+				
+				XY_DataSet csUniFunc = getHypoFunc(csUniformHypos, latitude);
+				csUniFunc.setName("CyberShake Uniform Hypocenters");
+				funcs.add(csUniFunc);
+				chars.add(new PlotCurveCharacterstics(PlotSymbol.CIRCLE, 1f, new Color(255, 0, 0, 127)));
+				
+				maxDepth = Math.max(maxDepth, csUniFunc.getMaxY());
+			}
+			
+			if (scenarioLoc != null) {
+				double minDist = Double.POSITIVE_INFINITY;
+				for (FaultSectionPrefData sect : sects)
+					for (Location loc : sect.getFaultTrace())
+						minDist = Math.min(minDist, LocationUtils.horzDistanceFast(loc, scenarioLoc));
+				if (minDist < 10d) {
+					XY_DataSet scenarioXY = new DefaultXY_DataSet();
+					scenarioXY.set(latitude ? scenarioLoc.getLatitude() : scenarioLoc.getLongitude(), scenarioLoc.getDepth());
+					funcs.add(0, scenarioXY);
+					chars.add(0, new PlotCurveCharacterstics(PlotSymbol.FILLED_INV_TRIANGLE, 8, Color.GREEN.darker()));
+				}
+			}
+			
+			PlotSpec hypoSpec = new PlotSpec(funcs, chars, title, xAxisLabel, "Depth (km)");
+			spec.setLegendVisible(plotCS);
+			
+			Range depthRange = new Range(0d, maxDepth);
+
+			gp.setRenderingOrder(DatasetRenderingOrder.REVERSE);
+			gp.drawGraphPanel(hypoSpec, false, false, xRange, depthRange);
+			gp.getYAxis().setInverted(true);
+			gp.getChartPanel().setSize(800, 600);
+			
+			pngFile = new File(resourcesDir, prefix+"_hypos.png");
+			gp.saveAsPNG(pngFile.getAbsolutePath());
+			
+			// now plot combined
+			List<PlotSpec> specs = new ArrayList<>();
+			List<Range> xRanges = new ArrayList<>();
+			List<Range> yRanges = new ArrayList<>();
+			
+			etasCHD.setName("ETAS");
+			if (plotCS) {
+				csCHD.setName("CyberShake Mapped");
+				csUniformCHD.setName("CyberShake Uniform");
+			}
+			
+			specs.add(spec);
+			specs.add(hypoSpec);
+			
+			xRanges.add(xRange);
+			yRanges.add(yRange);
+			yRanges.add(depthRange);
+
+			gp.setRenderingOrder(DatasetRenderingOrder.FORWARD);
+			gp.drawGraphPanel(specs, false, false, xRanges, yRanges);
+			gp.getYAxis().setInverted(false);
+			CombinedDomainXYPlot plot = (CombinedDomainXYPlot)gp.getPlot();
+			((XYPlot)plot.getSubplots().get(1)).getRangeAxis().setInverted(true);
+			((XYPlot)plot.getSubplots().get(0)).setWeight(6);
+			((XYPlot)plot.getSubplots().get(1)).setWeight(10);
+			((XYPlot)plot.getSubplots().get(1)).setDatasetRenderingOrder(DatasetRenderingOrder.REVERSE);
+			gp.getChartPanel().setSize(800, 1000);
+			
+			pngFile = new File(resourcesDir, prefix+"_hypos_combined.png");
+			gp.saveAsPNG(pngFile.getAbsolutePath());
+			
+			ret[t] = pngFile;
+		}
+		
+		return ret;
+	}
+	
+	private HistogramFunction calcCHD(List<Location> hypos, List<Double> scalars, boolean latitude, double minX, double maxX) {
+//		HistogramFunction chd = HistogramFunction.getEncompassingHistogram(minX, maxX, (maxX - minX)/20d);
+		HistogramFunction chd = new HistogramFunction(minX, maxX, 21);
+		chd = new HistogramFunction(minX+0.5*chd.getDelta(), 20, chd.getDelta());
+		Preconditions.checkState(scalars == null || scalars.size() == hypos.size());
+		
+		for (int i=0; i<hypos.size(); i++) {
+			Location hypo = hypos.get(i);
+			double x = latitude ? hypo.getLatitude() : hypo.getLongitude();
+			
+			int index = chd.getClosestXIndex(x);
+			double value = scalars == null ? 1d : scalars.get(i);
+			
+			chd.add(index, value);
+		}
+		
+		chd.normalizeBySumOfY_Vals();
+		
+		return chd;
+	}
+	
+	private XY_DataSet getHypoFunc(List<Location> hypos, boolean latitude) {
+		double[] xs = new double[hypos.size()];
+		double[] ys = new double[hypos.size()];
+		for (int i=0; i<hypos.size(); i++) {
+			Location hypo = hypos.get(i);
+			if (latitude)
+				xs[i] = hypo.getLatitude();
+			else
+				xs[i] = hypo.getLongitude();
+			ys[i] = hypo.getDepth();
+		}
+		return new LightFixedXFunc(xs, ys);
+	}
+	
+	private boolean isHypocenterOnParentSect(int fssIndex, Location hypo, FaultSystemRupSet rupSet, int parentSectionID) {
+		double minDist = Double.POSITIVE_INFINITY;
+		boolean closestIsMatch = false;
+		for (FaultSectionPrefData sect : rupSet.getFaultSectionDataForRupture(fssIndex)) {
+			for (Location loc : sect.getFaultTrace()) {
+				double dist = LocationUtils.horzDistanceFast(hypo, loc);
+				if (dist < minDist) {
+					minDist = dist;
+					closestIsMatch = sect.getParentSectionId() == parentSectionID;
+				}
+			}
+		}
+		return closestIsMatch;
+	}
+	
 	static final DecimalFormat optionalDigitDF = new DecimalFormat("0.##");
 	
 	private class NoEtasRupProbMod implements RuptureProbabilityModifier {
@@ -1608,6 +1961,8 @@ public class ETAS_ScenarioPageGen {
 				pageGen.generatePage(outputDir, periods, mapPeriods, replotMaps);
 			} catch (Exception e) {
 				e.printStackTrace();
+				System.err.flush();
+				System.exit(0);
 			}
 			pageGen.exec.shutdown();
 		}

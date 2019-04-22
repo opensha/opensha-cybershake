@@ -2,23 +2,17 @@ package org.opensha.sha.cybershake.etas;
 
 import java.awt.Color;
 import java.awt.Font;
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipException;
-import java.util.zip.ZipFile;
 
 import org.apache.commons.math3.stat.StatUtils;
 import org.dom4j.DocumentException;
@@ -37,7 +31,6 @@ import org.opensha.commons.gui.plot.HeadlessGraphPanel;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotSpec;
-import org.opensha.commons.util.DataUtils.MinMaxAveTracker;
 import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.IDPairing;
@@ -60,15 +53,18 @@ import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.magdist.IncrementalMagFreqDist;
 import org.opensha.sha.magdist.SummedMagFreqDist;
 
-import scratch.UCERF3.FaultSystemRupSet;
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.primitives.Doubles;
+
 import scratch.UCERF3.FaultSystemSolution;
 import scratch.UCERF3.enumTreeBranches.FaultModels;
 import scratch.UCERF3.erf.ETAS.ETAS_CatalogIO;
 import scratch.UCERF3.erf.ETAS.ETAS_CubeDiscretizationParams;
 import scratch.UCERF3.erf.ETAS.ETAS_EqkRupture;
-import scratch.UCERF3.erf.ETAS.ETAS_MultiSimAnalysisTools;
 import scratch.UCERF3.erf.ETAS.ETAS_PrimaryEventSampler;
-import scratch.UCERF3.erf.ETAS.ETAS_SimAnalysisTools;
 import scratch.UCERF3.erf.ETAS.ETAS_Utils;
 import scratch.UCERF3.erf.ETAS.FaultSystemSolutionERF_ETAS;
 import scratch.UCERF3.erf.ETAS.ETAS_Params.ETAS_ParameterList;
@@ -77,22 +73,11 @@ import scratch.UCERF3.erf.ETAS.analysis.SimulationMarkdownGenerator;
 import scratch.UCERF3.erf.ETAS.launcher.ETAS_Config;
 import scratch.UCERF3.erf.ETAS.launcher.ETAS_Config.BinaryFilteredOutputConfig;
 import scratch.UCERF3.erf.ETAS.launcher.ETAS_Launcher;
-import scratch.UCERF3.erf.ETAS.launcher.TriggerRupture;
 import scratch.UCERF3.erf.utils.ProbabilityModelsCalc;
-import scratch.UCERF3.griddedSeismicity.AbstractGridSourceProvider;
 import scratch.UCERF3.utils.FaultSystemIO;
 import scratch.UCERF3.utils.MatrixIO;
 import scratch.UCERF3.utils.RELM_RegionUtils;
 import scratch.UCERF3.utils.ModUCERF2.ModMeanUCERF2_FM2pt1;
-import scratch.kevin.ucerf3.etas.MPJ_ETAS_Simulator;
-
-import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterators;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.io.CharStreams;
-import com.google.common.primitives.Doubles;
 
 public class ETASModProbConfig extends AbstractModProbConfig {
 	
@@ -153,7 +138,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 //	private Table<Integer, Integer, Integer> rupMappingTable;
 	// mapping from FSS Index to CyberShake UCERF2 source/rup
 	private Map<Integer, IDPairing> rupMappingTable;
-	private Map<IDPairing, Integer> rupMappingReverseTable;
+	private Map<IDPairing, List<Integer>> rupMappingReverseTable;
 	
 	private ERF ucerf2;
 	private ERF modifiedUCERF2;
@@ -172,6 +157,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 	private Map<IDPairing, List<Location>> gmpeHypoLocations;
 	
 	private Map<IDPairing, List<Double>> rvProbs;
+	private Map<IDPairing, Map<Integer, Double>> rvOccurCountsMap;
 	private List<RVProbSortable> rvProbsSortable;
 	
 	private double[][] fractOccurances;
@@ -504,8 +490,59 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 			Preconditions.checkNotNull(match);
 			rupMappingTable.put(fssIndex, match);
 //			Preconditions.checkState(!rupMappingReverseTable.containsKey(match));
-			rupMappingReverseTable.put(match, fssIndex);
+			List<Integer> reverseMappings = rupMappingReverseTable.get(match);
+			if (reverseMappings == null) {
+				reverseMappings = new ArrayList<>();
+				rupMappingReverseTable.put(match, reverseMappings);
+			}
+			reverseMappings.add(fssIndex);
 		}
+	}
+	
+	public FaultSystemSolution getSol() {
+		return sol;
+	}
+	
+	public synchronized Map<Integer, Location> getRVHypocenters(IDPairing pair) {
+		Map<Integer, Location> hyposByRV = hypoLocationsByRV.get(pair);
+		if (hyposByRV == null) {
+			String sql = "SELECT Rup_Var_ID,Hypocenter_Lat,Hypocenter_Lon,Hypocenter_Depth FROM Rupture_Variations " +
+					"WHERE ERF_ID=" + erfID + " AND Rup_Var_Scenario_ID=" + rupVarScenID + " " +
+					"AND Source_ID=" + pair.getID1() + " AND Rupture_ID=" + pair.getID2();
+			
+			Map<Location, List<Integer>> locsMap = new HashMap<>();
+			for (int fssIndex : rupMappingReverseTable.get(pair))
+				rvHypoLocations.put(fssIndex, locsMap);
+			hyposByRV = new HashMap<>();
+			hypoLocationsByRV.put(pair, hyposByRV);
+			
+			try {
+				ResultSet rs = db.selectData(sql);
+				boolean success = rs.first();
+				while (success) {
+					int rvID = rs.getInt("Rup_Var_ID");
+					double lat = rs.getDouble("Hypocenter_Lat");
+					double lon = rs.getDouble("Hypocenter_Lon");
+					double depth = rs.getDouble("Hypocenter_Depth");
+					Location loc = new Location(lat, lon, depth);
+					
+					List<Integer> ids = locsMap.get(loc);
+					if (ids == null) {
+						ids = Lists.newArrayList();
+						locsMap.put(loc, ids);
+					}
+					ids.add(rvID);
+					hyposByRV.put(rvID, loc);
+
+					success = rs.next();
+				}
+			} catch (SQLException e) {
+				ExceptionUtils.throwAsRuntimeException(e);
+			}
+			Preconditions.checkState(!locsMap.isEmpty());
+		}
+		
+		return hyposByRV;
 	}
 	
 	private void loadHyposForETASRups() {
@@ -531,43 +568,10 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 				}
 				gmpeHypos.add(origHypo);
 				
-				if (rvHypoLocations.containsKey(fssIndex))
-					// we've already loaded hypos
-					continue;
+//				Preconditions.checkState(rupMappingReverseTable.get(pair) == fssIndex,
+//						"Bad mappings? %s != %s for pair %s", fssIndex, rupMappingReverseTable.get(pair), pair);
 				
-				String sql = "SELECT Rup_Var_ID,Hypocenter_Lat,Hypocenter_Lon,Hypocenter_Depth FROM Rupture_Variations " +
-						"WHERE ERF_ID=" + erfID + " AND Rup_Var_Scenario_ID=" + rupVarScenID + " " +
-						"AND Source_ID=" + pair.getID1() + " AND Rupture_ID=" + pair.getID2();
-				
-				Map<Location, List<Integer>> locsMap = Maps.newHashMap();
-				rvHypoLocations.put(fssIndex, locsMap);
-				Map<Integer, Location> hyposByRV = Maps.newHashMap();
-				hypoLocationsByRV.put(pair, hyposByRV);
-				
-				try {
-					ResultSet rs = db.selectData(sql);
-					boolean success = rs.first();
-					while (success) {
-						int rvID = rs.getInt("Rup_Var_ID");
-						double lat = rs.getDouble("Hypocenter_Lat");
-						double lon = rs.getDouble("Hypocenter_Lon");
-						double depth = rs.getDouble("Hypocenter_Depth");
-						Location loc = new Location(lat, lon, depth);
-						
-						List<Integer> ids = locsMap.get(loc);
-						if (ids == null) {
-							ids = Lists.newArrayList();
-							locsMap.put(loc, ids);
-						}
-						ids.add(rvID);
-						hyposByRV.put(rvID, loc);
-
-						success = rs.next();
-					}
-				} catch (SQLException e) {
-					ExceptionUtils.throwAsRuntimeException(e);
-				}
-				Preconditions.checkState(!locsMap.isEmpty());
+				getRVHypocenters(pair);
 			}
 		}
 		
@@ -607,7 +611,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		}
 		
 		// map from ID pairing to <rv ID, fractional num etas occurrences>
-		Map<IDPairing, Map<Integer, Double>> rvOccurCountsMap = Maps.newHashMap();
+		rvOccurCountsMap = Maps.newHashMap();
 		Map<IDPairing, List<Integer>> allRVsMap = Maps.newHashMap();
 		
 		fractOccurances = new double[ucerf2.getNumSources()][];
@@ -880,8 +884,16 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		return rvProbs;
 	}
 	
+	public Map<IDPairing, Map<Integer, Double>> getRVOccuranceCounts() {
+		return rvOccurCountsMap;
+	}
+	
 	public Map<Integer, Map<Location, List<Integer>>> getHypoLocs() {
 		return rvHypoLocations;
+	}
+	
+	public Map<IDPairing, Map<Integer, Location>> getHypoLocationsByRV() {
+		return hypoLocationsByRV;
 	}
 	
 	public Map<Integer, IDPairing> getRupMappingTable() {

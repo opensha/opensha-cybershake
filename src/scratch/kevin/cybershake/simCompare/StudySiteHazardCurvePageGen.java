@@ -219,13 +219,13 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_12-rundir2457-all-m6.5-skipYears5000-noHF-standardSites");
 //		RSQSimCatalog catalog = Catalogs.BRUCE_2457.instance(new File("/data/kevin/simulators/catalogs"));
 		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
-//		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_13-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-csLASites");
-//		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(new File("/data/kevin/simulators/catalogs"));
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
+		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_13-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-csLASites");
+		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(new File("/data/kevin/simulators/catalogs"));
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
-		File bbpDir = new File("/data/kevin/bbp/parallel/2018_09_10-rundir2740-all-m6.5-skipYears5000-noHF-csLASites");
-		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance(new File("/data/kevin/simulators/catalogs"));
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2018_09_10-rundir2740-all-m6.5-skipYears5000-noHF-csLASites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance(new File("/data/kevin/simulators/catalogs"));
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 //		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };

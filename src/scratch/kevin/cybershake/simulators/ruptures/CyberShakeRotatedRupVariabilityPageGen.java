@@ -61,7 +61,7 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_19_2_RSQSIM_ROT_2740;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_19_3_RSQSIM_ROT_2585;
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 		

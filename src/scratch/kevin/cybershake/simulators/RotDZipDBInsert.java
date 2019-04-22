@@ -24,13 +24,22 @@ import scratch.kevin.cybershake.dataParse.CyberShakeSeismogramHeader;
 public class RotDZipDBInsert {
 
 	public static void main(String[] args) throws IOException {
+		
+//		int runID = 7016;
+//		File zipFile = new File("/data-0/kevin/simulators/catalogs/rundir2585_1myr/cybershake_rotation_inputs/SBSM_7016_rotd.zip");
+//		int runID = 7017;
+//		File zipFile = new File("/data-0/kevin/simulators/catalogs/rundir2585_1myr/cybershake_rotation_inputs/WNGC_7017_rotd.zip");
+		int runID = 7018;
+		File zipFile = new File("/data-0/kevin/simulators/catalogs/rundir2585_1myr/cybershake_rotation_inputs/STNI_7018_rotd.zip");
+		ZipFile zip = new ZipFile(zipFile);
+		
+		if (!testRead(zip)) {
+			zip.close();
+			System.exit(1);
+		}
+		
 		DBAccess db = Cybershake_OpenSHA_DBApplication.getAuthenticatedDBAccess(
 				true, true, Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
-		
-		int runID = 7024;
-		
-		File zipFile = new File("/tmp/PAS_7024_rotd.zip");
-		ZipFile zip = new ZipFile(zipFile);
 		
 		CyberShakeComponent comp = CyberShakeComponent.RotD50;
 		CybershakeIM[] ims = {
@@ -47,6 +56,7 @@ public class RotDZipDBInsert {
 		List<CyberShakeSeismogramHeader> headers = new ArrayList<>();
 		List<DiscretizedFunc> rds = new ArrayList<>();
 		
+		String name = null;
 		try {
 			while (entries.hasMoreElements())  {
 				if (headers.size() * ims.length >= maxInsert) {
@@ -56,7 +66,7 @@ public class RotDZipDBInsert {
 				}
 				
 				ZipEntry entry = entries.nextElement();
-				String name = entry.getName();
+				name = entry.getName();
 				if (!name.endsWith(".rotd"))
 					continue;
 				
@@ -77,12 +87,42 @@ public class RotDZipDBInsert {
 			if (!headers.isEmpty())
 				insert(db, runID, headers, rds, ims);
 		} catch (Exception e) {
+			System.err.println("Error on entry: "+name);
 			e.printStackTrace();
 		} finally {
 			db.destroy();
 			zip.close();			
 			System.exit(0);
 		}
+	}
+	
+	private static boolean testRead(ZipFile zip) {
+		Enumeration<? extends ZipEntry> entries = zip.entries();
+		
+		int count = 0;
+		int fails = 0;
+		
+		String name = null;
+		try {
+			while (entries.hasMoreElements())  {
+				ZipEntry entry = entries.nextElement();
+				name = entry.getName();
+				if (!name.endsWith(".rotd"))
+					continue;
+				
+				CyberShakeRotDFile.read(zip.getInputStream(entry));
+				count++;
+			}
+		} catch (Exception e) {
+			System.err.println("Error on entry: "+name);
+			e.printStackTrace();
+			System.err.flush();
+			fails++;
+		}
+		System.out.println("Found "+count+" valid RotDs");
+		if (fails > 0)
+			System.out.println("Failed on "+fails+" :(");
+		return fails == 0;
 	}
 	
 	private static void insert(DBAccess db, int runID, List<CyberShakeSeismogramHeader> headers, List<DiscretizedFunc> rds, CybershakeIM[] ims)

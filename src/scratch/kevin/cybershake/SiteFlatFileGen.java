@@ -118,7 +118,7 @@ public class SiteFlatFileGen {
 				Preconditions.checkState(runID >= 0);
 				
 				CybershakeRun run = run2db.getRun(runID);
-				Double vs30 = run.getMeshVs30();
+				Double vs30 = run.getMeshVsSurface();
 				if (vs30 == null) {
 					System.err.println("Warning, mesh Vs30 not defined, using model Vs30");
 					vs30 = run.getModelVs30();

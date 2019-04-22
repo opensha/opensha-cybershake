@@ -98,6 +98,8 @@ public class CyberShakeSiteBuilder {
 				Double vs30 = run.getModelVs30();
 				Preconditions.checkNotNull(vs30, "No model Vs30 defined!");
 				Preconditions.checkState(Double.isFinite(vs30), "Vs30 is null for run %s", run.getRunID());
+				if (run.getMinimumVs() != null)
+					vs30 = Math.max(vs30, run.getMinimumVs());
 				return vs30;
 			} else {
 				throw new IllegalStateException("Unknown Vs30_Source: "+this);

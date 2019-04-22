@@ -22,6 +22,7 @@ public class RunIDFetcher {
 	
 	// runs table fields
 	private List<Integer> siteIDs;
+	private boolean noTestSites = false;
 	private Integer erfID;
 	private Integer sgtVarID;
 	private Integer rupVarScenID;
@@ -57,6 +58,11 @@ public class RunIDFetcher {
 	
 	public synchronized RunIDFetcher forSiteIDs(List<Integer> siteIDs) {
 		return forSiteIDs(Ints.toArray(siteIDs));
+	}
+	
+	public RunIDFetcher noTestSites() {
+		noTestSites = true;
+		return this;
 	}
 	
 	public RunIDFetcher forSiteNames(String... siteShortNames) {
@@ -198,6 +204,9 @@ public class RunIDFetcher {
 		String sql = "SELECT DISTINCT R.* FROM CyberShake_Runs R";
 		if (hasCurves)
 			sql += " JOIN Hazard_Curves C ON R.Run_ID=C.Run_ID";
+		if (noTestSites)
+			sql += " JOIN CyberShake_Sites S ON S.CS_Site_ID=R.Site_ID";
+			
 		List<String> wheres = new ArrayList<>();
 		if (siteIDs != null && !siteIDs.isEmpty()) {
 			if (siteIDs.size() == 1)
@@ -234,6 +243,8 @@ public class RunIDFetcher {
 			if (imTypeID != null)
 				wheres.add("C.IM_Type_ID="+imTypeID);
 		}
+		if (noTestSites)
+			wheres.add("S.CS_Site_Type_ID != "+CybershakeSite.TYPE_TEST_SITE);
 		
 		if (!wheres.isEmpty())
 			sql += "\nWHERE "+Joiner.on(" AND ").join(wheres);

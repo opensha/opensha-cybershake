@@ -82,14 +82,15 @@ public class CybershakeRun {
 	private double maxFreq;
 	private double lowFreqCutof;
 	private Double modelVs30; // m/s, UCVM input to CyberShake, with floor applied
-	private Double meshVs30; // m/s, as discretized in CyberShake mesh
+	private Double meshVsSurface; // m/s, as discretized in CyberShake mesh
+	private Double minVs; // m/s
 	private String vs30Source;
 	private Double z10; // m
 	private Double z25; // m
 	
 	public CybershakeRun(int runID, int siteID, int erfID, int sgtVarID, int rupVarScenID, int velModelID,
 			Timestamp sgtTime, Timestamp ppTime, String sgtHost, String ppHost, Status status, Timestamp statusTime,
-			double maxFreq, double lowFreqCutoff, Double modelVs30, Double meshVs30, String vs30Source, Double z10, Double z25) {
+			double maxFreq, double lowFreqCutoff, Double modelVs30, Double meshVsSurface, Double minVs, String vs30Source, Double z10, Double z25) {
 		this.runID = runID;
 		this.siteID = siteID;
 		this.erfID = erfID;
@@ -103,7 +104,8 @@ public class CybershakeRun {
 		this.maxFreq = maxFreq;
 		this.lowFreqCutof = lowFreqCutoff;
 		this.modelVs30 = modelVs30;
-		this.meshVs30 = meshVs30;
+		this.meshVsSurface = meshVsSurface;
+		this.minVs = minVs;
 		this.vs30Source = vs30Source;
 		this.z10 = z10;
 		this.z25 = z25;
@@ -179,8 +181,12 @@ public class CybershakeRun {
 	 * than 30m, then the uppermost grid node is reported. Minimum Vs threshold is applied.
 	 * @return mesh Vs30 (m/s), or null if not defined in the database
 	 */
-	public Double getMeshVs30() {
-		return meshVs30;
+	public Double getMeshVsSurface() {
+		return meshVsSurface;
+	}
+	
+	public Double getMinimumVs() {
+		return minVs;
 	}
 
 	public String getVs30Source() {
@@ -247,9 +253,14 @@ public class CybershakeRun {
 		Double modelVs30 = rs.getDouble(prefix+"Model_Vs30");
 		if (rs.wasNull())
 			modelVs30 = null;
-		Double meshVs30 = rs.getDouble(prefix+"Mesh_Vs30");
+		Double meshVsSurface = rs.getDouble(prefix+"Mesh_Vs_Surface");
 		if (rs.wasNull())
-			meshVs30 = null;
+			meshVsSurface = null;
+		Double minVs = rs.getDouble(prefix+"Minimum_Vs");
+		if (rs.wasNull())
+			minVs = null;
+//		Double meshVsSurface = null;
+//		Double minVs = null;
 		String vs30Source = rs.getString(prefix+"Vs30_Source");
 		Double z10 = rs.getDouble(prefix+"Z1_0");
 		if (rs.wasNull())
@@ -260,7 +271,7 @@ public class CybershakeRun {
 		
 		return new CybershakeRun(runID, siteID, erfID, sgtVarID, rupVarScenID, velModelID,
 				sgtTime, ppTime, sgtHost, ppHost, status, statusTime, maxFreq, lowFreqCutoff,
-				modelVs30, meshVs30, vs30Source, z10, z25);
+				modelVs30, meshVsSurface, minVs, vs30Source, z10, z25);
 	}
 
 }

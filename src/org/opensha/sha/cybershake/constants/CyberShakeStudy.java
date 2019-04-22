@@ -85,6 +85,45 @@ import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 
 public enum CyberShakeStudy {
 	
+	STUDY_14_2_1D(cal(2014, 2), 38, "Study 14.2 BBP 1D", "study_14_2_bbp_1d",
+			"Los Angeles region with BBP 1-D Velocity Model, 0.5hz", 8,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return MeanUCERF2_ToDB.createUCERF2ERF();
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forStudyID(5).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+		}
+	},
+	STUDY_14_2_CVM_S426(cal(2014, 2), 35, "Study 14.2 CVM-S4.26", "study_14_2_cvms426",
+			"Los Angeles region with CVM-S4.26 Velocity Model, 0.5hz", 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return MeanUCERF2_ToDB.createUCERF2ERF();
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forStudyID(5).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+		}
+	},
+	STUDY_14_2_CVMH(cal(2014, 2), 34, "Study 14.2 CVM-H", "study_14_2_cvmh",
+			"Los Angeles region with CVM-S4.26 Velocity Model, 0.5hz", 7,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return MeanUCERF2_ToDB.createUCERF2ERF();
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forStudyID(5).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+		}
+	},
 	STUDY_15_4(cal(2015, 4), 57, "Study 15.4", "study_15_4",
 			"Los Angeles region with CVM-S4.26 Velocity Model, 1hz", 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
@@ -95,7 +134,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(6).hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+			return new RunIDFetcher(this.getDB()).forStudyID(6).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_17_3_1D(cal(2017, 3), 80, "Study 17.3 1-D",
@@ -108,7 +147,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(8).hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+			return new RunIDFetcher(this.getDB()).forStudyID(8).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_17_3_3D(cal(2017, 3), 81, "Study 17.3 3-D",
@@ -121,7 +160,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(8).hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+			return new RunIDFetcher(this.getDB()).forStudyID(8).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_18_4_RSQSIM_PROTOTYPE_2457(cal(2018, 4), 82, "RSQSim 2457",
@@ -160,7 +199,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+			return new RunIDFetcher(this.getDB()).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_18_9_RSQSIM_2740(cal(2018, 9), new int[] { 85, 86}, "RSQSim 2740",
@@ -187,6 +226,25 @@ public enum CyberShakeStudy {
 		@Override
 		public RunIDFetcher runFetcher() {
 			return new RunIDFetcher(this.getDB()).forERF(50).hasAmplitudes();
+		}
+		@Override
+		public List<String> writeStandardDiagnosticPlots(File outputDir, int skipYears, double minMag, boolean replot,
+				String topLink) throws IOException {
+			// standard plots are not relevant for this variability study
+			return new ArrayList<>();
+		}
+	},
+	STUDY_19_3_RSQSIM_ROT_2585(cal(2019, 3), 89, "RSQSim RotRup 2585",
+			"study_19_3_rsqsim_rot_2585", "RSQSim rotated-rupture variability study with catalog 2585", 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return getRSQSimRotRupERF("rundir2585_1myr");
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forERF(51).hasAmplitudes();
 		}
 		@Override
 		public List<String> writeStandardDiagnosticPlots(File outputDir, int skipYears, double minMag, boolean replot,
@@ -288,6 +346,10 @@ public enum CyberShakeStudy {
 
 	public String getDBHost() {
 		return dbHost;
+	}
+	
+	public GregorianCalendar getDate() {
+		return date;
 	}
 	
 	public synchronized DBAccess getDB() {

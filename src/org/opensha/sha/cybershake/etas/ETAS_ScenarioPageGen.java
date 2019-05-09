@@ -1922,10 +1922,10 @@ public class ETAS_ScenarioPageGen {
 		File mappingsCSVFile = new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/u2_mapped_mappings.csv");
 		
 		File[] configFiles = {
-				new File(simsDir, "2019_01_11-2009BombayBeachM48-u2mapped-noSpont-10yr-8threads/config.json"),
-				new File(simsDir, "2019_01_11-2009BombayBeachM6-u2mapped-noSpont-10yr-8threads/config.json"),
-				new File(simsDir, "2019_01_11-MojavePointM6-u2mapped-noSpont-10yr-8threads/config.json"),
-				new File(simsDir, "2019_01_11-ParkfieldM6-u2mapped-noSpont-10yr-8threads/config.json")
+				new File(simsDir, "2019_04_25-2009BombayBeachM48-u2mapped-noSpont-10yr/config.json"),
+				new File(simsDir, "2019_04_25-2009BombayBeachM6-u2mapped-noSpont-10yr/config.json"),
+				new File(simsDir, "2019_04_25-MojavePointM6-u2mapped-noSpont-10yr/config.json"),
+				new File(simsDir, "2019_04_25-ParkfieldM6-u2mapped-noSpont-10yr/config.json")
 		};
 		
 		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;

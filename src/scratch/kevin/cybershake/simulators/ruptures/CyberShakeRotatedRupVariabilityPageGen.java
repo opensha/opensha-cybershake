@@ -22,6 +22,7 @@ import com.google.common.base.Preconditions;
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
+import scratch.kevin.simulators.ruptures.ASK_EventData;
 import scratch.kevin.simulators.ruptures.RotatedRupVariabilityConfig;
 import scratch.kevin.simulators.ruptures.RotatedRupVariabilityConfig.RotationSpec;
 import scratch.kevin.simulators.ruptures.RotatedRupVariabilityPageGen;
@@ -65,12 +66,17 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 		
-		String[] siteNames = { "USC", "PAS" };
+		String[] siteNames = { "USC", "PAS", "SBSM", "WNGC", "STNI", "SMCA" };
+//		String[] siteNames = { "SBSM" };
+		
+		boolean skipMissing = false;
 		
 		double[] calcPeriods = { 3, 4, 5, 7.5, 10 };
 		double[] periods = { 3, 5, 10 };
 		
 		try {
+			Map<Integer, List<ASK_EventData>> realData = ASK_EventData.load(1d);
+			
 			List<CybershakeRun> matchingRuns = study.runFetcher().forSiteNames(siteNames).fetch();
 			Preconditions.checkState(matchingRuns.size() == siteNames.length, "Expected %s runs for %s sites",
 					matchingRuns.size(), siteNames.length);
@@ -82,6 +88,8 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 			
 			CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, erf);
 			CSRotatedRupSimProv simProv = new CSRotatedRupSimProv(study, amps2db, calcPeriods);
+			
+//			simProv.getRupturesForSite(site);
 			RSQSimCatalog catalog = erf.getCatalog();
 			
 			Map<Scenario, RotatedRupVariabilityConfig> configMap = erf.getConfigMap();
@@ -96,6 +104,57 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 				System.out.println("Config has "+config.getRotations().size());
 				config = config.forSites(sites);
 				System.out.println("Trimmed down to "+config.getRotations().size()+" rotations for "+sites.size()+" sites");
+				
+				if (skipMissing) {
+					System.out.println("searching for events with missing rotations");
+					HashSet<Integer> eventsWithMissing = new HashSet<>();
+//					List<RotationSpec> myRots = new ArrayList<>();
+//					List<RotationSpec> missing = new ArrayList<>();
+					for (RotationSpec rotation : config.getRotations()) {
+						try {
+							simProv.getRotD50(rotation.site, rotation, 0);
+//							myRots.add(rotation);
+						} catch (Exception e) {
+//							e.printStackTrace();
+							System.out.println("MISSING: "+rotation);
+//							missing.add(rotation);
+							eventsWithMissing.add(rotation.eventID);
+						}
+					}
+//					if (!missing.isEmpty()) {
+//						System.out.println("MISSED "+missing+" ROTATIONS!");
+//						int removedFromOther = 0;
+//						for (int i=myRots.size(); --i>=0;) {
+//							RotationSpec rot = myRots.get(i);
+//							RotationSpec rotNoSite = new RotationSpec(0, null, rot.eventID, rot.distance, rot.sourceAz, rot.siteToSourceAz);
+//							boolean skip = false;
+//							for (RotationSpec misRot : missing) {
+//								RotationSpec misRotNoSite = new RotationSpec(0, null, misRot.eventID, misRot.distance, misRot.sourceAz, misRot.siteToSourceAz);
+//								if (rotNoSite.equals(misRotNoSite))
+//									skip = true;
+//							}
+//							if (skip) {
+//								myRots.remove(i);
+//								removedFromOther++;
+//							}
+//						}
+//						System.out.println("Removed "+removedFromOther+" from other sites to match!");
+//						config = config.forRotationSubset(myRots);
+//					}
+					if (!eventsWithMissing.isEmpty()) {
+						System.out.println("MISSING ROTATIONS FOR "+eventsWithMissing.size()+" EVENTS!");
+						int skipped = 0;
+						List<RotationSpec> myRots = new ArrayList<>();
+						for (RotationSpec spec : config.getRotations()) {
+							if (eventsWithMissing.contains(spec.eventID))
+								skipped++;
+							else
+								myRots.add(spec);
+						}
+						System.out.println("Removed "+skipped+" rotations!");
+						config = config.forRotationSubset(myRots);
+					}
+				}
 				
 				CyberShakeRotatedRupVariabilityPageGen pageGen = new CyberShakeRotatedRupVariabilityPageGen(
 						catalog, scenario, config, simProv, calcPeriods);
@@ -118,6 +177,9 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 				CyberShakeRotatedRupVariabilityPageGen pageGen = pageGensMap.get(scenario);
 				
 				pageGen.setEventsMap(eventsMap);
+				
+				if (realData != null)
+					pageGen.setRealEventData(ASK_EventData.getMatches(realData, null, null, scenario.getFaultStyle(), 30d), 100);
 				
 				File rotDir = new File(studyDir, "rotated_ruptures_"+scenario.getPrefix());
 				Preconditions.checkState(rotDir.exists() || rotDir.mkdir());

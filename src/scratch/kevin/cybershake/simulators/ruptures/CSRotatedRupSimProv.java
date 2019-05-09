@@ -63,7 +63,12 @@ public class CSRotatedRupSimProv implements SimulationRotDProvider<RotationSpec>
 	
 	private CSRupture rupForRotation(Site site, RotationSpec rotation) {
 		checkInitRotationMap(site);
-		return rupRotationMap.inverse().get(rotation);
+		CSRupture rup = rupRotationMap.inverse().get(rotation);
+//		if (rup == null) {
+//			System.out.println("NO RUP FOUND FOR ROTATION: "+rotation);
+//			System.exit(0);
+//		}
+		return rup;
 	}
 
 	@Override

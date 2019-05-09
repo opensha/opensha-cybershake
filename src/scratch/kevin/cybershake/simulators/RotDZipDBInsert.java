@@ -31,11 +31,18 @@ public class RotDZipDBInsert {
 //		File zipFile = new File("/data-0/kevin/simulators/catalogs/rundir2585_1myr/cybershake_rotation_inputs/WNGC_7017_rotd.zip");
 		int runID = 7018;
 		File zipFile = new File("/data-0/kevin/simulators/catalogs/rundir2585_1myr/cybershake_rotation_inputs/STNI_7018_rotd.zip");
+//		int runID = 7019;
+//		File zipFile = new File("/data-0/kevin/simulators/catalogs/rundir2585_1myr/cybershake_rotation_inputs/SMCA_7019_rotd.zip");
+		
 		ZipFile zip = new ZipFile(zipFile);
 		
-		if (!testRead(zip)) {
-			zip.close();
-			System.exit(1);
+		boolean skipBad = false;
+		
+		if (!skipBad) {
+			if (!testRead(zip)) {
+				zip.close();
+				System.exit(1);
+			}
 		}
 		
 		DBAccess db = Cybershake_OpenSHA_DBApplication.getAuthenticatedDBAccess(
@@ -70,7 +77,17 @@ public class RotDZipDBInsert {
 				if (!name.endsWith(".rotd"))
 					continue;
 				
-				CyberShakeRotDFile rd = CyberShakeRotDFile.read(zip.getInputStream(entry));
+				CyberShakeRotDFile rd;
+				try {
+					rd = CyberShakeRotDFile.read(zip.getInputStream(entry));
+				} catch (Exception e) {
+					if (skipBad) {
+						System.err.println("Skipping bad file: "+name);
+						continue;
+					} else {
+						throw e;
+					}
+				}
 				headers.add(rd.getHeader());
 				switch (comp) {
 				case RotD50:
@@ -103,21 +120,21 @@ public class RotDZipDBInsert {
 		int fails = 0;
 		
 		String name = null;
-		try {
-			while (entries.hasMoreElements())  {
-				ZipEntry entry = entries.nextElement();
-				name = entry.getName();
-				if (!name.endsWith(".rotd"))
-					continue;
-				
+		while (entries.hasMoreElements())  {
+			ZipEntry entry = entries.nextElement();
+			name = entry.getName();
+			if (!name.endsWith(".rotd"))
+				continue;
+
+			try {
 				CyberShakeRotDFile.read(zip.getInputStream(entry));
-				count++;
+			} catch (Exception e) {
+				System.err.println("Error on entry: "+name);
+//				e.printStackTrace();
+				System.err.flush();
+				fails++;
 			}
-		} catch (Exception e) {
-			System.err.println("Error on entry: "+name);
-			e.printStackTrace();
-			System.err.flush();
-			fails++;
+			count++;
 		}
 		System.out.println("Found "+count+" valid RotDs");
 		if (fails > 0)

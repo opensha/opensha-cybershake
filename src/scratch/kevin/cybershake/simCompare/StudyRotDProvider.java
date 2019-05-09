@@ -256,6 +256,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	}
 	
 	private DiscretizedFunc[] getSpectras(Site site, CSRupture rup, CybershakeIM[] ims) {
+		Preconditions.checkNotNull(rup);
 		DiscretizedFunc[] ret = null;
 		int runID;
 		try {

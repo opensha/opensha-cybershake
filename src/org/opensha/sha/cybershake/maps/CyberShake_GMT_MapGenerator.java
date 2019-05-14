@@ -390,7 +390,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 			frameColor = "black";
 			mapPenColor = frameColor;
 		}
-		boolean laRegion = (float)map.getRegion().getMaxLat() == 35.08f && (float)map.getRegion().getMinLat() == 33.25f;
+//		boolean laRegion = (float)map.getRegion().getMaxLat() == 35.08f && (float)map.getRegion().getMinLat() == 33.25f;
 		String mediaName;
 //		if (laRegion)
 //			// LA region
@@ -459,12 +459,12 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 		
 		double plotHght = ((maxLat-minLat)/(maxLon-minLon))*plotWdth/Math.cos(Math.PI*(maxLat+minLat)/(2*180));
 		double yOffset = 11 - plotHght - 0.5;
-		if (!laRegion) {
+//		if (!laRegion) {
 			yOff = " -Y" + yOffset + "i ";
 
 			// set x-axis offset to 1 inch
 			xOff = " -X1.0i ";
-		}
+//		}
 		
 		for (InterpDiffMapType mapType : mapTypes) {
 			gmtCommandLines.add("# PLOTTING: "+mapType+"\n");
@@ -613,11 +613,11 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 			gmtCommandLines.add("# conversions");
 			for (int odpi : dpis) {
 				String cropArgs = "";
-				if (!laRegion) {
+//				if (!laRegion) {
 					int widthInPixels = (int)(8.263888889*odpi + 0.5); // 595 for 72dpi
 					int heightInPixels = (int) ((11.0 - yOffset + 2.0) * (double) odpi);
 					cropArgs = " -crop "+widthInPixels+"x"+heightInPixels+"+0+0";
-				}
+//				}
 				String convertArgs = "-density " + odpi+cropArgs;
 				String fName = mapType.getPrefix() + "." + odpi + ".png";
 

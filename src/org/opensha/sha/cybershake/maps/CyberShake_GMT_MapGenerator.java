@@ -392,10 +392,10 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 		}
 		boolean laRegion = (float)map.getRegion().getMaxLat() == 35.08f && (float)map.getRegion().getMinLat() == 33.25f;
 		String mediaName;
-		if (laRegion)
-			// LA region
-			mediaName = "csmap";
-		else
+//		if (laRegion)
+//			// LA region
+//			mediaName = "csmap";
+//		else
 			mediaName = "letter";
 		commandLine = "${GMT_PATH}gmtset FONT_ANNOT_PRIMARY=14p,"+frameColor+" FONT_LABEL=18p,"+frameColor+" PS_PAGE_COLOR" +
 				"="+pageColor+" PS_PAGE_ORIENTATION=portrait PS_MEDIA="+mediaName+" MAP_DEFAULT_PEN="+mapPenColor +

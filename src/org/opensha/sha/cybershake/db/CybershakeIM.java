@@ -40,6 +40,9 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 	static {
 		// validate these mappings with the main method below
 		saIDsMap = HashBasedTable.create();
+		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 0.1, 99);
+		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 0.2, 94);
+		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 0.5, 88);
 		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 1d, 86);
 		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 2d, 26);
 		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 3d, 21);
@@ -48,6 +51,9 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 7.5, 6);
 		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 10d, 1);
 		
+		saIDsMap.put(CyberShakeComponent.RotD50, 0.1, 175);
+		saIDsMap.put(CyberShakeComponent.RotD50, 0.2, 174);
+		saIDsMap.put(CyberShakeComponent.RotD50, 0.5, 173);
 		saIDsMap.put(CyberShakeComponent.RotD50, 1d, 169);
 		saIDsMap.put(CyberShakeComponent.RotD50, 2d, 167);
 		saIDsMap.put(CyberShakeComponent.RotD50, 3d, 162);
@@ -56,6 +62,9 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 		saIDsMap.put(CyberShakeComponent.RotD50, 7.5, 154);
 		saIDsMap.put(CyberShakeComponent.RotD50, 10d, 152);
 		
+		saIDsMap.put(CyberShakeComponent.RotD100, 0.1, 172);
+		saIDsMap.put(CyberShakeComponent.RotD100, 0.2, 171);
+		saIDsMap.put(CyberShakeComponent.RotD100, 0.5, 170);
 		saIDsMap.put(CyberShakeComponent.RotD100, 1d, 168);
 		saIDsMap.put(CyberShakeComponent.RotD100, 2d, 151);
 		saIDsMap.put(CyberShakeComponent.RotD100, 3d, 146);

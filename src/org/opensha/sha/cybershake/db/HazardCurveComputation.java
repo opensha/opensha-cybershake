@@ -26,6 +26,7 @@ import java.util.List;
 import org.opensha.commons.data.function.ArbDiscrEmpiricalDistFunc;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
+import org.opensha.commons.util.ExceptionUtils;
 
 // duplicate!
 @Deprecated
@@ -136,7 +137,12 @@ public class HazardCurveComputation {
 		int size = rupVariations.size();
 		for(int i=0;i<size;++i){
 			int rupVarId =  rupVariations.get(i);
-			double imVal = peakAmplitudes.getIM_Value(runID, srcId, rupId, rupVarId, imType);
+			double imVal;
+			try {
+				imVal = peakAmplitudes.getIM_Value(runID, srcId, rupId, rupVarId, imType);
+			} catch (SQLException e) {
+				throw ExceptionUtils.asRuntimeException(e);
+			}
 			function.set(imVal/CONVERSION_TO_G,1);
 		}
 		setIMLProbs(imlVals,hazardFunc, function.getNormalizedCumDist(), qkProb);

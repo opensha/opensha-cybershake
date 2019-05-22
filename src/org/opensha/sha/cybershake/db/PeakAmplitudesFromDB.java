@@ -382,26 +382,15 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 	 * @param rupVarId
 	 * @return the IM Value for the particular IM type
 	 */
-	public double getIM_Value(int runID, int srcId, int rupId, int rupVarId, CybershakeIM im){
+	public double getIM_Value(int runID, int srcId, int rupId, int rupVarId, CybershakeIM im) throws SQLException {
 		String sql = "SELECT distinct IM_Value from " + TABLE_NAME + " where Source_ID = '"+srcId+"' "+
         "and Run_ID =  '"+runID +"' and Rupture_ID = '"+rupId+"' " +
         "and IM_Type_ID = '"+im.getID()+"' and Rup_Var_ID = '"+rupVarId+"'";
 //		System.out.println(sql);
-		double imVal = Double.NaN;
-		ResultSet rs = null;
-		try {
-			rs = dbaccess.selectData(sql);
-		} catch (SQLException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		try {
-			rs.first();
-			imVal = Double.parseDouble(rs.getString("IM_Value"));	
-			rs.close();
-		} catch (SQLException e) {
-			e.printStackTrace();
-		}
+		ResultSet rs = dbaccess.selectData(sql);
+		rs.first();
+		double imVal = Double.parseDouble(rs.getString("IM_Value"));	
+		rs.close();
 		return imVal;
 	}
 	

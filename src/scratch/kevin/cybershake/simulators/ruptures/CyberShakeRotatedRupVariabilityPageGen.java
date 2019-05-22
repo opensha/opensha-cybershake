@@ -171,7 +171,9 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 			File studyDir = new File(mainOutputDir, study.getDirName());
 			Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
 			
-			for (Scenario scenario : pageGensMap.keySet()) {
+			for (Scenario scenario : Scenario.values()) {
+				if (!pageGensMap.containsKey(scenario))
+					continue;
 				System.out.println("Doing scenario: "+scenario);
 				
 				CyberShakeRotatedRupVariabilityPageGen pageGen = pageGensMap.get(scenario);

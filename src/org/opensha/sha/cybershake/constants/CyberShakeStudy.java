@@ -137,6 +137,19 @@ public enum CyberShakeStudy {
 			return new RunIDFetcher(this.getDB()).forStudyID(6).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
+	STUDY_15_12(cal(2015, 12), 61, "Study 15.12", "study_15_12",
+			"Los Angeles region with CVM-S4.26 Velocity Model, 1hz deterministic with stochastic high frequencies", 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return MeanUCERF2_ToDB.createUCERF2ERF();
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forStudyID(7).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+		}
+	},
 	STUDY_17_3_1D(cal(2017, 3), 80, "Study 17.3 1-D",
 			"study_17_3_1d", "Central California with CCA-1D Velocity Model, 1hz", 9,
 			new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION(),

@@ -52,8 +52,9 @@ public interface PeakAmplitudesFromDBAPI {
 	 * @param rupId
 	 * @param rupVarId
 	 * @return the IM Value for the particular IM type
+	 * @throws SQLException 
 	 */
-	public double getIM_Value(int runID, int srcId,int rupId,int rupVarId, CybershakeIM im);
+	public double getIM_Value(int runID, int srcId,int rupId,int rupVarId, CybershakeIM im) throws SQLException;
 	
 	/**
 	 * 

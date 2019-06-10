@@ -1,23 +1,36 @@
 package scratch.kevin.cybershake;
 
+import java.awt.Color;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
+import org.apache.commons.math3.stat.StatUtils;
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.TimeSpan;
+import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
+import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationList;
 import org.opensha.commons.geo.LocationUtils;
+import org.opensha.commons.gui.plot.HeadlessGraphPanel;
+import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
+import org.opensha.commons.gui.plot.PlotLineType;
+import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.param.impl.DoubleParameter;
-import org.opensha.sha.cybershake.constants.CyberShakeStudy;
+import org.opensha.commons.util.cpt.CPT;
+import org.opensha.sha.cybershake.calc.HazardCurveComputation;
+import org.opensha.sha.cybershake.db.CybershakeIM;
+import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
+import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
+import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
+import org.opensha.sha.cybershake.db.Runs2DB;
 import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.FocalMechanism;
@@ -31,11 +44,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
-
-import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
-import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
-import scratch.kevin.simulators.ruptures.RotatedRupVariabilityConfig;
-import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
 
 public class GriddedPointSourceFakeERF extends AbstractERF {
 	
@@ -240,6 +248,56 @@ public class GriddedPointSourceFakeERF extends AbstractERF {
 		}
 	}
 	
+	public void plotAzimuthDependence(File outputDir, String prefix, CybershakeRun run, PeakAmplitudesFromDB amps2db, CybershakeIM im,
+			double depth, double[] distances, String title) throws SQLException, IOException {
+		List<DiscretizedFunc> funcs = new ArrayList<>();
+		List<PlotCurveCharacterstics> chars = new ArrayList<>();
+		
+		CPT cpt = new CPT(StatUtils.min(distances), StatUtils.max(distances), Color.GRAY, Color.BLACK);
+		
+		for (double distance : distances) {
+			funcs.add(new ArbitrarilyDiscretizedFunc((float)distance+" km"));
+			chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 2f, cpt.getColor((float)distance)));
+		}
+		
+		int depthIndex = -1;
+		for (int i=0; i<depths.length; i++) {
+			if (depths[i] == depth)
+				depthIndex = i;
+		}
+		Preconditions.checkState(depthIndex >= 0);
+		
+		for (int i = 0; i < sources.size(); i++) {
+			TranslatedPointSource source = sources.get(i);
+			if (!Doubles.contains(distances, source.distance))
+				continue;
+			double imVal = amps2db.getIM_Value(run.getRunID(), i, depthIndex, 0, im) / HazardCurveComputation.CONVERSION_TO_G;
+			double az = source.azimuth;
+			if (az > 180)
+				az -=360;
+			for (int d=0; d<distances.length; d++)
+				if (distances[d] == source.distance)
+					funcs.get(d).set(az, imVal);
+		}
+		
+		PlotSpec spec = new PlotSpec(funcs, chars, title, "Azimuth", (float)im.getVal()+"s SA");
+		spec.setLegendVisible(true);
+		
+		HeadlessGraphPanel gp = new HeadlessGraphPanel();
+		gp.setTickLabelFontSize(18);
+		gp.setAxisLabelFontSize(24);
+		gp.setPlotLabelFontSize(24);
+		gp.setLegendFontSize(20);
+		gp.setBackgroundColor(Color.WHITE);
+		
+		gp.drawGraphPanel(spec, false, true, null, null);
+		
+		gp.getChartPanel().setSize(800, 800);
+		File file = new File(outputDir, prefix);
+		gp.saveAsPNG(file.getAbsolutePath()+".png");
+		gp.saveAsPDF(file.getAbsolutePath()+".pdf");
+	}
+	
 	public static double[] getDiscretized(double min, int num, double delta, boolean wrap360) {
 		double[] array = new double[num];
 		for (int i=0; i<num; i++) {
@@ -250,10 +308,10 @@ public class GriddedPointSourceFakeERF extends AbstractERF {
 		return array;
 	}
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, SQLException {
 		double[] depths = { 1,2,4,6,8,10,12,15,20,25 };
-		double[] dists = getDiscretized(10, 20, 10, false);
-		double[] azimuths = getDiscretized(315, 19, 5, true);
+		double[] dists = GriddedPointSourceFakeERF.getDiscretized(10, 20, 10, false);
+		double[] azimuths = GriddedPointSourceFakeERF.getDiscretized(315, 19, 5, true);
 		System.out.println("Depths: "+Joiner.on(",").join(Doubles.asList(depths)));
 		System.out.println("Distances: "+Joiner.on(",").join(Doubles.asList(dists)));
 		System.out.println("Azimuths: "+Joiner.on(",").join(Doubles.asList(azimuths)));
@@ -265,11 +323,35 @@ public class GriddedPointSourceFakeERF extends AbstractERF {
 		File inputSRF_file = new File(mainDir, "point-dt0.05.srf");
 		SRF_PointData inputSRF = SRF_PointData.readSRF(inputSRF_file).get(0);
 		
+		DBAccess db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
+		
 		String siteName = "s1262";
-		DBAccess db = CyberShakeStudy.STUDY_17_3_3D.getDB();
 		Location siteLoc = new SiteInfo2DB(db).getLocationForSite(siteName);
 		
 		GriddedPointSourceFakeERF erf = new GriddedPointSourceFakeERF(siteLoc, inputSRF, dists, depths, azimuths);
+		
+		PeakAmplitudesFromDB amps2db = new PeakAmplitudesFromDB(db);
+		
+		String globalPrefix = "azimuth_dependence";
+		String[] vmPefixes = { "1D", "3D" };
+		int[] runIDs = { 7028, 7027 };
+		double[] plotDepths = { 1d, 4d, 20d, 25d };
+		
+		double[] plotDists = { 20, 40, 60, 80, 100 };
+		
+		Runs2DB runs2db = new Runs2DB(db);
+		CybershakeIM im = CybershakeIM.getSA(CyberShakeComponent.RotD50, 3d);
+		
+		for (int r=0; r<vmPefixes.length; r++) {
+			int runID = runIDs[r];
+			CybershakeRun run = runs2db.getRun(runID);
+			
+			for (double depth : plotDepths) {
+				String prefix = globalPrefix+"_"+vmPefixes[r].toLowerCase()+"_depth"+(int)depth+"km";
+				String title = vmPefixes[r]+" Azimuth Dependence, "+(int)depth+"km Source Depth";
+				erf.plotAzimuthDependence(new File("/tmp"), prefix, run, amps2db, im, depth, plotDists, title);
+			}
+		}
 		
 //		erf.writePointsAndSRFs(sourceRupDir);
 		

@@ -52,8 +52,8 @@ import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
 import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
-import scratch.kevin.simulators.ruptures.RotatedRupVariabilityConfig.Quantity;
-import scratch.kevin.simulators.ruptures.RotatedRupVariabilityConfig;
+import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.Quantity;
+import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig;
 
 
 /**

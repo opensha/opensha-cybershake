@@ -3,8 +3,6 @@ package org.opensha.sha.cybershake.constants;
 import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.net.MalformedURLException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DateFormat;
@@ -18,10 +16,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.dom4j.DocumentException;
 import org.jfree.data.Range;
 import org.opensha.commons.calc.FaultMomentCalc;
-import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.DefaultXY_DataSet;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.function.EvenlyDiscretizedFunc;
@@ -36,20 +32,18 @@ import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.util.ComparablePairing;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.FileNameComparator;
+import org.opensha.commons.util.MarkdownUtils;
+import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.RuptureProbabilityModifier;
 import org.opensha.sha.cybershake.calc.UCERF2_AleatoryMagVarRemovalMod;
-import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
+import org.opensha.sha.cybershake.db.CybershakeRun.Status;
 import org.opensha.sha.cybershake.db.CybershakeVelocityModel;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.cybershake.db.RunIDFetcher;
 import org.opensha.sha.cybershake.db.Runs2DB;
-import org.opensha.sha.cybershake.db.SiteInfo2DB;
-import org.opensha.sha.cybershake.db.CybershakeIM;
-import org.opensha.sha.cybershake.db.CybershakeRun.Status;
-import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.gui.util.ERFSaver;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.ProbEqkRupture;
@@ -67,21 +61,13 @@ import com.google.common.primitives.Doubles;
 
 import scratch.UCERF3.enumTreeBranches.DeformationModels;
 import scratch.UCERF3.enumTreeBranches.FaultModels;
-import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare;
-import scratch.kevin.cybershake.simCompare.StudyRotDProvider;
 import scratch.kevin.simulators.RSQSimCatalog;
-import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
 import scratch.kevin.simulators.plots.AbstractPlot;
-import scratch.kevin.simulators.plots.MFDPlot;
 import scratch.kevin.simulators.plots.MagAreaScalingPlot;
-import scratch.kevin.simulators.plots.RuptureVelocityPlot;
-import scratch.kevin.simulators.ruptures.RotatedRupVariabilityConfig;
 import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
-
-import org.opensha.commons.util.MarkdownUtils;
-import org.opensha.commons.util.MarkdownUtils.TableBuilder;
+import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig;
 
 public enum CyberShakeStudy {
 	

@@ -19,7 +19,7 @@ import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimSectBundledSource;
-import scratch.kevin.simulators.ruptures.RotatedRupVariabilityConfig;
+import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig;
 import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
 
 public class RSQSimRuptureVariationInsert {

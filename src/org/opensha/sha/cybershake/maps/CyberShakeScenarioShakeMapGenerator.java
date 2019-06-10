@@ -356,8 +356,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 //			String argz = "--study STUDY_15_4 --period 3 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp "
 //					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
 			String argz = "--study STUDY_15_12 --period 0.2 --source-id 69 --rupture-id 6 --output-dir /tmp "
-					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
-			argz += " --intensity-file /tmp/cs_shakemap_src_69_rup_6_all_rvs_0.2s_cs_amps.txt";
+					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --spacing 0.005";
+//			argz += " --intensity-file /tmp/cs_shakemap_src_69_rup_6_all_rvs_0.2s_cs_amps.txt";
 			args = argz.split(" ");
 		}
 		try {

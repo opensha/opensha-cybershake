@@ -23,9 +23,9 @@ import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
 import scratch.kevin.simulators.ruptures.ASK_EventData;
-import scratch.kevin.simulators.ruptures.RotatedRupVariabilityConfig;
-import scratch.kevin.simulators.ruptures.RotatedRupVariabilityConfig.RotationSpec;
-import scratch.kevin.simulators.ruptures.RotatedRupVariabilityPageGen;
+import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig;
+import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.RotationSpec;
+import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityPageGen;
 import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
 
 public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilityPageGen {

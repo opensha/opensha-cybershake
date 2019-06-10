@@ -21,7 +21,7 @@ import scratch.kevin.cybershake.simCompare.StudyRotDProvider;
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF.RSQSimRotatedRuptureSource;
-import scratch.kevin.simulators.ruptures.RotatedRupVariabilityConfig.RotationSpec;
+import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.RotationSpec;
 
 public class CSRotatedRupSimProv implements SimulationRotDProvider<RotationSpec> {
 	

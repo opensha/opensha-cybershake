@@ -1954,7 +1954,8 @@ public class ETAS_ScenarioPageGen {
 			File etasPlotsDir = new File(outputDir, "etas_plots");
 			if (!etasPlotsDir.exists() || !new File(etasPlotsDir, "README.md").exists() || replotETAS) {
 				System.out.println("Writing standard ETAS plots...");
-				SimulationMarkdownGenerator.generateMarkdown(configFile, pageGen.catalogsFile, config, etasPlotsDir, false);
+				SimulationMarkdownGenerator.generateMarkdown(configFile, pageGen.catalogsFile,
+						config, etasPlotsDir, false, 0, 1, false, false);
 			}
 			
 			try {

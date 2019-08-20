@@ -193,6 +193,7 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 				methodSpecificLines.addAll(study.getMarkdownMetadataTable());
 				
 				pageGen.generatePage(rotDir, periods, methodSpecificLines);
+				pageGen.clearCaches();
 			}
 			
 			System.out.println("Done, writing summary");

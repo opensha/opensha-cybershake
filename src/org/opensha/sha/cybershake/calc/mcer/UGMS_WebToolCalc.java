@@ -1551,7 +1551,11 @@ public class UGMS_WebToolCalc {
 //			String argStr = "--longitude -118.91 --latitude 33.969";
 //			String argStr = "--longitude -117.5888 --latitude 33.2976";
 //			String argStr = "--longitude -118.369 --latitude 34.043";
-			String argStr = "--longitude -118.25713 --latitude 34.05204";
+//			String argStr = "--longitude -118.25713 --latitude 34.05204";
+			String argStr = "--longitude -118.231510 --latitude 34.052847";
+//			Location-1: 34.052847, -118.231510
+//			Location-2:  34.053704, -118.234069
+			
 //			String argStr = "--site-name LADT";
 //			String argStr = "--site-id 20";
 			argStr += " --gmpe-dir "+new File(dataDir, "gmpe");

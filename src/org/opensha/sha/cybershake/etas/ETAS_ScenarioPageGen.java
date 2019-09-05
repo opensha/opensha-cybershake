@@ -95,6 +95,7 @@ import scratch.UCERF3.FaultSystemRupSet;
 import scratch.UCERF3.analysis.FaultBasedMapGen;
 import scratch.UCERF3.erf.ETAS.ETAS_CatalogIO;
 import scratch.UCERF3.erf.ETAS.ETAS_EqkRupture;
+import scratch.UCERF3.erf.ETAS.ETAS_Params.ETAS_ParameterList;
 import scratch.UCERF3.erf.ETAS.analysis.SimulationMarkdownGenerator;
 import scratch.UCERF3.erf.ETAS.launcher.ETAS_Config;
 import scratch.UCERF3.erf.ETAS.launcher.TriggerRupture;
@@ -153,7 +154,7 @@ public class ETAS_ScenarioPageGen {
 		
 		if (etasConfig.getTriggerRuptures().size() == 1 && etasConfig.getTriggerRuptures().get(0) instanceof TriggerRupture.Point) {
 			// get hypocenter
-			scenarioLoc = etasConfig.getTriggerRuptures().get(0).buildRupture(null, Long.MIN_VALUE).getHypocenterLocation();
+			scenarioLoc = etasConfig.getTriggerRuptures().get(0).buildRupture(null, Long.MIN_VALUE, new ETAS_ParameterList()).getHypocenterLocation();
 		}
 		
 		// first load catalogs

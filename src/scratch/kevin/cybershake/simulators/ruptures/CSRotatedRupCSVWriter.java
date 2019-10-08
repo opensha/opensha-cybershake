@@ -3,6 +3,7 @@ package scratch.kevin.cybershake.simulators.ruptures;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -13,9 +14,13 @@ import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Range;
+
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
+import scratch.kevin.simulators.ruptures.ASK_EventData;
 import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.Quantity;
@@ -38,7 +43,16 @@ public class CSRotatedRupCSVWriter {
 		String[] siteNames = { "USC", "PAS", "SBSM", "WNGC", "STNI", "SMCA" };
 		List<Site> sites = null;
 		
-		double[] periods = { 3, 5, 10 };
+//		double[] periods = { 3, 5, 10 };
+		double[] periods = { 3 };
+		
+		int numDownsamples = 100;
+		List<Map<Integer, List<ASK_EventData>>> askDatas = null;
+		if (numDownsamples > 0) {
+			askDatas = new ArrayList<>();
+			for (double period : periods)
+				askDatas.add(ASK_EventData.load(period));
+		}
 		
 		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, erf);
 		CSRotatedRupSimProv simProv = new CSRotatedRupSimProv(study, amps2db, periods);
@@ -100,6 +114,71 @@ public class CSRotatedRupCSVWriter {
 			for (int p=0; p<periods.length; p++) {
 				CSVFile<String> csv = csvs.get(p);
 				csv.writeToFile(new File(outputDir, scenario.getPrefix()+"_"+(float)periods[p]+"s.csv"));
+			}
+			
+			if (numDownsamples > 0) {
+				double dm = 0.2;
+				double minMag = scenario.getMagnitude()-dm;
+				double maxMag = scenario.getMagnitude()+dm;
+				for (int p=0; p<periods.length; p++) {
+					File dsDir = new File(outputDir, scenario.getPrefix()+"_"+(float)periods[p]+"s_downsampled");
+					Preconditions.checkState(dsDir.exists() || dsDir.mkdir());
+					Map<Integer, List<ASK_EventData>> askData = askDatas.get(p);
+					askData = ASK_EventData.getMatches(askData,
+							com.google.common.collect.Range.closed(minMag, maxMag),
+							null, null, 0d);
+					List<List<ASK_EventData>> askDataList = new ArrayList<>();
+					for (List<ASK_EventData> value : askData.values())
+						askDataList.add(value);
+					for (int i=0; i<numDownsamples; i++) {
+						CSVFile<String> csv = new CSVFile<>(true);
+						csv.addLine(header);
+						List<Integer> eventIDs = config.getValues(Integer.class, Quantity.EVENT_ID);
+						// draw random set of events
+						if (eventIDs.size() > askData.size()) {
+							eventIDs = new ArrayList<>(eventIDs);
+							Collections.shuffle(eventIDs);
+							eventIDs = eventIDs.subList(0, askData.size());
+						}
+						
+						for (int j=0; j<eventIDs.size(); j++) {
+							int eventID = eventIDs.get(j);
+							List<ASK_EventData> data = askDataList.get(j);
+							for (Float distance : config.getValues(Float.class, Quantity.DISTANCE)) {
+								double dr = distance == null || distance > 80 ? 20 : 10;
+								Range<Double> dRange = Range.closed(distance-dr, distance+dr);
+								int numData = 0;
+								for (ASK_EventData d : data)
+									if (dRange.contains(d.rRup))
+										numData++;
+								if (numData == 0)
+									continue;
+								List<RotationSpec> rots = config.getRotationsForQuantities(Quantity.EVENT_ID, eventID,
+										Quantity.DISTANCE, distance, Quantity.SITE, sites.get(0));
+								if (rots.size() > numData) {
+									// draw random set of rotations
+									rots = new ArrayList<>(rots);
+									Collections.shuffle(rots);
+									rots = rots.subList(0, numData);
+								}
+								for (RotationSpec rot : rots) {
+									List<String> line = new ArrayList<>();
+									line.add(eventID+"");
+									line.add(rot.sourceAz == null ? "0.0" : rot.sourceAz.toString());
+									line.add(rot.siteToSourceAz == null ? "0.0" : rot.siteToSourceAz.toString());
+									line.add(distance == null ? "0.0" : distance.toString());
+									for (Site site : sites) {
+										rot = new RotationSpec(-1, site, eventID, distance, rot.sourceAz, rot.siteToSourceAz);
+										DiscretizedFunc func = simProv.getRotD50(site, rot, 0);
+										line.add((float)func.getY(periods[p])+"");
+									}
+									csv.addLine(line);
+								}
+							}
+						}
+						csv.writeToFile(new File(dsDir, i+".csv"));
+					}
+				}
 			}
 		}
 		

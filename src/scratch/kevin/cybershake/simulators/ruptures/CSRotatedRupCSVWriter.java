@@ -3,6 +3,7 @@ package scratch.kevin.cybershake.simulators.ruptures;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -153,13 +154,13 @@ public class CSRotatedRupCSVWriter {
 										numData++;
 								if (numData == 0)
 									continue;
-								List<RotationSpec> rots = config.getRotationsForQuantities(Quantity.EVENT_ID, eventID,
+								Collection<RotationSpec> rots = config.getRotationsForQuantities(Quantity.EVENT_ID, eventID,
 										Quantity.DISTANCE, distance, Quantity.SITE, sites.get(0));
 								if (rots.size() > numData) {
 									// draw random set of rotations
-									rots = new ArrayList<>(rots);
-									Collections.shuffle(rots);
-									rots = rots.subList(0, numData);
+									List<RotationSpec> newRots = new ArrayList<>(rots);
+									Collections.shuffle(newRots);
+									rots = newRots.subList(0, numData);
 								}
 								for (RotationSpec rot : rots) {
 									List<String> line = new ArrayList<>();

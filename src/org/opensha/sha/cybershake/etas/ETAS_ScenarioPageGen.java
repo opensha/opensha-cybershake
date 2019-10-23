@@ -111,7 +111,7 @@ public class ETAS_ScenarioPageGen {
 	private CyberShakeStudy study;
 	
 	private File catalogsFile;
-	private List<List<ETAS_EqkRupture>> catalogs;
+	private List<? extends List<ETAS_EqkRupture>> catalogs;
 	private Location scenarioLoc;
 	
 	private ETAS_Config etasConfig;
@@ -1956,7 +1956,7 @@ public class ETAS_ScenarioPageGen {
 			if (!etasPlotsDir.exists() || !new File(etasPlotsDir, "README.md").exists() || replotETAS) {
 				System.out.println("Writing standard ETAS plots...");
 				SimulationMarkdownGenerator.generateMarkdown(configFile, pageGen.catalogsFile,
-						config, etasPlotsDir, false, 0, 1, false, false);
+						config, etasPlotsDir, false, 0, 1, false, false, null);
 			}
 			
 			try {

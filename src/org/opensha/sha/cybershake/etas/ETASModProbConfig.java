@@ -237,7 +237,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 //			catalogs = catalogs.subList(catalogs.size()/2, catalogs.size());
 	}
 	
-	public void setCatalogs(List<List<ETAS_EqkRupture>> catalogs) {
+	public void setCatalogs(List<? extends List<ETAS_EqkRupture>> catalogs) {
 		this.rvHypoLocations = null;
 		this.rvProbs = null;
 		this.catalogs = new ArrayList<>();

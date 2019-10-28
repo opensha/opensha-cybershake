@@ -23,6 +23,7 @@ import java.awt.geom.Point2D;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -112,7 +113,7 @@ public class HazardCurve2DB {
 		}
 		
 		try {
-			boolean valid = rs.first();
+			boolean valid = rs.next();
 			while (valid) {
 				int curveID = rs.getInt("Hazard_Curve_ID");
 				int runID = rs.getInt("Run_ID");
@@ -157,7 +158,7 @@ public class HazardCurve2DB {
 		}
 		
 		try {
-			rs.first();
+			rs.next();
 			while (!rs.isAfterLast()) {
 				int id = rs.getInt("Hazard_Curve_ID");
 				boolean skip = false;
@@ -217,7 +218,7 @@ public class HazardCurve2DB {
 		}
 		
 		try {
-			rs.first();
+			rs.next();
 			while (!rs.isAfterLast()) {
 				int id = rs.getInt("Hazard_Curve_ID");
 				boolean skip = false;
@@ -256,7 +257,7 @@ public class HazardCurve2DB {
 		}
 		
 		try {
-			rs.first();
+			rs.next();
 			if (rs.isAfterLast())
 				return -1;
 			int id = rs.getInt(1);
@@ -306,7 +307,7 @@ public class HazardCurve2DB {
 		}
 		
 		try {
-			rs.first();
+			rs.next();
 			if (rs.isAfterLast())
 				return -1;
 			int id = rs.getInt("Hazard_Curve_ID");
@@ -342,7 +343,7 @@ public class HazardCurve2DB {
 		}
 		
 		try {
-			rs.first();
+			rs.next();
 			if (rs.isAfterLast())
 				return -1;
 			int id = rs.getInt("Hazard_Curve_ID");
@@ -371,7 +372,7 @@ public class HazardCurve2DB {
 		int id = -1;
 		
 		try {
-			rs.first();
+			rs.next();
 			if (rs.isAfterLast())
 				return -1;
 			id = rs.getInt("Run_ID");
@@ -401,18 +402,26 @@ public class HazardCurve2DB {
 		}
 
 		try {
-			rs.first();
+			rs.next();
 			if (rs.isAfterLast())
 				return null;
-			Date date = rs.getDate("Curve_Date");
+			Date date;
+			try {
+				date = rs.getDate("Curve_Date");
+			} catch (Exception e) {
+				// fall back to String parse
+				String dateStr = rs.getString("Curve_Date");
+				date = curveDF.parse(dateStr);
+			}
 			rs.close();
 
 			return date;
-		} catch (SQLException e) {
-//			e.printStackTrace();
+		} catch (SQLException | ParseException e) {
+			e.printStackTrace();
 			return null;
 		}
 	}
+	private static final SimpleDateFormat curveDF = new SimpleDateFormat("yyyy-MM-dd");
 	
 	public DiscretizedFunc getHazardCurve(int id) {
 		DiscretizedFunc hazardFunc = null;
@@ -581,7 +590,6 @@ public class HazardCurve2DB {
 		try {
 			dbaccess.insertUpdateOrDeleteData(sql);
 		} catch (SQLException e) {
-//			TODO Auto-generated catch block
 			ExceptionUtils.throwAsRuntimeException(e);
 		}
 		
@@ -622,7 +630,7 @@ public class HazardCurve2DB {
 		}
 
 		try {
-			rs.first();
+			rs.next();
 			if (rs.isAfterLast())
 				return -1;
 			int id = rs.getInt("IM_Type_ID");
@@ -650,7 +658,7 @@ public class HazardCurve2DB {
 		}
 
 		try {
-			rs.first();
+			rs.next();
 			if (rs.isAfterLast())
 				return -1;
 			int id = rs.getInt("Hazard_Dataset_ID");
@@ -678,7 +686,7 @@ public class HazardCurve2DB {
 		}
 
 		try {
-			rs.first();
+			rs.next();
 			if (rs.isAfterLast())
 				return -1;
 			int id = rs.getInt("Run_ID");
@@ -712,7 +720,7 @@ public class HazardCurve2DB {
 		}
 
 		try {
-			rs.first();
+			rs.next();
 			if (rs.isAfterLast())
 				return null;
 			CybershakeIM im = CybershakeIM.fromResultSet(rs);
@@ -748,7 +756,7 @@ public class HazardCurve2DB {
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 				CybershakeIM im = CybershakeIM.fromResultSet(rs);
 				ims.add(im);

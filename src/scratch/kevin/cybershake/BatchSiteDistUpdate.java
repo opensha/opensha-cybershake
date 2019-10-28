@@ -54,7 +54,7 @@ public class BatchSiteDistUpdate {
 			try {
 				ResultSet rs = db.selectData(select);
 				
-				if (!rs.first()) {
+				if (!rs.next()) {
 					System.out.println("\talready done.");
 					continue;
 				}

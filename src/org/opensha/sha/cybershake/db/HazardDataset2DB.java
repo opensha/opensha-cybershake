@@ -35,6 +35,8 @@ public class HazardDataset2DB {
 		int probModelID = getDefaultProbModelID(run.getERFID());
 		int timeSpanID = getDefaultTimeSpanID(run.getERFID());
 		
+//		System.out.println("PM: "+probModelID+" TS: "+timeSpanID);
+		
 		return getDatasetID(run.getERFID(), run.getRupVarScenID(), run.getSgtVarID(),
 				run.getVelModelID(), probModelID, timeSpanID, null, run.getMaxFreq(), run.getLowFreqCutoff());
 	}
@@ -136,10 +138,10 @@ public class HazardDataset2DB {
 	
 	public static void main(String[] args) {
 		DBAccess db = Cybershake_OpenSHA_DBApplication.getDB();
-		Runs2DB r2db = new Runs2DB(db);
-		CybershakeRun run = r2db.getRun(776);
-		HazardDataset2DB hd2db = new HazardDataset2DB(db);
-		System.out.println("Dataset: " + hd2db.getDefaultDatasetID(run));
+//		Runs2DB r2db = new Runs2DB(db);
+//		CybershakeRun run = r2db.getRun(776);
+//		HazardDataset2DB hd2db = new HazardDataset2DB(db);
+//		System.out.println("Dataset: " + hd2db.getDefaultDatasetID(run));
 		
 		db.destroy();
 		

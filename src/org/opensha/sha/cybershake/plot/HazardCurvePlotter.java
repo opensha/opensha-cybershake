@@ -592,7 +592,7 @@ public class HazardCurvePlotter {
 		
 		// if no curveID exists, or the curve has 0 points
 		if (curveID < 0 || numPoints < 1 || forceRecalc) {
-			if (!forceAdd && !noAdd) {
+			if (!forceAdd && !noAdd && !db.isSQLite()) {
 				// lets ask the user what they want to do
 				if (curveID >= 0)
 					System.out.println("A record for the selected curve exists in the database, but there " +
@@ -642,8 +642,13 @@ public class HazardCurvePlotter {
 			date = new Date(); // right now
 			
 			if ((!forceRecalc || curveID < 0) && !noAdd) {
-				// get credentials to add
-				if (user.equals("") && pass.equals("")) {
+				// now add it
+				DBAccess writeDB = null;
+				
+				if (db.isSQLite()) {
+					writeDB = db;
+				} else if (user.equals("") && pass.equals("")) {
+					// get credentials to add
 					if (cmd.hasOption("pf")) {
 						String pf = cmd.getOptionValue("pf");
 						try {
@@ -699,14 +704,11 @@ public class HazardCurvePlotter {
 							}
 						}
 					}
-				}
-				
-				// now add it
-				DBAccess writeDB = null;
-				try {
-					writeDB = new DBAccess(Cybershake_OpenSHA_DBApplication.HOST_NAME,Cybershake_OpenSHA_DBApplication.DATABASE_NAME, user, pass);
-				} catch (IOException e) {
-					throw new IllegalStateException("Error creating DB write object", e);
+					try {
+						writeDB = new DBAccess(Cybershake_OpenSHA_DBApplication.HOST_NAME,Cybershake_OpenSHA_DBApplication.DATABASE_NAME, user, pass);
+					} catch (IOException e) {
+						throw new IllegalStateException("Error creating DB write object", e);
+					}
 				}
 				HazardCurve2DB curve2db_write = new HazardCurve2DB(writeDB);
 				System.out.println("Inserting curve into database...");
@@ -1601,8 +1603,12 @@ public class HazardCurvePlotter {
 //					+confDir+"bssa2014.xml,"+confDir+"cy2014.xml,"+confDir+"ask2014.xml"
 //					, "--plot-chars-file", confDir+"tomPlot.xml", "--component", "RotD50", "--period", "3", "--cvm-vs30"};
 //			
-			String newArgs = "--site s4456 --run-id 7020 --erf-file "+confDir+"MeanUCERF.xml --atten-rel-file "+confDir+"ask2014.xml"
-					+ " --period 3,5,10,2 --output-dir "+outputDir.getAbsolutePath()+" --type pdf,png";
+//			String newArgs = "--site s4456 --run-id 7020 --erf-file "+confDir+"MeanUCERF.xml --atten-rel-file "+confDir+"ask2014.xml"
+//					+ " --period 3,5,10,2 --output-dir "+outputDir.getAbsolutePath()+" --type pdf,png";
+			System.setProperty("cybershake.db.host", "/tmp/USC_5km.sqlite");
+			String newArgs = "--site s4456 --run-id 7052 --period 3,5,10,2 --output-dir "+outputDir.getAbsolutePath()
+			+" --component RotD50 --type pdf,png,txt";
+//			newArgs += " --erf-file "+confDir+"MeanUCERF.xml --atten-rel-file "+confDir+"ask2014.xml";
 			args = newArgs.split(" ");
 		}
 		Stopwatch watch = Stopwatch.createStarted();

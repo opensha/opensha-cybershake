@@ -312,7 +312,11 @@ public class UGMS_WebToolCalc {
 					"Must supply velocity model ID if using precomputed CS data files");
 			velModelID = Integer.parseInt(cmd.getOptionValue("vel-model-id"));
 		} else {
-			db = new DBAccess(Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME, Cybershake_OpenSHA_DBApplication.DATABASE_NAME);
+			try {
+				db = new DBAccess(Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME, Cybershake_OpenSHA_DBApplication.DATABASE_NAME);
+			} catch (IOException e1) {
+				throw ExceptionUtils.asRuntimeException(e1);
+			}
 			runs2db = new Runs2DB(db);
 			sites2db = new SiteInfo2DB(db);
 			
@@ -1395,7 +1399,7 @@ public class UGMS_WebToolCalc {
 		
 		try {
 			ResultSet rs = db.selectData(sql);
-			boolean valid = rs.first();
+			boolean valid = rs.next();
 			
 			while (valid) {
 				CybershakeRun run = CybershakeRun.fromResultSet(rs);

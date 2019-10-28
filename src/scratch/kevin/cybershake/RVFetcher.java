@@ -1,5 +1,6 @@
 package scratch.kevin.cybershake;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 import org.opensha.commons.geo.Location;
@@ -14,8 +15,9 @@ public class RVFetcher {
 
 	/**
 	 * @param args
+	 * @throws IOException 
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 		DBAccess db = new DBAccess(Cybershake_OpenSHA_DBApplication.HOST_NAME,
 				Cybershake_OpenSHA_DBApplication.DATABASE_NAME);
 		

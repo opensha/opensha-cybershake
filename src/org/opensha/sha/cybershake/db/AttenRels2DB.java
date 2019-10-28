@@ -104,7 +104,7 @@ public class AttenRels2DB {
 					+" WHERE AR_ID="+attenRelID;
 		
 		ResultSet rs = db.selectData(sql);
-		boolean success = rs.first();
+		boolean success = rs.next();
 		if (!success)
 			return params;
 		
@@ -129,8 +129,7 @@ public class AttenRels2DB {
 		sql += " ORDER BY AR_ID desc";
 		
 		ResultSet rs = db.selectData(sql);
-		rs.first();
-		boolean success = rs.first();
+		boolean success = rs.next();
 		if (!success)
 			return ids;
 		

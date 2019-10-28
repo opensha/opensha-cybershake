@@ -17,13 +17,12 @@ public class DB_Utils {
 		int id = -1;
 		
 		try {
-			rs.first();
-			if (rs.isAfterLast())
+			if (!rs.next())
 				return -1;
 			id = rs.getInt(1);
 			rs.close();
 		} catch (SQLException e) {
-//			e.printStackTrace();
+			e.printStackTrace();
 			return -1;
 		}
 		return id;

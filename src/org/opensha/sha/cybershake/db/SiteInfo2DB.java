@@ -120,7 +120,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 			e1.printStackTrace();
 		}
 			try {
-				rs.first();
+				rs.next();
 				String siteID = rs.getString("CS_Site_ID");
 				rs.close();;
 				return Integer.parseInt(siteID);
@@ -153,7 +153,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 		String sql = "SELECT Cutoff_Dist from CyberShake_Site_Regions where CS_Site_ID=" + siteID;
 		try {
 			ResultSet rs = dbaccess.selectData(sql);
-			rs.first();
+			rs.next();
 			double dist = rs.getDouble("Cutoff_Dist");
 			rs.close();
 			return dist;
@@ -189,7 +189,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 			e1.printStackTrace();
 		}
 			try {
-				rs.first();
+				rs.next();
 				String siteID = rs.getString("CS_Site_ID");
 				rs.close();
 				return Integer.parseInt(siteID);
@@ -447,7 +447,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 			e1.printStackTrace();
 		}
 			try {
-				rs.first();
+				rs.next();
 				while(!rs.isAfterLast()){
 				  double lat = Double.parseDouble(rs.getString("CS_Site_Lat"));	
 				  double lon = Double.parseDouble(rs.getString("CS_Site_Lon"));
@@ -479,7 +479,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 			e1.printStackTrace();
 		}
 			try {
-				rs.first();
+				rs.next();
 				while(!rs.isAfterLast()){
 				  siteList.add(rs.getString("CS_Short_Name"));
 				  rs.next();
@@ -562,7 +562,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 			  int id = rs.getInt("Source_ID");
 			  ids.add(id);
@@ -639,7 +639,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 		int curSourceID = -1;
 		List<Integer> curRupIDs = null;
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 				int sourceID = rs.getInt(1);
 				int rupID = rs.getInt(2);
@@ -689,7 +689,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 			e1.printStackTrace();
 		}
 			try {
-				rs.first();
+				rs.next();
 				double lat = Double.parseDouble(rs.getString("CS_Site_Lat"));	
 				double lon = Double.parseDouble(rs.getString("CS_Site_Lon"));
 				loc = new Location(lat,lon);
@@ -716,7 +716,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 			e1.printStackTrace();
 		}
 			try {
-				rs.first();
+				rs.next();
 				double lat = Double.parseDouble(rs.getString("CS_Site_Lat"));	
 				double lon = Double.parseDouble(rs.getString("CS_Site_Lon"));
 				loc = new Location(lat,lon);
@@ -743,7 +743,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 			return null;
 		}
 		try {
-			rs.first();
+			rs.next();
 			double lat = rs.getDouble("CS_Site_Lat");	
 			double lon = rs.getDouble("CS_Site_Lon");
 			int id = rs.getInt("CS_Site_ID");
@@ -775,7 +775,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 			return null;
 		}
 		try {
-			rs.first();
+			rs.next();
 			double lat = rs.getDouble("CS_Site_Lat");	
 			double lon = rs.getDouble("CS_Site_Lon");
 			String longName = rs.getString("CS_Site_Name");
@@ -807,7 +807,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 		}
 		
 		try {
-			rs.first();
+			rs.next();
 			
 			while (!rs.isAfterLast()) {
 				double lat = rs.getDouble("CS_Site_Lat");	
@@ -842,7 +842,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 		}
 		
 		try {
-			rs.first();
+			rs.next();
 			
 			while (!rs.isAfterLast()) {
 				int id = rs.getInt("CS_Site_Type_ID");
@@ -874,7 +874,7 @@ public class SiteInfo2DB implements SiteInfo2DBAPI {
 		}
 		
 		try {
-			rs.first();
+			rs.next();
 			
 			while (!rs.isAfterLast()) {
 				int id = rs.getInt("ERF_ID");

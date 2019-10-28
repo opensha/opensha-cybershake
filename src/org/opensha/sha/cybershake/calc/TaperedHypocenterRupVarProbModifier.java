@@ -278,7 +278,7 @@ public class TaperedHypocenterRupVarProbModifier implements
 			try {
 				ResultSet rs = db.selectData(sql);
 
-				boolean success = rs.first();
+				boolean success = rs.next();
 				while (success) {
 					int rupID = rs.getInt("Rupture_ID");
 					int rvID = rs.getInt("Rup_Var_ID");

@@ -229,6 +229,18 @@ public class CybershakeRun {
 		return fromResultSet(rs, "");
 	}
 	
+	private static Timestamp parseTS(ResultSet rs, String field) {
+		try {
+			return rs.getTimestamp(field);
+		} catch (SQLException e) {
+			String message = e.getMessage();
+			if (e.getCause() != null)
+				message = e.getCause().getMessage();
+			System.err.println("Could not parse timestamp for "+field+": "+message);
+			return null;
+		}
+	}
+	
 	static CybershakeRun fromResultSet(ResultSet rs, String prefix) throws SQLException {
 		int runID = rs.getInt(prefix+"Run_ID");
 		int siteID = rs.getInt(prefix+"Site_ID");
@@ -236,18 +248,13 @@ public class CybershakeRun {
 		int sgtVarID = rs.getInt(prefix+"SGT_Variation_ID");
 		int rupVarScenID = rs.getInt(prefix+"Rup_Var_Scenario_ID");
 		int velModelID = rs.getInt(prefix+"Velocity_Model_ID");
-		Timestamp sgtTime = rs.getTimestamp(prefix+"SGT_Time");
-		Timestamp ppTime = rs.getTimestamp(prefix+"PP_Time");
+		Timestamp sgtTime = parseTS(rs, prefix+"SGT_Time");
+		Timestamp ppTime = parseTS(rs, prefix+"PP_Time");
 		String sgtHost = rs.getString(prefix+"SGT_Host");
 		String ppHost = rs.getString(prefix+"PP_Host");
 		String statusStr = rs.getString(prefix+"Status");
 		Status status = Status.forName(statusStr);
-		Timestamp statusTime;
-		try {
-			statusTime = rs.getTimestamp(prefix+"Status_Time");
-		} catch (Exception e) {
-			statusTime = null;
-		}
+		Timestamp statusTime = parseTS(rs, prefix+"Status_Time");
 		double maxFreq = rs.getDouble(prefix+"Max_Frequency");
 		double lowFreqCutoff = rs.getDouble(prefix+"Low_Frequency_Cutoff");
 		Double modelVs30 = rs.getDouble(prefix+"Model_Vs30");

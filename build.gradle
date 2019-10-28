@@ -5,6 +5,7 @@
 apply from: '../opensha-commons/build-common.gradle'
 
 dependencies {
+    compileAndResource 'org.xerial:sqlite-jdbc:3.28.0'
 
     /* no remote repo */
     compileAndResource files('lib/mysql-connector-java-5.1.16-bin.jar')

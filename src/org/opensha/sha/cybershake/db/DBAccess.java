@@ -33,8 +33,11 @@ import java.sql.SQLWarning;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Properties;
 
 import org.opensha.commons.gui.UserAuthDialog;
+import org.sqlite.SQLiteConfig;
+import org.sqlite.SQLiteConfig.Pragma;
 
 import com.google.common.base.Preconditions;
 
@@ -82,28 +85,10 @@ public class DBAccess implements Runnable{
 	 * Class default constructor
 	 * Creates a new Connection Broker after reading the JDBC info from the
 	 * data file.
+	 * @throws IOException 
 	 */
-	public DBAccess(String hostname,String dbName) {
-
-		String dbDriver = "com.mysql.jdbc.Driver";
-		String dbServer = "jdbc:mysql://"+hostname+":"+3306+"/"+dbName;
-		String dbLogin = "cybershk_ro";
-		String dbPassword = "CyberShake2007";
-		readOnly = true;
-		int minConns =1;
-		int maxConns = 100;
-		String logFileString = null;
-		double maxConnTime = 0.5;
-
-		try {
-			setupBroker(dbDriver, dbServer, dbLogin, dbPassword, minConns,
-					maxConns, logFileString, maxConnTime, false,
-					DEFAULTMAXCHECKOUTSECONDS, DEFAULTDEBUGLEVEL);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
+	public DBAccess(String hostname, String dbName) throws IOException {
+		this(hostname, dbName, "cybershk_ro", "CyberShake2007");
 	}
 
 	/**
@@ -112,21 +97,9 @@ public class DBAccess implements Runnable{
 	 * data file.
 	 * @throws IOException 
 	 */
-	public DBAccess(String hostname,String dbName, String user, String pass) throws IOException {
-
-		String dbDriver = "com.mysql.jdbc.Driver";
-		String dbServer = "jdbc:mysql://"+hostname+":"+3306+"/"+dbName;
-		String dbLogin = user;
-		String dbPassword = pass;
-		int minConns =1;
-		int maxConns = 100;
-		String logFileString = null;
-		double maxConnTime = 0.5;
-
-		setupBroker(dbDriver, dbServer, dbLogin, dbPassword, minConns,
-				maxConns, logFileString, maxConnTime, false,
-				DEFAULTMAXCHECKOUTSECONDS, DEFAULTDEBUGLEVEL);
-
+	public DBAccess(String hostname, String dbName, String user, String pass) throws IOException {
+		this("com.mysql.jdbc.Driver", "jdbc:mysql://"+hostname+":"+3306+"/"+dbName,
+				user, pass, 1, 100, null, 0.5);
 	}
 
 	public boolean isReadOnly() {
@@ -462,6 +435,10 @@ public class DBAccess implements Runnable{
 		}
 
 	} // End run
+	
+	public boolean isSQLite() {
+		return dbServer.contains("sqlite");
+	}
 
 	/**
 	 * This method hands out the connections in round-robin order.
@@ -623,10 +600,22 @@ public class DBAccess implements Runnable{
 
 		// no longer need to force load of the driver
 		try {
-			Class.forName (dbDriver);
-
-			connPool[i] = DriverManager.getConnection
-					(dbServer,dbLogin,dbPassword);
+			if (dbDriver != null)
+				Class.forName (dbDriver);
+			if (dbLogin != null || dbPassword != null)
+				connPool[i] = DriverManager.getConnection(dbServer, dbLogin, dbPassword);
+			else {
+				if (dbServer.contains("sqlite")) {
+					// this fixes dates with SQLite
+					SQLiteConfig sqLiteConfig = new SQLiteConfig();
+					Properties properties = sqLiteConfig.toProperties();
+					properties.setProperty(Pragma.DATE_STRING_FORMAT.pragmaName,
+							"yyyy-MM-dd HH:mm:ss");
+					connPool[i] = DriverManager.getConnection(dbServer, properties);
+				} else {
+					connPool[i] = DriverManager.getConnection(dbServer);
+				}
+			}
 
 			connStatus[i]=0;
 			connID[i]=connPool[i].toString();
@@ -788,8 +777,9 @@ public class DBAccess implements Runnable{
 		int rows = -1;
 		try {
 			Statement stat = conn.createStatement();
+			stat.execute("BEGIN TRANSACTION;");
 			rows = stat.executeUpdate(query+";");
-			stat.execute("commit;");
+			stat.execute("COMMIT;");
 		} catch (SQLException e) {
 			ex = e;
 		}

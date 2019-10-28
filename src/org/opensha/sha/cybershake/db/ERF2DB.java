@@ -108,7 +108,7 @@ public  class ERF2DB implements ERF2DBAPI{
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 				int id = rs.getInt("ERF_ID");
 				String name = rs.getString("ERF_Name");
@@ -199,7 +199,7 @@ public  class ERF2DB implements ERF2DBAPI{
 			e1.printStackTrace();
 		}
 		try{
-			rs.first();
+			rs.next();
 			while (!rs.isAfterLast()) {
 				double lat = rs.getDouble("Lat");
 				double lon = rs.getDouble("Lon");
@@ -229,7 +229,7 @@ public  class ERF2DB implements ERF2DBAPI{
 		}
 		int data = 0;
 		try{
-			rs.first();
+			rs.next();
 			data = Integer.parseInt(rs.getString(column));
 			rs.close();
 
@@ -252,7 +252,7 @@ public  class ERF2DB implements ERF2DBAPI{
 		}
 		double data = Double.NaN;
 		try{
-			rs.first();
+			rs.next();
 			data = Double.parseDouble(rs.getString(column));
 			rs.close();
 
@@ -277,7 +277,7 @@ public  class ERF2DB implements ERF2DBAPI{
 		}
 		CybershakeERF erf = null;
 		try {
-			rs.first();
+			rs.next();
 			int id = rs.getInt("ERF_ID");
 			String name = rs.getString("ERF_Name");
 			String desc = rs.getString("ERF_Description");
@@ -368,7 +368,7 @@ public  class ERF2DB implements ERF2DBAPI{
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while (!rs.isAfterLast()) {
 				int id = rs.getInt("Rupture_ID");
 				ids.add(id);
@@ -397,7 +397,7 @@ public  class ERF2DB implements ERF2DBAPI{
 			return null;
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 				int rupID = rs.getInt("Rupture_ID");
 				double mag = rs.getDouble("Mag");
@@ -428,7 +428,7 @@ public  class ERF2DB implements ERF2DBAPI{
 			return;
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 				String lfn = rs.getString("Rup_Var_LFN");
 				double lat = rs.getDouble("Hypocenter_Lat");
@@ -462,7 +462,7 @@ public  class ERF2DB implements ERF2DBAPI{
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 				int id = rs.getInt("Source_ID");
 				//				System.out.println("Loaded source " + id);
@@ -493,7 +493,7 @@ public  class ERF2DB implements ERF2DBAPI{
 		}
 		int num = -1;
 		try {
-			rs.first();
+			rs.next();
 			num = rs.getInt("count(*)");
 			rs.close();
 		} catch (SQLException e) {
@@ -513,7 +513,7 @@ public  class ERF2DB implements ERF2DBAPI{
 		}
 		int num = -1;
 		try {
-			rs.first();
+			rs.next();
 			num = rs.getInt("Num_Points");
 			rs.close();
 		} catch (SQLException e) {
@@ -674,7 +674,7 @@ public  class ERF2DB implements ERF2DBAPI{
 			e1.printStackTrace();
 		}		 
 		try {
-			rs.first();
+			rs.next();
 			String erfId = rs.getString("ERF_ID");
 			rs.close();
 			return Integer.parseInt(erfId);
@@ -713,7 +713,7 @@ public  class ERF2DB implements ERF2DBAPI{
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 				int sourceID = rs.getInt(1);
 				int rupID = rs.getInt(2);
@@ -1040,7 +1040,7 @@ public  class ERF2DB implements ERF2DBAPI{
 			e1.printStackTrace();
 		}		 
 		try {
-			rs.first();
+			rs.next();
 			int id = rs.getInt("Source_ID");
 			rs.close();
 			return id;
@@ -1131,7 +1131,7 @@ public  class ERF2DB implements ERF2DBAPI{
 		try {
 			ResultSet rs = dbaccess.selectData(sql);
 			
-			boolean success = rs.first();
+			boolean success = rs.next();
 			while (success) {
 				int rvID = rs.getInt("Rup_Var_ID");
 				double lat = rs.getDouble("Hypocenter_Lat");
@@ -1168,19 +1168,19 @@ public  class ERF2DB implements ERF2DBAPI{
 		}
 		int numSources = -1;
 		try {
-			rs.first();
+			rs.next();
 			numSources = rs.getInt(1)+1;
 			rs.close();
 			
 			for (int sourceID=0; sourceID<numSources; sourceID++) {
 				sql = "SELECT max(Rupture_ID) from Ruptures WHERE ERF_ID=" + id1+" AND Source_ID="+sourceID;
 				rs = dbaccess.selectData(sql);
-				rs.first();
+				rs.next();
 				int num1 = rs.getInt(1)+1;
 				rs.close();
 				sql = "SELECT max(Rupture_ID) from Ruptures WHERE ERF_ID=" + id2+" AND Source_ID="+sourceID;
 				rs = dbaccess.selectData(sql);
-				rs.first();
+				rs.next();
 				int num2 = rs.getInt(1)+1;
 				rs.close();
 				

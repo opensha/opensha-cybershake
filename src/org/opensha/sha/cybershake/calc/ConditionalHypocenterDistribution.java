@@ -109,7 +109,7 @@ public class ConditionalHypocenterDistribution implements RuptureVariationProbab
 		
 		try {
 			ResultSet rs = db.selectData(sql);
-			boolean success = rs.first();
+			boolean success = rs.next();
 			while (success) {
 				int rvID = rs.getInt("Rup_Var_ID");
 				// make sure the list is big enough

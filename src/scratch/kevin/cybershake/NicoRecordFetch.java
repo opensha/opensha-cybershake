@@ -89,7 +89,7 @@ public class NicoRecordFetch {
 				
 				int maxRV = 0;
 				
-				rs.first();
+				rs.next();
 				while(!rs.isAfterLast()){
 					try {
 						int rvID = rs.getInt("Rup_Var_ID");

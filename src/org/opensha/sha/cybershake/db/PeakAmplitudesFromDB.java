@@ -109,7 +109,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 				int id = rs.getInt(selectCol);
 				vals.add(id);
@@ -150,7 +150,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 		try {
 			ResultSet rs = dbaccess.selectData(sql);
 			
-			boolean good = rs.first();
+			boolean good = rs.next();
 			
 			rs.close();
 			
@@ -181,7 +181,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 				try {
 					ims.add(CybershakeIM.fromResultSet(rs));
@@ -215,7 +215,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 				try {
 					ims.add(CybershakeIM.fromResultSet(rs));
@@ -282,7 +282,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 		}
 		int count;
 		try {
-			rs.first();
+			rs.next();
 			count = rs.getInt(1);
 			rs.close();
 		} catch (SQLException e) {
@@ -322,7 +322,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 				try {
 					ims.add(CybershakeIM.fromResultSet(rs));
@@ -360,7 +360,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 			  String rupVariation = rs.getString("Rup_Var_ID");	
 			  rupVariationList.add(Integer.parseInt(rupVariation));
@@ -388,7 +388,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
         "and IM_Type_ID = '"+im.getID()+"' and Rup_Var_ID = '"+rupVarId+"'";
 //		System.out.println(sql);
 		ResultSet rs = dbaccess.selectData(sql);
-		rs.first();
+		rs.next();
 		double imVal = Double.parseDouble(rs.getString("IM_Value"));	
 		rs.close();
 		return imVal;
@@ -417,7 +417,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 			e1.printStackTrace();
 			return null;
 		}
-		rs.first();
+		rs.next();
 		vals.add(rs.getDouble("IM_Value"));
 //		vals.add(Double.parseDouble(rs.getString("IM_Value")));
 		while (rs.next()) {
@@ -444,7 +444,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 			  int id = rs.getInt("SGT_Variation_ID");
 			  vars.add(id);
@@ -474,7 +474,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 			e1.printStackTrace();
 		}
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 			  int id = rs.getInt("Rup_Var_Scenario_ID");
 			  vars.add(id);
@@ -583,7 +583,7 @@ public class PeakAmplitudesFromDB implements PeakAmplitudesFromDBAPI {
 		ArrayList<PeakAmplitudesRecord> amps = new ArrayList<PeakAmplitudesRecord>();
 		
 		try {
-			rs.first();
+			rs.next();
 			while(!rs.isAfterLast()){
 				amps.add(PeakAmplitudesRecord.fromResultSet(rs));
 				rs.next();

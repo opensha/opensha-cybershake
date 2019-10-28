@@ -34,6 +34,7 @@ import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationUtils;
 import org.opensha.commons.gui.UserAuthDialog;
+import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.sha.earthquake.ERF;
 import org.opensha.sha.simulators.RSQSimEvent;
@@ -82,9 +83,27 @@ public class Cybershake_OpenSHA_DBApplication {
 			if (!hostName.equals(HOST_NAME))
 				HOST_NAME = hostName;
 			if (!dbs.containsKey(hostName))
-				dbs.put(hostName, new DBAccess(hostName, DATABASE_NAME));
+				try {
+					// see if it's an SQLite file
+					File f = new File(hostName);
+					if (f.exists()) {
+						System.out.println("CyberShake DB host is an SQLite file");
+						dbs.put(hostName, getSQLiteDB(f));
+					} else {
+						dbs.put(hostName, new DBAccess(hostName, DATABASE_NAME));
+					}
+				} catch (IOException e) {
+					throw ExceptionUtils.asRuntimeException(e);
+				}
 			return dbs.get(hostName);
 		}
+	}
+	
+	public static DBAccess getSQLiteDB(File sqliteFile) throws IOException {
+		String dbDriver = null;
+		String dbServer = "jdbc:sqlite:"+sqliteFile.getAbsolutePath();
+		
+		return new DBAccess(dbDriver, dbServer, null, null, 1, 1, null, 0.5);
 	}
 	
 	public static void destroyAllDBs() {

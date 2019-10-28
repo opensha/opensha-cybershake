@@ -368,7 +368,7 @@ public enum CyberShakeStudy {
 		
 		try {
 			ResultSet rs = db.selectData(sql);
-			rs.first();
+			rs.next();
 			return rs.getInt(1);
 		} catch (SQLException e) {
 			throw new IllegalStateException(e);
@@ -380,7 +380,7 @@ public enum CyberShakeStudy {
 		
 		try {
 			ResultSet rs = db.selectData(sql);
-			rs.first();
+			rs.next();
 			return rs.getInt(1);
 		} catch (SQLException e) {
 			throw new IllegalStateException(e);
@@ -771,7 +771,7 @@ public enum CyberShakeStudy {
 							+" AND Source_ID="+sourceID+" AND Rupture_ID="+rupID;
 					try {
 						ResultSet rs = db.selectData(sql);
-						rs.first();
+						rs.next();
 						int count = rs.getInt(1);
 						if (count > 0)
 							mnd.add(mnd.getClosestXIndex(mag), (double)count);

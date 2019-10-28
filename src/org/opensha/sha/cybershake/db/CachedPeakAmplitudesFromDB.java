@@ -239,7 +239,7 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 			e1.printStackTrace();
 		}
 //		if (D) System.out.println("Done selecting");
-		boolean valid = rs.first();
+		boolean valid = rs.next();
 		if (!valid) {
 			rs.close();
 			// no matches

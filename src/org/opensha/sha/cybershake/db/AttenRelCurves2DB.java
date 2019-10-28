@@ -119,7 +119,7 @@ public class AttenRelCurves2DB {
 		
 		ResultSet rs = db.selectData(selectSQL);
 		
-		boolean success = rs.first();
+		boolean success = rs.next();
 		if (!success)
 			throw new SQLException("Emty result set!");
 		
@@ -150,7 +150,7 @@ public class AttenRelCurves2DB {
 		
 		ResultSet rs = db.selectData(sql);
 		
-		boolean success = rs.first();
+		boolean success = rs.next();
 		if (!success)
 			return ids;
 		
@@ -215,7 +215,7 @@ public class AttenRelCurves2DB {
 		
 		ResultSet rs = db.selectData(sql.toString());
 		
-		boolean success = rs.first();
+		boolean success = rs.next();
 		if (!success)
 			return curves;
 		

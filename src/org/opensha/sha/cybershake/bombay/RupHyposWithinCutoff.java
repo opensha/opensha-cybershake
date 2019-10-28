@@ -120,7 +120,7 @@ public class RupHyposWithinCutoff {
 		try {
 			ArrayList<Integer> rvsExcluded = Lists.newArrayList();
 			ResultSet rs = db.selectData(sql);
-			boolean success = rs.first();
+			boolean success = rs.next();
 			while (success) {
 				int rvID = rs.getInt("Rup_Var_ID");
 				double lat = rs.getDouble("Hypocenter_Lat");

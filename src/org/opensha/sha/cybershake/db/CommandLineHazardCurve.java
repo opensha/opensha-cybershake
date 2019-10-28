@@ -59,7 +59,8 @@ public class CommandLineHazardCurve implements ParameterChangeWarningListener {
 	private ArbitrarilyDiscretizedFunc function;
 
 	private String ERF_NAME = "WGCEP (2007) UCERF2 - Single Branch";
-	private static final DBAccess db = new DBAccess(HOSTNAME,DB_NAME); 
+//	private static final DBAccess db = new DBAccess(HOSTNAME,DB_NAME);
+	private static final DBAccess db = null;
 
 	public static void main(String[] args) {
 		if (args.length<3) {
@@ -195,8 +196,7 @@ public class CommandLineHazardCurve implements ParameterChangeWarningListener {
 	private static double[] getSiteCoordinates(String site) {
 		try {
 			ResultSet result = db.selectData("select CS_Site_Lat, CS_Site_Lon from CyberShake_Sites where CS_Site_Name='" + site + "'");
-			result.first();
-			if (result.getRow()==0) {
+			if (!result.next()) {
 				System.err.println("Error in site query.");
 				return null;
 			}

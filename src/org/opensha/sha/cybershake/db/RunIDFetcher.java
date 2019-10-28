@@ -180,7 +180,7 @@ public class RunIDFetcher {
 		
 		try {
 			ResultSet rs = db.selectData(sql);
-			boolean valid = rs.first();
+			boolean valid = rs.next();
 			
 			while (valid) {
 				CybershakeRun run = CybershakeRun.fromResultSet(rs, "R.");

@@ -41,7 +41,7 @@ public class Runs2DB {
 		
 		try {
 			ResultSet rs = db.selectData(sql);
-			boolean valid = rs.first();
+			boolean valid = rs.next();
 			
 			if (valid) {
 				int id = rs.getInt("Site_ID");
@@ -85,7 +85,7 @@ public class Runs2DB {
 		
 		try {
 			ResultSet rs = db.selectData(sql);
-			boolean valid = rs.first();
+			boolean valid = rs.next();
 			
 			while (valid) {
 				int id = rs.getInt("Run_ID");
@@ -109,7 +109,7 @@ public class Runs2DB {
 		ResultSet rs = null;
 		try {
 			rs = db.selectData(sql);
-			boolean valid = rs.first();
+			boolean valid = rs.next();
 			
 			if (valid) {
 				run = CybershakeRun.fromResultSet(rs);
@@ -157,7 +157,7 @@ public class Runs2DB {
 		
 		try {
 			ResultSet rs = db.selectData(sql);
-			boolean valid = rs.first();
+			boolean valid = rs.next();
 			
 			while (valid) {
 				CybershakeRun run = CybershakeRun.fromResultSet(rs);
@@ -294,7 +294,7 @@ public class Runs2DB {
 		
 		try {
 			ResultSet rs = db.selectData(sql);
-			boolean valid = rs.first();
+			boolean valid = rs.next();
 			
 			while (valid) {
 				vels.add(CybershakeVelocityModel.fromResultSet(rs));
@@ -345,7 +345,7 @@ public class Runs2DB {
 		
 		try {
 			ResultSet rs = db.selectData(sql);
-			boolean valid = rs.first();
+			boolean valid = rs.next();
 			
 			while (valid) {
 				rvs.add(CybershakeRuptureVariation.fromResultSet(rs));
@@ -396,7 +396,7 @@ public class Runs2DB {
 		
 		try {
 			ResultSet rs = db.selectData(sql);
-			boolean valid = rs.first();
+			boolean valid = rs.next();
 			
 			while (valid) {
 				sgts.add(CybershakeSGTVariation.fromResultSet(rs));
@@ -440,7 +440,7 @@ public class Runs2DB {
 		
 		try {
 			ResultSet rs = db.selectData(sql);
-			boolean valid = rs.first();
+			boolean valid = rs.next();
 			
 			while (valid) {
 				CybershakeRun run = CybershakeRun.fromResultSet(rs);

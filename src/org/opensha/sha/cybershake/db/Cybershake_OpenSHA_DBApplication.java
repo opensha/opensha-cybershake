@@ -39,6 +39,7 @@ import org.opensha.commons.util.FileUtils;
 import org.opensha.sha.earthquake.ERF;
 import org.opensha.sha.simulators.RSQSimEvent;
 import org.opensha.sha.simulators.srf.SRF_PointData;
+import org.sqlite.JDBC;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -100,7 +101,7 @@ public class Cybershake_OpenSHA_DBApplication {
 	}
 	
 	public static DBAccess getSQLiteDB(File sqliteFile) throws IOException {
-		String dbDriver = null;
+		String dbDriver = JDBC.class.getName();
 		String dbServer = "jdbc:sqlite:"+sqliteFile.getAbsolutePath();
 		
 		return new DBAccess(dbDriver, dbServer, null, null, 1, 1, null, 0.5);

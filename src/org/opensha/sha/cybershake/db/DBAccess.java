@@ -40,6 +40,7 @@ import org.sqlite.SQLiteConfig;
 import org.sqlite.SQLiteConfig.Pragma;
 
 import com.google.common.base.Preconditions;
+import com.mysql.jdbc.Driver;
 
 
 
@@ -98,7 +99,7 @@ public class DBAccess implements Runnable{
 	 * @throws IOException 
 	 */
 	public DBAccess(String hostname, String dbName, String user, String pass) throws IOException {
-		this("com.mysql.jdbc.Driver", "jdbc:mysql://"+hostname+":"+3306+"/"+dbName,
+		this(Driver.class.getName(), "jdbc:mysql://"+hostname+":"+3306+"/"+dbName,
 				user, pass, 1, 100, null, 0.5);
 	}
 

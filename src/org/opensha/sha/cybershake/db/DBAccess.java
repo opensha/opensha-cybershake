@@ -242,6 +242,7 @@ public class DBAccess implements Runnable{
 		boolean connectionsSucceeded=false;
 		int dbLoop=2;
 
+		Exception ex = null;
 		try {
 			for(int i=1; i < dbLoop; i++) {
 				try {
@@ -251,6 +252,8 @@ public class DBAccess implements Runnable{
 					connectionsSucceeded=true;
 					break;
 				} catch (SQLException e){
+					e.printStackTrace();
+					ex = e;
 					if(debugLevel > 0) {
 						log.println("--->Attempt (" + String.valueOf(i) +
 								" of " + String.valueOf(dbLoop) +
@@ -259,14 +262,14 @@ public class DBAccess implements Runnable{
 					}
 				}
 			}
-			if(!connectionsSucceeded) { // All attempts at connecting to db exhausted
-				if(debugLevel > 0) {
-					log.println("\r\nAll attempts at connecting to Database exhausted");
-				}
-				throw new IOException();
-			}
 		} catch (Exception e) {
-			throw new IOException(e);
+			ex = e;
+		}
+		if(!connectionsSucceeded) { // All attempts at connecting to db exhausted
+			if(debugLevel > 0) {
+				log.println("\r\nAll attempts at connecting to Database exhausted");
+			}
+			throw new IOException(ex);
 		}
 
 		// Fire up the background housekeeping thread

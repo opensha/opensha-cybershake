@@ -1,0 +1,84 @@
+package scratch.kevin.cybershake.simCompare;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.opensha.commons.data.Site;
+import org.opensha.commons.data.siteData.impl.WillsMap2015;
+import org.opensha.commons.geo.Location;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
+import org.opensha.sha.cybershake.constants.CyberShakeStudy;
+import org.opensha.sha.cybershake.db.CybershakeSite;
+import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
+
+import com.google.common.base.Joiner;
+import com.google.common.collect.Range;
+
+public class SiteSearchByVs30 {
+	
+	public static void main(String[] args) throws IOException {
+		Range<Double> vs30Range = Range.closed(500d, 500d);
+		
+		// study from which we are selecting sites
+		CyberShakeStudy siteStudy = CyberShakeStudy.STUDY_15_4;
+		
+		List<Site> sites = CyberShakeSiteBuilder.buildSites(siteStudy, Vs30_Source.Simulation, siteStudy.runFetcher().fetch());
+		List<Site> matches = new ArrayList<>();
+		List<String> bbStations = new ArrayList<>();
+		
+		WillsMap2015 wills = new WillsMap2015();
+		
+		for (Site site : sites) {
+			double vs30 = site.getParameter(Double.class, Vs30_Param.NAME).getValue();
+			if (vs30Range.contains(vs30)) {
+				System.out.println("Site: "+site.getName()+"\tVs30: "+vs30+"\tWills: "+wills.getValue(site.getLocation()));
+				matches.add(site);
+				if (site instanceof CyberShakeSiteRun
+						&& ((CyberShakeSiteRun)site).getCS_Site().type_id == CybershakeSite.TYPE_BROADBAND_STATION)
+					bbStations.add(site.getName());
+			}
+		}
+		
+		System.out.println("Found "+matches.size()+" matching sites");
+		System.out.println("BroadBand stations: "+Joiner.on(",").join(bbStations));
+		
+		siteStudy.getDB().destroy();
+		
+		File outputFile = new File("/tmp/cs_vs30_sites.kml");
+		System.out.println("Writing KML to "+outputFile.getAbsolutePath());
+		
+		FileWriter fw = new FileWriter(outputFile);
+		
+		fw.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + "\n");
+		fw.write("<kml xmlns=\"http://earth.google.com/kml/2.2\">" + "\n");
+		fw.write("  <Folder>" + "\n");
+		fw.write("    <name>CyberShake sites with Vs30=["+vs30Range.lowerEndpoint().floatValue()+" "
+				+vs30Range.upperEndpoint().floatValue()+"]</name>" + "\n");
+//		fw.write("    <description>Open Seismic Hazard Analysis Evenly Gridded Region</description>" + "\n");
+		
+		for (Site site : matches) {
+			Location loc = site.getLocation();
+			
+			fw.write("    <Placemark>" + "\n");
+			fw.write("      <name>"+site.getName()+"</name>" + "\n");
+			fw.write("      <Point id=\""+site.getName()+"\">" + "\n");
+			fw.write("        <coordinates>" + loc.getLongitude() + "," + loc.getLatitude() + "," + (-loc.getDepth()) + "</coordinates>" + "\n");
+//			fw.write("        <latitude>" + loc.getLatitude() + "</latitude>" + "\n");
+//			fw.write("        <altitude>" + (-loc.getDepth()) + "</altitude>" + "\n");
+			fw.write("      </Point>" + "\n");
+			
+			fw.write("    </Placemark>" + "\n");
+		}
+		
+		fw.write("  </Folder>" + "\n");
+		fw.write("</kml>" + "\n");
+		fw.flush();
+		fw.close();
+	}
+
+}

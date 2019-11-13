@@ -174,6 +174,13 @@ public enum CyberShakeStudy {
 		public RunIDFetcher runFetcher() {
 			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
 		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_2457.instance();
+			return catalog;
+		}
 	},
 	STUDY_18_4_RSQSIM_2585(cal(2018, 4), 83, "RSQSim 2585",
 			"study_18_4_rsqsim_2585", "RSQSim prototype with catalog 2585 (1myr)", 5,
@@ -186,6 +193,13 @@ public enum CyberShakeStudy {
 		@Override
 		public RunIDFetcher runFetcher() {
 			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
+		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_2585_1MYR.instance();
+			return catalog;
 		}
 	},
 	STUDY_18_8(cal(2018, 8), 87, "Study 18.8", "study_18_8",
@@ -213,6 +227,13 @@ public enum CyberShakeStudy {
 		public RunIDFetcher runFetcher() {
 			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
 		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_2740.instance();
+			return catalog;
+		}
 	},
 	STUDY_19_2_RSQSIM_ROT_2740(cal(2019, 2), 88, "RSQSim RotRup 2740",
 			"study_19_2_rsqsim_rot_2740", "RSQSim rotated-rupture variability study with catalog 2740", 5,
@@ -231,6 +252,13 @@ public enum CyberShakeStudy {
 				String topLink) throws IOException {
 			// standard plots are not relevant for this variability study
 			return new ArrayList<>();
+		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_2740.instance();
+			return catalog;
 		}
 	},
 	STUDY_19_3_RSQSIM_ROT_2585(cal(2019, 3), 89, "RSQSim RotRup 2585",
@@ -251,7 +279,18 @@ public enum CyberShakeStudy {
 			// standard plots are not relevant for this variability study
 			return new ArrayList<>();
 		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_2585_1MYR.instance();
+			return catalog;
+		}
 	};
+	
+	public RSQSimCatalog getRSQSimCatalog() {
+		return null;
+	}
 	
 	private static AbstractERF getRSQSimERF(String catalogDirName) {
 		File catDir = RSQSimCatalog.locateCatalog(catalogDirName, "erf_params.xml");

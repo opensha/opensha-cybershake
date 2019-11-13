@@ -33,6 +33,7 @@ import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Table;
 import com.google.common.primitives.Doubles;
 
 import scratch.kevin.simCompare.MultiRupGMPE_ComparePageGen;
@@ -323,8 +324,11 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		List<CyberShakeStudy> studies = new ArrayList<>();
 		List<Vs30_Source> vs30s = new ArrayList<>();
 		
-		studies.add(CyberShakeStudy.STUDY_18_9_RSQSIM_2740);
-		vs30s.add(Vs30_Source.Simulation);
+//		studies.add(CyberShakeStudy.STUDY_18_9_RSQSIM_2740);
+//		vs30s.add(Vs30_Source.Simulation);
+		
+//		studies.add(CyberShakeStudy.STUDY_18_4_RSQSIM_2585);
+//		vs30s.add(Vs30_Source.Simulation);
 		
 //		studies.add(CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457);
 //		vs30s.add(Vs30_Source.Simulation);
@@ -339,12 +343,12 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_17_3_1D);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-//		studies.add(CyberShakeStudy.STUDY_15_4);
-//		vs30s.add(Vs30_Source.Simulation);
+		studies.add(CyberShakeStudy.STUDY_15_4);
+		vs30s.add(Vs30_Source.Simulation);
 //		studies.add(CyberShakeStudy.STUDY_15_4);
 //		vs30s.add(Vs30_Source.Wills2015);
 		
-		AttenRelRef primaryGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS; // this one will include highlight sites
+		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014; // this one will include highlight sites
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
 //				AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
@@ -365,7 +369,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		boolean replotScatters = false;
 		boolean replotZScores = false;
 		boolean replotCurves = false;
-		boolean replotResiduals = true;
+		boolean replotResiduals = false;
 		
 		for (int s=0; s<studies.size(); s++) {
 			System.gc();
@@ -431,6 +435,14 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 				comp.setReplotScatters(replotScatters);
 				comp.setReplotZScores(replotZScores);
 				
+				HashSet<CSRupture> allRups = new HashSet<>();
+				for (Site site : comp.sites)
+					allRups.addAll(comp.prov.getRupturesForSite(site));
+				Table<String, CSRupture, Double> sourceContribFracts =
+						StudySiteHazardCurvePageGen.getSourceContribFracts(
+								study.getERF(), allRups, study.getRSQSimCatalog(), true);
+				comp.setSourceRupContributionFractions(sourceContribFracts, 10);
+				
 				List<Site> highlightSites = comp.highlightSites;
 				
 				for (AttenRelRef gmpeRef : gmpeRefs) {
@@ -462,9 +474,12 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 				e.printStackTrace();
 			}
 			
+			System.out.println("Done with "+study+" at "+System.currentTimeMillis()+", writing markdown summary and updating index");
+			
 			study.writeMarkdownSummary(studyDir);
 			CyberShakeStudy.writeStudiesIndex(outputDir);
 		}
+		System.out.println("Done with all at "+System.currentTimeMillis());
 		
 		for (CyberShakeStudy study : studies)
 			study.getDB().destroy();

@@ -247,6 +247,7 @@ public class HazardCurveComputation {
 		for(int i=0; i<numIMLs; ++i) hazardFunc.set((xVals.get(i)).doubleValue(), 1.0);
 
 		int numSrcs = srcIdList.size();
+//		System.out.println("computing curve with "+srcIdList.size()+" sources");
 		for(int srcIndex =0;srcIndex<numSrcs;++srcIndex){
 			//			updateProgress(srcIndex, numSrcs);
 			int srcId = srcIdList.get(srcIndex);
@@ -258,6 +259,7 @@ public class HazardCurveComputation {
 				double qkProb = erfDB.getRuptureProb(erfID, srcId, rupId);
 				if (rupProbMod != null)
 					qkProb = rupProbMod.getModifiedProb(srcId, rupId, qkProb);
+//				System.out.println("prob: "+qkProb);
 				if (qkProb == 0) {
 					// if the probability is zero and we're not modifying anything then we can skip this rupture
 					if (rupVarProbMod == null && rupVarAdditionProbMod == null)
@@ -335,9 +337,13 @@ public class HazardCurveComputation {
 	public static void handleRupture(List<Double> xVals, List<Double> imVals,
 			DiscretizedFunc hazardFunc, double qkProb) {
 		ArbDiscrEmpiricalDistFunc function = new ArbDiscrEmpiricalDistFunc();
+//		System.out.print("Rup with prob="+qkProb+":");
 		for (double val : imVals) {
-			function.set(val/CONVERSION_TO_G,1);
+			double convVal = val/CONVERSION_TO_G;
+			function.set(convVal,1);
+//			System.out.print(" "+(float)convVal);
 		}
+//		System.out.println();
 		setIMLProbs(xVals,hazardFunc, function.getNormalizedCumDist(), qkProb);
 	}
 	

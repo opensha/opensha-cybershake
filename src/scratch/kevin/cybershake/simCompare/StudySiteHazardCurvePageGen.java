@@ -149,7 +149,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 	}
 	
 	static Table<String, CSRupture, Double> getSourceContribFracts(
-			AbstractERF erf, Collection<CSRupture> ruptures, RSQSimCatalog catalog) {
+			AbstractERF erf, Collection<CSRupture> ruptures, RSQSimCatalog catalog, boolean fractional) {
 		if (erf instanceof MeanUCERF2) {
 			Map<String, List<Integer>> sourceNameToIDs = MeanUCERF2_ToDB.getFaultsToSourcesMap(erf);
 			Map<Integer, String> sourceIDsToNames = new HashMap<>();
@@ -167,9 +167,15 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 			List<Map<String, Double>> sourceFractsList = new ArrayList<>();
 			Map<String, List<Integer>> faultNamesToIDsMap = catalog.getFaultModel().getNamedFaultsMapAlt();
 			Map<Integer, String> idsToFaultNamesMap = new HashMap<>();
-			for (String faultName : faultNamesToIDsMap.keySet())
+			for (String faultName : faultNamesToIDsMap.keySet()) {
+				String name = faultName;
+				if (name.startsWith("San Andreas"))
+					name = "San Andreas";
+				else if (name.startsWith("San Jacinto"))
+					name = "San Jacinto";
 				for (Integer id : faultNamesToIDsMap.get(faultName))
-					idsToFaultNamesMap.put(id, faultName);
+					idsToFaultNamesMap.put(id, name);
+			}
 			
 			for (int sourceID=0; sourceID<erf.getNumSources(); sourceID++) {
 				RSQSimSectBundledSource source = ((RSQSimSectBundledERF)erf).getSource(sourceID);
@@ -186,12 +192,22 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 					FaultSectionPrefData sect = sects.get(i);
 					int id = sect.getParentSectionId();
 					String name = idsToFaultNamesMap.get(id);
-					if (name == null)
+					if (name == null) {
 						// not a named fault
 						name = sect.getParentSectionName();
-//					double fract = areas.get(i)/totArea;
-					double fract = 1d;
-					sourceFracts.put(name, fract);
+						if (name.startsWith("San Andreas"))
+							name = "San Andreas";
+						else if (name.startsWith("San Jacinto"))
+							name = "San Jacinto";
+					}
+					if (fractional) {
+						double fract = areas.get(i)/totArea;
+						if (sourceFracts.containsKey(name))
+							fract += sourceFracts.get(name);
+						sourceFracts.put(name, fract);
+					} else {
+						sourceFracts.put(name, 1d);
+					}
 				}
 				sourceFractsList.add(sourceFracts);
 			}
@@ -281,7 +297,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 							mainProv, new UCERF2_AleatoryMagVarRemovalMod(study.getERF()), study.getName()+" w/o Aleatory Mag"));
 				
 				Table<String, CSRupture, Double> sourceContribFracts =
-						getSourceContribFracts(study.getERF(), mainProv.getRupturesForSite(site), catalog);
+						getSourceContribFracts(study.getERF(), mainProv.getRupturesForSite(site), catalog, false);
 				
 				for (CyberShakeStudy compStudy : compStudies) {
 					// strip the run out of the site so we don't get bad associations

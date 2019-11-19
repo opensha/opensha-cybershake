@@ -81,7 +81,8 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(5).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+			return new RunIDFetcher(this.getDB()).forStudyID(5).noTestSites().unique(true)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_14_2_CVM_S426(cal(2014, 2), 35, "Study 14.2 CVM-S4.26", "study_14_2_cvms426",
@@ -94,7 +95,8 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(5).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+			return new RunIDFetcher(this.getDB()).forStudyID(5).noTestSites().unique(true)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_14_2_CVMH(cal(2014, 2), 34, "Study 14.2 CVM-H", "study_14_2_cvmh",
@@ -107,7 +109,8 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(5).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+			return new RunIDFetcher(this.getDB()).forStudyID(5).noTestSites().unique(true)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_15_4(cal(2015, 4), 57, "Study 15.4", "study_15_4",
@@ -120,7 +123,8 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(6).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+			return new RunIDFetcher(this.getDB()).forStudyID(6).noTestSites().unique(true)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_15_12(cal(2015, 12), 61, "Study 15.12", "study_15_12",
@@ -133,7 +137,8 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(7).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+			return new RunIDFetcher(this.getDB()).forStudyID(7).noTestSites().unique(true)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_17_3_1D(cal(2017, 3), 80, "Study 17.3 1-D",
@@ -146,7 +151,8 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(8).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+			return new RunIDFetcher(this.getDB()).forStudyID(8).noTestSites().unique(true)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_17_3_3D(cal(2017, 3), 81, "Study 17.3 3-D",
@@ -159,7 +165,8 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forStudyID(8).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+			return new RunIDFetcher(this.getDB()).forStudyID(8).noTestSites().unique(true)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_18_4_RSQSIM_PROTOTYPE_2457(cal(2018, 4), 82, "RSQSim 2457",
@@ -172,7 +179,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
+			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs()).unique(true);
 		}
 		private RSQSimCatalog catalog = null;
 		@Override
@@ -192,7 +199,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
+			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs()).unique(true);
 		}
 		private RSQSimCatalog catalog = null;
 		@Override
@@ -212,7 +219,8 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).noTestSites().hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+			return new RunIDFetcher(this.getDB()).noTestSites().unique(true)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 	},
 	STUDY_18_9_RSQSIM_2740(cal(2018, 9), new int[] { 85, 86}, "RSQSim 2740",
@@ -225,7 +233,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs());
+			return new RunIDFetcher(this.getDB()).hasHazardCurves(this.getDatasetIDs()).unique(true);
 		}
 		private RSQSimCatalog catalog = null;
 		@Override
@@ -245,7 +253,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(50).hasAmplitudes();
+			return new RunIDFetcher(this.getDB()).forERF(50).hasAmplitudes().unique(true);
 		}
 		@Override
 		public List<String> writeStandardDiagnosticPlots(File outputDir, int skipYears, double minMag, boolean replot,
@@ -271,7 +279,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(51).hasAmplitudes();
+			return new RunIDFetcher(this.getDB()).forERF(51).hasAmplitudes().unique(true);
 		}
 		@Override
 		public List<String> writeStandardDiagnosticPlots(File outputDir, int skipYears, double minMag, boolean replot,

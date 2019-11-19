@@ -39,6 +39,9 @@ public class RunIDFetcher {
 	private boolean hasAmps;
 	private int[] hazardDatasetIDs;
 	private Integer imTypeID;
+
+	private boolean unique;
+	private boolean uniqueUseFirst;
 	
 	private DBAccess db;
 	
@@ -171,6 +174,12 @@ public class RunIDFetcher {
 		return this;
 	}
 	
+	public RunIDFetcher unique(boolean useFirst) {
+		this.unique = true;
+		this.uniqueUseFirst = useFirst;
+		return this;
+	}
+	
 	public List<CybershakeRun> fetch() {
 		String sql = buildSelectSQL();
 		
@@ -195,6 +204,30 @@ public class RunIDFetcher {
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return null;
+		}
+		
+		if (unique) {
+			Map<Integer, CybershakeRun> siteRunMap = new HashMap<>();
+			for (CybershakeRun run : runs) {
+				Integer siteID = run.getSiteID();
+				if (siteRunMap.containsKey(siteID)) {
+					// duplicate
+					int prevID = siteRunMap.get(siteID).getRunID();
+					if (uniqueUseFirst && run.getRunID() < prevID
+							|| !uniqueUseFirst && run.getRunID() > prevID) {
+						// use this one
+						siteRunMap.put(siteID, run);
+					}
+				} else {
+					siteRunMap.put(siteID, run);
+				}
+			}
+			if (siteRunMap.size() < runs.size()) {
+				HashSet<CybershakeRun> keepers = new HashSet<>(siteRunMap.values());
+				for (int i=runs.size(); --i>=0;)
+					if (!keepers.contains(runs.get(i)))
+						runs.remove(i);
+			}
 		}
 		
 		return runs;

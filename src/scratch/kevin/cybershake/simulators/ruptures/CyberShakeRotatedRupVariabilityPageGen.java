@@ -74,6 +74,11 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 		double[] calcPeriods = { 3, 4, 5, 7.5, 10 };
 		double[] periods = { 3, 5, 10 };
 		
+//		NGAW2_WrapperFullParam[] refGMPEs = { new NGAW2_Wrappers.ASK_2014_Wrapper(), new NGAW2_Wrappers.BSSA_2014_Wrapper(),
+//				new NGAW2_Wrappers.CB_2014_Wrapper(), new NGAW2_Wrappers.CY_2014_Wrapper()};
+		
+		NGAW2_WrapperFullParam[] refGMPEs = { new NGAW2_Wrappers.ASK_2014_Wrapper() };
+		
 		try {
 			Map<Integer, List<ASK_EventData>> realData = ASK_EventData.load(1d);
 			
@@ -93,9 +98,6 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 			RSQSimCatalog catalog = erf.getCatalog();
 			
 			Map<Scenario, RotatedRupVariabilityConfig> configMap = erf.getConfigMap();
-			
-			NGAW2_WrapperFullParam[] refGMPEs = { new NGAW2_Wrappers.ASK_2014_Wrapper(), new NGAW2_Wrappers.BSSA_2014_Wrapper(),
-					new NGAW2_Wrappers.CB_2014_Wrapper(), new NGAW2_Wrappers.CY_2014_Wrapper()};
 
 			Map<Scenario, CyberShakeRotatedRupVariabilityPageGen> pageGensMap = new HashMap<>();
 			HashSet<Integer> eventIDsSet = new HashSet<>();

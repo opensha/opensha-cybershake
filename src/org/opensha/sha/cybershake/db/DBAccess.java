@@ -781,9 +781,11 @@ public class DBAccess implements Runnable{
 		int rows = -1;
 		try {
 			Statement stat = conn.createStatement();
-			stat.execute("BEGIN TRANSACTION;");
+			if (isSQLite())
+				stat.execute("BEGIN TRANSACTION;");
 			rows = stat.executeUpdate(query+";");
-			stat.execute("COMMIT;");
+			if (isSQLite())
+				stat.execute("COMMIT;");
 		} catch (SQLException e) {
 			ex = e;
 		}

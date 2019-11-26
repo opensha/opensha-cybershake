@@ -575,15 +575,15 @@ public class Cybershake_OpenSHA_DBApplication {
 //		System.exit(0);
 		
 		// if you have to reinsert a rupture surface for some reason, do this
-		int startSourceID = 5400;
-		int startRuptureID = 0;
-		System.out.println("Inserting all ruptures starting with source "+startSourceID);
-		for (int sourceID=startSourceID; sourceID<erf.getNumSources(); sourceID++) {
-			for (int rupID=startRuptureID; rupID<erf.getNumRuptures(sourceID); rupID++) {
-				erfDB.insertSrcRupInDB(erf, erfID, sourceID, rupID);
-			}
-			startRuptureID = 0;
-		}
+//		int startSourceID = 5400;
+//		int startRuptureID = 0;
+//		System.out.println("Inserting all ruptures starting with source "+startSourceID);
+//		for (int sourceID=startSourceID; sourceID<erf.getNumSources(); sourceID++) {
+//			for (int rupID=startRuptureID; rupID<erf.getNumRuptures(sourceID); rupID++) {
+//				erfDB.insertSrcRupInDB(erf, erfID, sourceID, rupID);
+//			}
+//			startRuptureID = 0;
+//		}
 		
 		// this inserts the site info
 		siteDB.setMatchSourceNames(false);
@@ -612,11 +612,11 @@ public class Cybershake_OpenSHA_DBApplication {
 //		sites.add(sites2db.getSiteFromDB("s279"));
 //		sites.add(sites2db.getSiteFromDB("s480"));
 //		sites.add(sites2db.getSiteFromDB("SMCA"));
-//		sites.add(sites2db.getSiteFromDB("OSI"));
-//		sites.add(sites2db.getSiteFromDB("PDE"));
-//		sites.add(sites2db.getSiteFromDB("WSS"));
-//		sites.add(sites2db.getSiteFromDB("LAF"));
-//		sites.add(sites2db.getSiteFromDB("s022"));
+		sites.add(sites2db.getSiteFromDB("OSI"));
+		sites.add(sites2db.getSiteFromDB("PDE"));
+		sites.add(sites2db.getSiteFromDB("WSS"));
+		sites.add(sites2db.getSiteFromDB("LAF"));
+		sites.add(sites2db.getSiteFromDB("s022"));
 		
 //		sites.add(sites2db.getSiteFromDB("s1262"));
 		

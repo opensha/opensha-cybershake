@@ -66,7 +66,8 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 		
-		String[] siteNames = { "USC", "PAS", "SBSM", "WNGC", "STNI", "SMCA" };
+//		String[] siteNames = { "USC", "PAS", "SBSM", "WNGC", "STNI", "SMCA" };
+		String[] siteNames = { "USC", "SBSM", "WNGC", "STNI", "SMCA" };
 //		String[] siteNames = { "SBSM" };
 		
 		boolean skipMissing = false;

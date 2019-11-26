@@ -1923,10 +1923,11 @@ public class ETAS_ScenarioPageGen {
 		File mappingsCSVFile = new File("/home/kevin/OpenSHA/UCERF3/cybershake_etas/u2_mapped_mappings.csv");
 		
 		File[] configFiles = {
-				new File(simsDir, "2019_04_25-2009BombayBeachM48-u2mapped-noSpont-10yr/config.json"),
-				new File(simsDir, "2019_04_25-2009BombayBeachM6-u2mapped-noSpont-10yr/config.json"),
-				new File(simsDir, "2019_04_25-MojavePointM6-u2mapped-noSpont-10yr/config.json"),
-				new File(simsDir, "2019_04_25-ParkfieldM6-u2mapped-noSpont-10yr/config.json")
+//				new File(simsDir, "2019_04_25-2009BombayBeachM48-u2mapped-noSpont-10yr/config.json"),
+//				new File(simsDir, "2019_04_25-2009BombayBeachM6-u2mapped-noSpont-10yr/config.json"),
+//				new File(simsDir, "2019_04_25-MojavePointM6-u2mapped-noSpont-10yr/config.json"),
+//				new File(simsDir, "2019_04_25-ParkfieldM6-u2mapped-noSpont-10yr/config.json"),
+				new File(simsDir, "2019_11_19-ComCatM7p1_ci38457511_ShakeMapSurfaces_FM2_1/config.json")
 		};
 		
 		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
@@ -1935,6 +1936,7 @@ public class ETAS_ScenarioPageGen {
 		AttenRelRef gmpeRef = AttenRelRef.ASK_2014;
 		
 		boolean replotETAS = false;
+		boolean skipETAS = true;
 		boolean replotMaps = false;
 		
 		String[] highlightSiteNames = { "SBSM", "MRSD", "STNI", "PDU" };
@@ -1953,7 +1955,8 @@ public class ETAS_ScenarioPageGen {
 					highlightSiteNames, ampsCacheDir, gmpeRef);
 			
 			File etasPlotsDir = new File(outputDir, "etas_plots");
-			if (!etasPlotsDir.exists() || !new File(etasPlotsDir, "README.md").exists() || replotETAS) {
+			if (!skipETAS && 
+					(!etasPlotsDir.exists() || !new File(etasPlotsDir, "README.md").exists() || replotETAS)) {
 				System.out.println("Writing standard ETAS plots...");
 				SimulationMarkdownGenerator.generateMarkdown(configFile, pageGen.catalogsFile,
 						config, etasPlotsDir, false, 0, 1, false, false, null, null);

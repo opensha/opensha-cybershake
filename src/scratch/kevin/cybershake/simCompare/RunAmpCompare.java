@@ -35,10 +35,13 @@ public class RunAmpCompare {
 //		int runID2 = 7036;
 		
 		CybershakeIM[] ims = {
-				CybershakeIM.getSA(CyberShakeComponent.RotD50, 3d),
-				CybershakeIM.getSA(CyberShakeComponent.RotD50, 5d),
-				CybershakeIM.getSA(CyberShakeComponent.RotD50, 10d)
+				CybershakeIM.getSA(CyberShakeComponent.RotD100, 3d),
 		};
+//		CybershakeIM[] ims = {
+//				CybershakeIM.getSA(CyberShakeComponent.RotD50, 3d),
+//				CybershakeIM.getSA(CyberShakeComponent.RotD50, 5d),
+//				CybershakeIM.getSA(CyberShakeComponent.RotD50, 10d)
+//		};
 		
 		DBAccess db = study.getDB();
 		Runs2DB runs2db = new Runs2DB(db);

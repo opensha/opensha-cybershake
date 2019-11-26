@@ -4,6 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -76,6 +79,29 @@ public class RotRupSimCompare {
 		Quantity[] quantities = {Quantity.EVENT_ID, Quantity.DISTANCE,
 				Quantity.SOURCE_AZIMUTH, Quantity.SITE_TO_SOURTH_AZIMUTH};
 		
+		// now both az together
+		Map<Scenario, RotatedRupVariabilityConfig> configMap = erf.getConfigMap();
+		HashSet<Float> commonAzimuths = null;
+		for (RotatedRupVariabilityConfig config : configMap.values()) {
+			if (commonAzimuths == null)
+				commonAzimuths = new HashSet<>(config.getValues(Float.class, Quantity.SOURCE_AZIMUTH));
+			else
+				commonAzimuths.retainAll(config.getValues(Float.class, Quantity.SOURCE_AZIMUTH));
+			commonAzimuths.retainAll(config.getValues(Float.class, Quantity.SITE_TO_SOURTH_AZIMUTH));
+		}
+		System.out.println("Have "+commonAzimuths.size()+" common azimuths");
+		Map<Float, MinMaxAveTracker> commonDiffTracks = new HashMap<>();
+		Map<Float, MinMaxAveTracker> commonRatioTracks = new HashMap<>();
+		for (Float az : commonAzimuths) {
+			commonDiffTracks.put(az, new MinMaxAveTracker());
+			commonRatioTracks.put(az, new MinMaxAveTracker());
+		}
+		
+		double largestDiff = 0d;
+		double largestRatio = 0d;
+		RotationSpec specLargestDiff = null;
+		RotationSpec specLargestRatio = null;
+		
 		for (int sourceID=0; sourceID<erf.getNumSources(); sourceID++) {
 			if (amps1[sourceID] == null || amps1[sourceID].length == 0)
 				continue;
@@ -92,6 +118,15 @@ public class RotRupSimCompare {
 				double absDiff = Math.abs(v1 - v2);
 				double ratio = v1 > v2 ? v1/v2 : v2/v1;
 				
+				if (absDiff > largestDiff) {
+					largestDiff = absDiff;
+					specLargestDiff = rot;
+				}
+				
+				if (ratio > largestRatio) {
+					largestRatio = ratio;
+					specLargestRatio = rot;
+				}
 				for (Quantity q : quantities) {
 					Object value = rot.getValue(q);
 					if (value == null)
@@ -106,10 +141,17 @@ public class RotRupSimCompare {
 					diffTrack.addValue(absDiff);
 					ratioTrack.addValue(ratio);
 				}
+				Float srcAz = (Float)rot.getValue(Quantity.SOURCE_AZIMUTH);
+				Float pathAz = (Float)rot.getValue(Quantity.SITE_TO_SOURTH_AZIMUTH);
+				if (srcAz.equals(pathAz) && commonAzimuths.contains(srcAz)) {
+					MinMaxAveTracker diffTrack = commonDiffTracks.get(srcAz);
+					MinMaxAveTracker ratioTrack = commonRatioTracks.get(srcAz);
+					diffTrack.addValue(absDiff);
+					ratioTrack.addValue(ratio);
+				}
 			}
 		}
 		
-		Map<Scenario, RotatedRupVariabilityConfig> configMap = erf.getConfigMap();
 		List<Scenario> scenarios = new ArrayList<>();
 		for (Scenario s : Scenario.values())
 			if (configMap.containsKey(s))
@@ -137,6 +179,26 @@ public class RotRupSimCompare {
 			}
 			csv.writeToFile(new File(outputDir, q.name()+".csv"));
 		}
+		
+		List<Float> values = new ArrayList<>(commonAzimuths);
+		Collections.sort(values);
+		CSVFile<String> csv = new CSVFile<>(true);
+		csv.addLine("Value", "Mean Abs Diff", "Max Abs Diff", "Mean Ratio", "Max Ratio");
+		for (Object value : values) {
+			List<String> line = new ArrayList<>();
+			line.add(value.toString());
+			MinMaxAveTracker diffTrack = commonDiffTracks.get(value);
+			MinMaxAveTracker ratioTrack = commonRatioTracks.get(value);
+			line.add((float)diffTrack.getAverage()+"");
+			line.add((float)diffTrack.getMax()+"");
+			line.add((float)ratioTrack.getAverage()+"");
+			line.add((float)ratioTrack.getMax()+"");
+			csv.addLine(line);
+		}
+		csv.writeToFile(new File(outputDir, "COMMON_AZ_COMBINED.csv"));
+		
+		System.out.println("Largest diff of "+(float)largestDiff+": "+specLargestDiff);
+		System.out.println("Largest ratio of "+(float)largestRatio+": "+specLargestRatio);
 	}
 
 }

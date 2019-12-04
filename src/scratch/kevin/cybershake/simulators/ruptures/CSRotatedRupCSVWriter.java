@@ -23,6 +23,7 @@ import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
 import scratch.kevin.simulators.ruptures.ASK_EventData;
 import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
+import scratch.kevin.simulators.ruptures.rotation.RSQSimRotatedRupVariabilityConfig;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.Quantity;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.RotationSpec;
@@ -35,7 +36,7 @@ public class CSRotatedRupCSVWriter {
 		CyberShakeStudy study = CyberShakeStudy.STUDY_19_3_RSQSIM_ROT_2585;
 		RSQSimRotatedRuptureFakeERF erf = (RSQSimRotatedRuptureFakeERF) study.getERF();
 		erf.setLoadRuptures(false);
-		Map<Scenario, RotatedRupVariabilityConfig> rotConfigs = erf.getConfigMap();
+		Map<Scenario, RSQSimRotatedRupVariabilityConfig> rotConfigs = erf.getConfigMap();
 		
 		File outputDir = new File(rotDir, "result_csvs");
 		
@@ -59,7 +60,7 @@ public class CSRotatedRupCSVWriter {
 		CSRotatedRupSimProv simProv = new CSRotatedRupSimProv(study, amps2db, periods);
 		
 		for (Scenario scenario : rotConfigs.keySet()) {
-			RotatedRupVariabilityConfig config = rotConfigs.get(scenario);
+			RSQSimRotatedRupVariabilityConfig config = rotConfigs.get(scenario);
 			List<CSVFile<String>> csvs = new ArrayList<>();
 			
 			if (sites == null) {

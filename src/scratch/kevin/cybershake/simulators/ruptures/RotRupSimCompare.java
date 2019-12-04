@@ -29,6 +29,7 @@ import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF.RSQSimRotatedRuptureSource;
 import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
+import scratch.kevin.simulators.ruptures.rotation.RSQSimRotatedRupVariabilityConfig;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.Quantity;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.RotationSpec;
@@ -40,7 +41,7 @@ public class RotRupSimCompare {
 		RSQSimCatalog catalog = study.getRSQSimCatalog();
 
 		File csRotDir = new File(catalog.getCatalogDir(), "cybershake_rotation_inputs");
-		Map<Scenario, RotatedRupVariabilityConfig> rotConfigs =
+		Map<Scenario, RSQSimRotatedRupVariabilityConfig> rotConfigs =
 				RSQSimRotatedRuptureFakeERF.loadRotationConfigs(catalog, csRotDir, true);
 		RSQSimRotatedRuptureFakeERF erf = new RSQSimRotatedRuptureFakeERF(catalog, rotConfigs);
 		
@@ -80,9 +81,9 @@ public class RotRupSimCompare {
 				Quantity.SOURCE_AZIMUTH, Quantity.SITE_TO_SOURTH_AZIMUTH};
 		
 		// now both az together
-		Map<Scenario, RotatedRupVariabilityConfig> configMap = erf.getConfigMap();
+		Map<Scenario, RSQSimRotatedRupVariabilityConfig> configMap = erf.getConfigMap();
 		HashSet<Float> commonAzimuths = null;
-		for (RotatedRupVariabilityConfig config : configMap.values()) {
+		for (RSQSimRotatedRupVariabilityConfig config : configMap.values()) {
 			if (commonAzimuths == null)
 				commonAzimuths = new HashSet<>(config.getValues(Float.class, Quantity.SOURCE_AZIMUTH));
 			else

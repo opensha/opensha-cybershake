@@ -23,17 +23,19 @@ import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
 import scratch.kevin.simulators.ruptures.ASK_EventData;
+import scratch.kevin.simulators.ruptures.rotation.RSQSimRotatedRupVariabilityConfig;
+import scratch.kevin.simulators.ruptures.rotation.RSQSimRotatedRupVariabilityPageGen;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.RotationSpec;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityPageGen;
 import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
 
-public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilityPageGen {
+public class CyberShakeRotatedRupVariabilityPageGen extends RSQSimRotatedRupVariabilityPageGen {
 
 	private Scenario scenario;
 
 	public CyberShakeRotatedRupVariabilityPageGen(RSQSimCatalog catalog, Scenario scenario,
-			RotatedRupVariabilityConfig config, SimulationRotDProvider<RotationSpec> prov, double[] calcPeriods) {
+			RotatedRupVariabilityConfig<RSQSimEvent> config, SimulationRotDProvider<RotationSpec> prov, double[] calcPeriods) {
 		super(catalog, config, scenario.getMagnitude(), prov, calcPeriods);
 		this.scenario = scenario;
 	}
@@ -54,7 +56,7 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 	}
 
 	@Override
-	protected Scenario getBBP_PartB_Scenario(RotatedRupVariabilityConfig config) {
+	protected Scenario getBBP_PartB_Scenario(RotatedRupVariabilityConfig<RSQSimEvent> config) {
 		return scenario;
 	}
 	
@@ -102,12 +104,12 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RotatedRupVariabilit
 //			simProv.getRupturesForSite(site);
 			RSQSimCatalog catalog = erf.getCatalog();
 			
-			Map<Scenario, RotatedRupVariabilityConfig> configMap = erf.getConfigMap();
+			Map<Scenario, RSQSimRotatedRupVariabilityConfig> configMap = erf.getConfigMap();
 
 			Map<Scenario, CyberShakeRotatedRupVariabilityPageGen> pageGensMap = new HashMap<>();
 			HashSet<Integer> eventIDsSet = new HashSet<>();
 			for (Scenario scenario : configMap.keySet()) {
-				RotatedRupVariabilityConfig config = configMap.get(scenario);
+				RSQSimRotatedRupVariabilityConfig config = configMap.get(scenario);
 				System.out.println("Config has "+config.getRotations().size());
 				config = config.forSites(sites);
 				System.out.println("Trimmed down to "+config.getRotations().size()+" rotations for "+sites.size()+" sites");

@@ -67,6 +67,7 @@ import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
 import scratch.kevin.simulators.plots.AbstractPlot;
 import scratch.kevin.simulators.plots.MagAreaScalingPlot;
 import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
+import scratch.kevin.simulators.ruptures.rotation.RSQSimRotatedRupVariabilityConfig;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig;
 
 public enum CyberShakeStudy {
@@ -319,7 +320,7 @@ public enum CyberShakeStudy {
 		Preconditions.checkState(catDir.exists(), "Could not find catalog dir for "+catalogDirName);
 		RSQSimCatalog catalog = new RSQSimCatalog(catDir, catalogDirName, FaultModels.FM3_1, DeformationModels.GEOLOGIC);
 		File csRotDir = new File(catalog.getCatalogDir(), "cybershake_rotation_inputs");
-		Map<Scenario, RotatedRupVariabilityConfig> rotConfigs;
+		Map<Scenario, RSQSimRotatedRupVariabilityConfig> rotConfigs;
 		try {
 			rotConfigs = RSQSimRotatedRuptureFakeERF.loadRotationConfigs(catalog, csRotDir, false);
 		} catch (IOException e) {

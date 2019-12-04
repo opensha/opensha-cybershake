@@ -55,6 +55,7 @@ import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
 import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.Quantity;
+import scratch.kevin.simulators.ruptures.rotation.RSQSimRotatedRupVariabilityConfig;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig;
 
 
@@ -485,7 +486,7 @@ public class Cybershake_OpenSHA_DBApplication {
 		
 		// rotated rupture variability ERF
 		File csRotDir = new File(catalog.getCatalogDir(), "cybershake_rotation_inputs");
-		Map<Scenario, RotatedRupVariabilityConfig> rotConfigs = RSQSimRotatedRuptureFakeERF.loadRotationConfigs(catalog, csRotDir, true);
+		Map<Scenario, RSQSimRotatedRupVariabilityConfig> rotConfigs = RSQSimRotatedRuptureFakeERF.loadRotationConfigs(catalog, csRotDir, true);
 		RSQSimRotatedRuptureFakeERF erf = new RSQSimRotatedRuptureFakeERF(catalog, rotConfigs);
 		System.out.println("ERF has "+erf.getNumSources()+" sources");
 		int numRotSites = -1;
@@ -495,7 +496,7 @@ public class Cybershake_OpenSHA_DBApplication {
 		int numEvents = 0;
 		int numScenarios = rotConfigs.size();
 		int numRots = 0;
-		for (RotatedRupVariabilityConfig config : rotConfigs.values()) {
+		for (RSQSimRotatedRupVariabilityConfig config : rotConfigs.values()) {
 			numRotSites = config.getValues(Site.class, Quantity.SITE).size();
 			numSiteToSoruceAz = config.getValues(Float.class, Quantity.SITE_TO_SOURTH_AZIMUTH).size();
 			numSoruceAz = config.getValues(Float.class, Quantity.SOURCE_AZIMUTH).size();

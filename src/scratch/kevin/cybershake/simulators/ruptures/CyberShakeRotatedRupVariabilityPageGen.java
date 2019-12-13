@@ -28,15 +28,16 @@ import scratch.kevin.simulators.ruptures.rotation.RSQSimRotatedRupVariabilityPag
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.RotationSpec;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityPageGen;
+import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.FilterMethod;
 import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
 
 public class CyberShakeRotatedRupVariabilityPageGen extends RSQSimRotatedRupVariabilityPageGen {
 
 	private Scenario scenario;
 
-	public CyberShakeRotatedRupVariabilityPageGen(RSQSimCatalog catalog, Scenario scenario,
+	public CyberShakeRotatedRupVariabilityPageGen(RSQSimCatalog catalog, FilterMethod filter, Scenario scenario,
 			RotatedRupVariabilityConfig<RSQSimEvent> config, SimulationRotDProvider<RotationSpec> prov, double[] calcPeriods) {
-		super(catalog, config, scenario.getMagnitude(), prov, calcPeriods);
+		super(catalog, config, filter, scenario.getMagnitude(), prov, calcPeriods);
 		this.scenario = scenario;
 	}
 
@@ -71,6 +72,7 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RSQSimRotatedRupVari
 //		String[] siteNames = { "USC", "PAS"  };
 
 		CyberShakeStudy study = CyberShakeStudy.STUDY_19_3_RSQSIM_ROT_2585;
+		FilterMethod filter = FilterMethod.CLOSEST_MAG;
 		String[] siteNames = { "USC", "SBSM", "WNGC", "STNI", "SMCA" };
 //		String[] siteNames = { "USC", "PAS", "SBSM", "WNGC", "STNI", "SMCA" };
 		
@@ -166,7 +168,7 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RSQSimRotatedRupVari
 				}
 				
 				CyberShakeRotatedRupVariabilityPageGen pageGen = new CyberShakeRotatedRupVariabilityPageGen(
-						catalog, scenario, config, simProv, calcPeriods);
+						catalog, filter, scenario, config, simProv, calcPeriods);
 				
 				pageGen.setGMPEs(refGMPEs);
 				

@@ -1,13 +1,20 @@
 package scratch.kevin.cybershake.simCompare;
 
 import java.awt.Color;
+import java.io.File;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.math3.stat.StatUtils;
+import org.jfree.chart.plot.DatasetRenderingOrder;
+import org.jfree.data.Range;
+import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.function.DefaultXY_DataSet;
 import org.opensha.commons.data.function.XY_DataSet;
 import org.opensha.commons.gui.plot.GraphWindow;
+import org.opensha.commons.gui.plot.HeadlessGraphPanel;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.gui.plot.PlotSymbol;
@@ -19,35 +26,60 @@ import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.Runs2DB;
+import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Doubles;
 
 public class RunAmpCompare {
 
-	public static void main(String[] args) {
-		CyberShakeStudy study = CyberShakeStudy.STUDY_19_3_RSQSIM_ROT_2585;
-		int runID1 = 7014;
-		int runID2 = 7054;
+	public static void main(String[] args) throws IOException {
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_19_3_RSQSIM_ROT_2585;
+//		int runID1 = 7014;
+//		int runID2 = 7054;
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
 //		int runID1 = 6707;
 //		int runID2 = 7036;
 		
-		CybershakeIM[] ims = {
-				CybershakeIM.getSA(CyberShakeComponent.RotD100, 3d),
-		};
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+//		int runID1 = 6707;
+//		int runID2 = 7036;
+//		int runID1 = 5622;
+//		int runID2 = 5855;
+//		int runID1 = 5612;
+//		int runID2 = 5847;
+		int runID1 = 7052;
+		int runID2 = 7055;
+		
+		File outputDir = new File("/home/kevin/CyberShake/rotation_debug");
+		
 //		CybershakeIM[] ims = {
-//				CybershakeIM.getSA(CyberShakeComponent.RotD50, 3d),
-//				CybershakeIM.getSA(CyberShakeComponent.RotD50, 5d),
-//				CybershakeIM.getSA(CyberShakeComponent.RotD50, 10d)
+//				CybershakeIM.getSA(CyberShakeComponent.RotD100, 3d),
 //		};
+		CybershakeIM[] ims = {
+				CybershakeIM.getSA(CyberShakeComponent.RotD50, 3d),
+				CybershakeIM.getSA(CyberShakeComponent.RotD50, 5d),
+				CybershakeIM.getSA(CyberShakeComponent.RotD50, 10d)
+		};
+		
+		CSVFile<String> csv = new CSVFile<>(true);
+		List<String> header = new ArrayList<>();
+		header.add("");
+		for (CybershakeIM im : ims)
+			header.add((float)im.getVal()+"s "+im.getComponent().getShortName());
+		csv.addLine(header);
+		List<List<String>> statsCols = new ArrayList<>();
+		List<String> statsLabels = null;
 		
 		DBAccess db = study.getDB();
 		Runs2DB runs2db = new Runs2DB(db);
 		
 		CybershakeRun run1 = runs2db.getRun(runID1);
 		CybershakeRun run2 = runs2db.getRun(runID2);
+		String siteName = new SiteInfo2DB(db).getSiteFromDB(run1.getSiteID()).short_name;
+		String prefix = siteName+"_"+runID2+"_vs_"+runID1;
 		
 		Preconditions.checkNotNull(run1);
 		Preconditions.checkNotNull(run2);
@@ -76,8 +108,23 @@ public class RunAmpCompare {
 			
 			double maxAbsDiff = 0d;
 			String maxAbsStr = null;
-			double maxRatio = 1d;
+			double maxPosRatio = 1d;
 			String maxRatioStr = null;
+			
+			List<Double> linearDiffs = new ArrayList<>();
+			List<Double> linearAbsDiffs = new ArrayList<>();
+			List<Double> logDiffs = new ArrayList<>();
+			List<Double> logAbsDiffs = new ArrayList<>();
+			List<Double> linearRatios = new ArrayList<>();
+			
+			double maxLinearAbsDiff = 0d;
+			String maxLinearAbsDiffSource = null;
+			double maxLogAbsDiff = 0d;
+			String maxLogAbsDiffSource = null;
+			double maxRatio = 0d;
+			String maxRatioSource = null;
+			double minRatio = Double.POSITIVE_INFINITY;
+			String minRatioSource = null;
 			
 			for (int sourceID=0; sourceID<amps1.length; sourceID++) {
 				if (amps1[sourceID] == null) {
@@ -101,22 +148,52 @@ public class RunAmpCompare {
 					for (int rvID=0; rvID<amps1[sourceID][rupID].length; rvID++) {
 						double v1 = amps1[sourceID][rupID][rvID];
 						double v2 = amps2[sourceID][rupID][rvID];
+						v1 /= HazardCurveComputation.CONVERSION_TO_G;
+						v2 /= HazardCurveComputation.CONVERSION_TO_G;
 						scatter.set(v1, v2);
 						
-						double absDiff = Math.abs(v1 - v2);
-						absDiffTrack.addValue(absDiff);
-						double ratio = v1 > v2 ? v1/v2 : v2/v1;
-						ratioTrack.addValue(ratio);
-						if (absDiff > maxAbsDiff) {
-							maxAbsDiff = absDiff;
-							maxAbsStr = "Source "+sourceID+", Rup "+rupID+", RV "+rvID+": |"+v1+" - "+v2+"| = "+absDiff;
+						double diff = v2 - v1;
+						double absDiff = Math.abs(diff);
+						double logDiff = Math.log(v2) - Math.log(v1);
+						double absLogDiff = Math.abs(logDiff);
+						double ratio = v2/v1;
+						linearDiffs.add(v2 - v1);
+						linearAbsDiffs.add(Math.abs(v2 - v1));
+						logDiffs.add(Math.log(v2) - Math.log(v1));
+						logAbsDiffs.add(Math.abs(Math.log(v2) - Math.log(v1)));
+						linearRatios.add(v2/v1);
+						String rupStr = "Source "+sourceID+", Rup "+rupID+", RV "+rvID;
+						if (absDiff > maxLinearAbsDiff) {
+							maxLinearAbsDiff = absDiff;
+							maxLinearAbsDiffSource = rupStr;
+						}
+						if (absLogDiff > maxLogAbsDiff) {
+							maxLogAbsDiff = absLogDiff;
+							maxLogAbsDiffSource = rupStr;
 						}
 						if (ratio > maxRatio) {
 							maxRatio = ratio;
+							maxRatioSource = rupStr;
+						}
+						if (ratio < minRatio) {
+							minRatio = ratio;
+							minRatioSource = rupStr;
+						}
+						
+						absDiffTrack.addValue(absDiff);
+						if (ratio < 1)
+							ratio = 1d/ratio;
+						ratioTrack.addValue(ratio);
+						if (absDiff > maxAbsDiff) {
+							maxAbsDiff = absDiff;
+							maxAbsStr = rupStr+": |"+v1+" - "+v2+"| = "+absDiff;
+						}
+						if (ratio > maxPosRatio) {
+							maxPosRatio = ratio;
 							if (v1 > v2)
-								maxRatioStr = "Source "+sourceID+", Rup "+rupID+", RV "+rvID+": "+v1+" / "+v2+" = "+ratio;
+								maxRatioStr = rupStr+": "+v1+" / "+v2+" = "+ratio;
 							else
-								maxRatioStr = "Source "+sourceID+", Rup "+rupID+", RV "+rvID+": "+v2+" / "+v1+" = "+ratio;
+								maxRatioStr = rupStr+": "+v2+" / "+v1+" = "+ratio;
 						}
 					}
 				}
@@ -136,12 +213,95 @@ public class RunAmpCompare {
 			chars.add(new PlotCurveCharacterstics(PlotSymbol.CROSS, 2f, Color.BLACK));
 			PlotSpec spec = new PlotSpec(funcs, chars, "Run ID Comparison, "+(float)im.getVal()+"s "+im.getComponent(),
 					"Run "+runID1, "Run "+runID2);
-			GraphWindow gw = new GraphWindow(spec, false);
-			gw.setXLog(true);
-			gw.setYLog(true);
-			gw.setVisible(true);
-			gw.setDefaultCloseOperation(GraphWindow.EXIT_ON_CLOSE);
+			HeadlessGraphPanel gp = new HeadlessGraphPanel();
+			gp.setTickLabelFontSize(18);
+			gp.setAxisLabelFontSize(24);
+			gp.setPlotLabelFontSize(24);
+			gp.setLegendFontSize(28);
+			gp.setBackgroundColor(Color.WHITE);
+			gp.setRenderingOrder(DatasetRenderingOrder.REVERSE);
+			
+			double minVal = Math.min(scatter.getMinX(), scatter.getMinY());
+			double maxVal = Math.min(scatter.getMaxX(), scatter.getMaxY());
+			minVal = Math.pow(10, Math.floor(Math.log10(minVal)));
+			maxVal = Math.pow(10, Math.ceil(Math.log10(maxVal)));
+			
+			Range range = new Range(minVal, maxVal);
+			
+			gp.drawGraphPanel(spec, true, true, range, range);
+			
+			File file = new File(outputDir, prefix+"_scatter_"+(float)im.getVal()+"s_"+im.getComponent().getShortName());
+			gp.getChartPanel().setSize(800, 600);
+			gp.saveAsPNG(file.getAbsolutePath()+".png");
+			gp.saveAsPDF(file.getAbsolutePath()+".pdf");
+			
+			List<String> statsCol = new ArrayList<>();
+			statsCols.add(statsCol);
+			if (statsLabels == null) {
+				statsLabels = new ArrayList<>();
+				statsLabels.add("Differences of linear values (g)");
+				statsLabels.add("Min");
+				statsLabels.add("Max");
+				statsLabels.add("Mean");
+				statsLabels.add("Std Dev");
+				statsLabels.add("Mean Abs");
+				statsLabels.add("Source for max abs diff");
+				statsLabels.add("");
+				statsLabels.add("Differences of natural-log values");
+				statsLabels.add("Min");
+				statsLabels.add("Max");
+				statsLabels.add("Mean");
+				statsLabels.add("Std Dev");
+				statsLabels.add("Mean Abs");
+				statsLabels.add("Source for max abs log diff");
+				statsLabels.add("");
+				statsLabels.add("Linear Ratios");
+				statsLabels.add("Min");
+				statsLabels.add("Max");
+				statsLabels.add("Mean");
+				statsLabels.add("Source for min ratio");
+				statsLabels.add("Source for max ratio");
+			}
+			double[] linearDiffsArray = Doubles.toArray(linearDiffs);
+			double[] linearAbsDiffsArray = Doubles.toArray(linearAbsDiffs);
+			statsCol.add("");
+			statsCol.add((float)StatUtils.min(linearDiffsArray)+"");
+			statsCol.add((float)StatUtils.max(linearDiffsArray)+"");
+			statsCol.add((float)StatUtils.mean(linearDiffsArray)+"");
+			statsCol.add((float)Math.sqrt(StatUtils.variance(linearDiffsArray))+"");
+			statsCol.add((float)StatUtils.mean(linearAbsDiffsArray)+"");
+			statsCol.add(maxLinearAbsDiffSource);
+
+			double[] logDiffsArray = Doubles.toArray(logDiffs);
+			double[] logAbsDiffsArray = Doubles.toArray(logAbsDiffs);
+			statsCol.add("");
+			statsCol.add("");
+			statsCol.add((float)StatUtils.min(logDiffsArray)+"");
+			statsCol.add((float)StatUtils.max(logDiffsArray)+"");
+			statsCol.add((float)StatUtils.mean(logDiffsArray)+"");
+			statsCol.add((float)Math.sqrt(StatUtils.variance(logDiffsArray))+"");
+			statsCol.add((float)StatUtils.mean(logAbsDiffsArray)+"");
+			statsCol.add(maxLogAbsDiffSource);
+			
+			double[] lineaRatiosArray = Doubles.toArray(linearRatios);
+			statsCol.add("");
+			statsCol.add("");
+			statsCol.add((float)StatUtils.min(lineaRatiosArray)+"");
+			statsCol.add((float)StatUtils.max(lineaRatiosArray)+"");
+			statsCol.add((float)StatUtils.mean(lineaRatiosArray)+"");
+			statsCol.add(minRatioSource);
+			statsCol.add(maxRatioSource);
 		}
+		
+		for (int i=0; i<statsLabels.size(); i++) {
+			List<String> line = new ArrayList<>();
+			line.add(statsLabels.get(i));
+			for (List<String> statsCol : statsCols)
+				line.add(statsCol.get(i));
+			csv.addLine(line);
+		}
+		
+		csv.writeToFile(new File(outputDir, prefix+"_stats.csv"));
 		
 		db.destroy();
 	}

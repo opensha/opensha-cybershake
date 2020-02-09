@@ -295,6 +295,46 @@ public enum CyberShakeStudy {
 				catalog = RSQSimCatalog.Catalogs.BRUCE_2585_1MYR.instance();
 			return catalog;
 		}
+	},
+	STUDY_20_2_RSQSIM_4841(cal(2020, 2), new int[] { 92 }, "RSQSim 4841",
+			"study_20_2_rsqsim_4841", "RSQSim prototype with catalog 4841 (134kyr)", 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return getRSQSimERF("rundir4841");
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forERF(53).hasAmplitudes().unique(false);
+		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_4841.instance();
+			return catalog;
+		}
+	},
+	STUDY_20_2_RSQSIM_4860(cal(2020, 2), new int[] { 92 }, "RSQSim 4860",
+			"study_20_2_rsqsim_4860", "RSQSim prototype with catalog 4860 (35kyr)", 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return getRSQSimERF("rundir4860");
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forERF(54).hasAmplitudes().unique(false);
+		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_4860.instance();
+			return catalog;
+		}
 	};
 	
 	public RSQSimCatalog getRSQSimCatalog() {

@@ -553,11 +553,18 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		System.out.println("Loading hypos");
 		
 		for (List<ETAS_EqkRupture> catalog : catalogs) {
-			for (ETAS_EqkRupture rup : catalog) {
+			for (int i=catalog.size(); --i>=0;) {
+				ETAS_EqkRupture rup = catalog.get(i);
 				int fssIndex = rup.getFSSIndex();
 				
 				IDPairing pair = rupMappingTable.get(fssIndex);
-				Preconditions.checkNotNull(pair, "No mapping for rupture that occurred: "+fssIndex);
+				if (pair == null) {
+					System.err.println("***WARNING: No mapping for rupture "+fssIndex+", but it occurred. "
+							+ "FSS Rate: "+sol.getRateForRup(fssIndex)+". Skipping");
+					catalog.remove(i);
+					continue;
+				}
+//				Preconditions.checkNotNull(pair, "No mapping for rupture that occurred: "+fssIndex);
 				
 				// original hypocenter for GMPE calcs
 				Location origHypo = rup.getHypocenterLocation();

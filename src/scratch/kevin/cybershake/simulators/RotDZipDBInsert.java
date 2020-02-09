@@ -25,8 +25,8 @@ public class RotDZipDBInsert {
 
 	public static void main(String[] args) throws IOException {
 
-		int runID = 7014;
-		File zipFile = new File("/data-0/kevin/simulators/catalogs/rundir2585_1myr/cybershake_rotation_inputs/USC_7014_rotd.zip");
+//		int runID = 7014;
+//		File zipFile = new File("/data-0/kevin/simulators/catalogs/rundir2585_1myr/cybershake_rotation_inputs/USC_7014_rotd.zip");
 //		int runID = 7016;
 //		File zipFile = new File("/data-0/kevin/simulators/catalogs/rundir2585_1myr/cybershake_rotation_inputs/SBSM_7016_rotd.zip");
 //		int runID = 7017;
@@ -35,6 +35,8 @@ public class RotDZipDBInsert {
 //		File zipFile = new File("/data-0/kevin/simulators/catalogs/rundir2585_1myr/cybershake_rotation_inputs/STNI_7018_rotd.zip");
 //		int runID = 7019;
 //		File zipFile = new File("/data-0/kevin/simulators/catalogs/rundir2585_1myr/cybershake_rotation_inputs/SMCA_7019_rotd.zip");
+		int runID = 7068;
+		File zipFile = new File("/tmp/temp/rotds.zip");
 		
 		ZipFile zip = new ZipFile(zipFile);
 		
@@ -50,7 +52,7 @@ public class RotDZipDBInsert {
 		DBAccess db = Cybershake_OpenSHA_DBApplication.getAuthenticatedDBAccess(
 				true, true, Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
 		
-		CyberShakeComponent comp = CyberShakeComponent.RotD100;
+		CyberShakeComponent comp = CyberShakeComponent.RotD50;
 		CybershakeIM[] ims = {
 				CybershakeIM.getSA(comp, 3d),
 				CybershakeIM.getSA(comp, 4d),

@@ -1605,10 +1605,12 @@ public class HazardCurvePlotter {
 //			
 //			String newArgs = "--site s4456 --run-id 7020 --erf-file "+confDir+"MeanUCERF.xml --atten-rel-file "+confDir+"ask2014.xml"
 //					+ " --period 3,5,10,2 --output-dir "+outputDir.getAbsolutePath()+" --type pdf,png";
-			System.setProperty("cybershake.db.host", "/tmp/USC_5km.sqlite");
-			String newArgs = "--site s4456 --run-id 7052 --period 3,5,10,2 --output-dir "+outputDir.getAbsolutePath()
-			+" --component RotD50 --type pdf,png,txt --benchmark-test-recalc";
+//			System.setProperty("cybershake.db.host", "/tmp/USC_5km.sqlite");
+//			String newArgs = "--site s4456 --run-id 7052 --period 3,5,10,2 --output-dir "+outputDir.getAbsolutePath()
+//			+" --component RotD50 --type pdf,png,txt --benchmark-test-recalc";
 //			newArgs += " --erf-file "+confDir+"MeanUCERF.xml --atten-rel-file "+confDir+"ask2014.xml";
+			String newArgs = "--site TEST --run-id 7059 --period 3,5,10,2 --output-dir "+outputDir.getAbsolutePath()
+				+" --component RotD50 --type pdf,png,txt";
 			args = newArgs.split(" ");
 		}
 		Stopwatch watch = Stopwatch.createStarted();

@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.geo.Location;
@@ -14,6 +15,8 @@ import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CybershakeSite;
+import org.opensha.sha.imr.param.SiteParams.DepthTo1pt0kmPerSecParam;
+import org.opensha.sha.imr.param.SiteParams.DepthTo2pt5kmPerSecParam;
 import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
 
 import com.google.common.base.Joiner;
@@ -52,6 +55,10 @@ public class SiteSearchByVs30 {
 		File outputFile = new File("/tmp/cs_vs30_sites.kml");
 		System.out.println("Writing KML to "+outputFile.getAbsolutePath());
 		
+		File csvOutFile = new File(outputFile.getAbsolutePath().replaceAll("kml", "csv"));
+		CSVFile<String> csv = new CSVFile<>(true);
+		csv.addLine("Name", "CS Vs30 (m/s)", "Wills Vs30 (m/s)", "Z1.0 (m)", "Z2.5 (km)", "Latitude", "Longitude");
+		
 		FileWriter fw = new FileWriter(outputFile);
 		
 		fw.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + "\n");
@@ -73,7 +80,17 @@ public class SiteSearchByVs30 {
 			fw.write("      </Point>" + "\n");
 			
 			fw.write("    </Placemark>" + "\n");
+
+			double vs30 = site.getParameter(Double.class, Vs30_Param.NAME).getValue();
+			double willsVs30 = wills.getValue(loc);
+			double z10 = site.getParameter(Double.class, DepthTo1pt0kmPerSecParam.NAME).getValue();
+			double z25 = site.getParameter(Double.class, DepthTo2pt5kmPerSecParam.NAME).getValue();
+			
+			csv.addLine(site.getName(), (float)vs30+"", (float)willsVs30+"", (float)z10+"", (float)z25+"",
+					(float)loc.getLatitude()+"", (float)loc.getLongitude()+"");
 		}
+		
+		csv.writeToFile(csvOutFile);
 		
 		fw.write("  </Folder>" + "\n");
 		fw.write("</kml>" + "\n");

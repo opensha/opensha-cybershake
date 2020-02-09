@@ -343,10 +343,16 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_17_3_1D);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-		studies.add(CyberShakeStudy.STUDY_15_4);
-		vs30s.add(Vs30_Source.Simulation);
+//		studies.add(CyberShakeStudy.STUDY_15_4);
+//		vs30s.add(Vs30_Source.Simulation);
 //		studies.add(CyberShakeStudy.STUDY_15_4);
 //		vs30s.add(Vs30_Source.Wills2015);
+		
+//		studies.add(CyberShakeStudy.STUDY_20_2_RSQSIM_4841);
+//		vs30s.add(Vs30_Source.Simulation);
+		
+		studies.add(CyberShakeStudy.STUDY_20_2_RSQSIM_4860);
+		vs30s.add(Vs30_Source.Simulation);
 		
 		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014; // this one will include highlight sites
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
@@ -366,10 +372,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 		boolean limitToHighlight = false;
 		
-		boolean replotScatters = false;
-		boolean replotZScores = false;
+		boolean replotScatters = true;
+		boolean replotZScores = true;
 		boolean replotCurves = false;
-		boolean replotResiduals = false;
+		boolean replotResiduals = true;
 		
 		for (int s=0; s<studies.size(); s++) {
 			System.gc();
@@ -397,6 +403,9 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 				highlightSiteNames.add("LAPD");
 				highlightSiteNames.add("STNI");
 //				highlightSiteNames.add("FIL");
+				highlightSiteNames.add("OSI");
+				highlightSiteNames.add("PDE");
+				highlightSiteNames.add("s022");
 			}
 			HashSet<String> limitSiteNames;
 			if (limitToHighlight)

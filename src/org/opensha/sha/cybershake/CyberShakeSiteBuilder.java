@@ -88,16 +88,26 @@ public class CyberShakeSiteBuilder {
 					throw ExceptionUtils.asRuntimeException(e);
 				}
 			} else if (this == Vs30_Source.Simulation) {
-//				Double vs30 = run.getMeshVs30();
-//				if (vs30 == null) {
-//					System.err.println("Warning, mesh Vs30 not defined, using model Vs30");
-//					vs30 = run.getModelVs30();
-//					Preconditions.checkNotNull(vs30, "Neither mesh nor model Vs30 defined!");
-//				}
-				// TODO reverting to model Vs30 until Mesh Vs30 is fixed
-				Double vs30 = run.getModelVs30();
-				Preconditions.checkNotNull(vs30, "No model Vs30 defined!");
-				Preconditions.checkState(Double.isFinite(vs30), "Vs30 is null for run %s", run.getRunID());
+				Double meshVs30 = run.getMeshVsSurface();
+				if (meshVs30 != null && !Double.isFinite(meshVs30))
+					meshVs30 = null;
+				Double modelVs30 = run.getModelVs30();
+				if (modelVs30 != null && !Double.isFinite(modelVs30))
+					modelVs30 = null;
+				Double minVs = run.getMinimumVs();
+				if (minVs != null && !Double.isFinite(minVs))
+					minVs = null;
+				Double vs30;
+				// TODO finalize logic
+				if (meshVs30 != null && modelVs30 != null)
+					// we have both, use maximum
+					vs30 = Math.max(meshVs30, modelVs30);
+				else if (meshVs30 != null)
+					vs30 = meshVs30;
+				else
+					vs30 = modelVs30;
+				Preconditions.checkNotNull(vs30, "No simulation Vs30 defined for run %s", run.getRunID());
+				Preconditions.checkState(Double.isFinite(vs30));
 				if (run.getMinimumVs() != null)
 					vs30 = Math.max(vs30, run.getMinimumVs());
 				return vs30;

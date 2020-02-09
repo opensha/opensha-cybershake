@@ -81,8 +81,9 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		
 		// RSQSim
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457;
-		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4841;
 		
 		List<String> sourceNames = new ArrayList<>();
 		List<int[]> parentIDs = new ArrayList<>();
@@ -96,7 +97,8 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 		
 //		String[] siteNames = { "USC" };
-		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
+//		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
+		String[] siteNames = { "USC", "OSI", "PDE", "s022", "WNGC" };
 		
 		boolean hypoSort = true;
 		

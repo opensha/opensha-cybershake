@@ -27,6 +27,7 @@ import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotPreferences;
 import org.opensha.commons.gui.plot.PlotSpec;
+import org.opensha.commons.gui.plot.PlotSymbol;
 import org.opensha.commons.gui.plot.jfreechart.xyzPlot.XYZGraphPanel;
 import org.opensha.commons.gui.plot.jfreechart.xyzPlot.XYZPlotSpec;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
@@ -49,6 +50,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.HashBiMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Table;
 
 import scratch.kevin.bbp.BBP_Module.VelocityModel;
@@ -191,12 +193,29 @@ public class Study3Dvs1DCompare {
 			plotAmpSpectra(comps, resourcesDir, ampPrefix, siteName);
 			lines.add("![Gain Spectra]("+resourcesDir.getName()+"/"+ampPrefix+".png)");
 			
+			lines.add("### "+siteName+" Scatter Plots");
+			lines.add(topLink); lines.add("");
+			
+			File[][] scatters = plotScatters(resourcesDir, sitePrefix+"_scatter", siteBundle, periods, gains);
+			TableBuilder table = MarkdownUtils.tableBuilder().initNewLine();
+			for (double period : periods)
+				table.addColumn("**"+optionalDigitDF.format(period)+"s**");
+			table.finalizeLine().initNewLine();
+			for (File[] plots : scatters)
+				table.addColumn("![plot]("+resourcesDir.getName()+"/"+plots[0].getName()+")");
+			table.finalizeLine().initNewLine();
+			for (File[] plots : scatters)
+				table.addColumn("![plot]("+resourcesDir.getName()+"/"+plots[1].getName()+")");
+			table.finalizeLine();
+			lines.addAll(table.build());
+			lines.add("");
+			
 			lines.add("### "+siteName+" 3-D Mag/Distance Gain Plots");
 			lines.add(topLink); lines.add("");
 			System.out.println("Plotting Mag/Dist gains for "+siteName);
 			File[] magDistPots = plotMagDist(resourcesDir, sitePrefix+"_mag_dist_gains", siteBundle, periods, gains, dists);
 			
-			TableBuilder table = MarkdownUtils.tableBuilder().initNewLine();
+			table = MarkdownUtils.tableBuilder().initNewLine();
 			for (double period : periods)
 				table.addColumn("**"+optionalDigitDF.format(period)+"s**");
 			table.finalizeLine().initNewLine();
@@ -354,6 +373,158 @@ public class Study3Dvs1DCompare {
 		gp.saveAsPDF(file.getAbsolutePath()+".pdf");
 	}
 	
+	private File[][] plotScatters(File resourcesDir, String prefix, List<Site> sites, double[] periods,
+			Table<Site, CSRupture, AmpComparison> comps) throws IOException {
+		
+		PlotPreferences plotPrefs = PlotPreferences.getDefault();
+		plotPrefs.setTickLabelFontSize(18);
+		plotPrefs.setAxisLabelFontSize(24);
+		plotPrefs.setPlotLabelFontSize(24);
+		plotPrefs.setLegendFontSize(20);
+		plotPrefs.setBackgroundColor(Color.WHITE);
+		
+		File[][] ret = new File[periods.length][2];
+		
+		for (int p=0; p<periods.length; p++) {
+			XY_DataSet xy = new DefaultXY_DataSet();
+			
+			for (Site compSite : sites) {
+				Map<CSRupture, AmpComparison> compsMap = comps.row(compSite);
+				for (CSRupture rup : compsMap.keySet()) {
+					AmpComparison comp = compsMap.get(rup);
+					List<DiscretizedFunc> vals3d = comp.getVals3D();
+					List<DiscretizedFunc> vals1d = comp.getVals1D();
+					
+					for (int i=0; i<vals3d.size(); i++) {
+						double val3d = vals3d.get(i).getY(periods[p]);
+						double val1d = vals1d.get(i).getY(periods[p]);
+						
+						xy.set(val1d, val3d);
+					}
+				}
+			}
+			
+			List<XY_DataSet> funcs = Lists.newArrayList();
+			List<PlotCurveCharacterstics> chars = Lists.newArrayList();
+			
+			funcs.add(xy);
+			chars.add(new PlotCurveCharacterstics(PlotSymbol.CROSS, 3f, Color.BLACK));
+			
+			double minVal = Math.min(xy.getMinX(), xy.getMinY());
+			double maxVal = Math.max(xy.getMaxX(), xy.getMaxY());
+			minVal = Math.pow(10, Math.floor(Math.log10(minVal)));
+			maxVal = Math.pow(10, Math.ceil(Math.log10(maxVal)));
+			
+			Range range = new Range(minVal, maxVal);
+			
+			DefaultXY_DataSet oneToOne = new DefaultXY_DataSet();
+			oneToOne.set(minVal, minVal);
+			oneToOne.set(maxVal, maxVal);
+			
+			funcs.add(oneToOne);
+			chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 2f, Color.GRAY));
+			
+			PlotSpec plot = new PlotSpec(funcs, chars, " ", "3-D", "1-D");
+			
+			HeadlessGraphPanel gp = new HeadlessGraphPanel(plotPrefs);
+			gp.drawGraphPanel(plot, true, true, range, range);
+			gp.getChartPanel().setSize(800, 800);
+			
+			ret[p][0] = new File(resourcesDir, prefix+"_"+optionalDigitDF.format(periods[p])+".png");
+			gp.saveAsPNG(ret[p][0].getAbsolutePath());
+			
+			double minX = Math.log10(minVal);
+			double maxX = Math.log10(maxVal);
+			double minY = Math.log10(minVal);
+			double maxY = Math.log10(maxVal);
+			int nx = 51;
+			int ny = 51;
+			double gridSpacingX = (maxX - minX)/(nx-1);
+			double gridSpacingY = (maxY - minY)/(ny-1);
+			
+			// XYZ plot (2D hist)
+			EvenlyDiscrXYZ_DataSet xyz = new EvenlyDiscrXYZ_DataSet(nx, ny, minX, minY, gridSpacingX, gridSpacingY);
+			
+			for (Point2D pt : xy) {
+				int index = xyz.indexOf(Math.log10(pt.getX()), Math.log10(pt.getY()));
+				if (index < 0 || index >= xyz.size())
+					throw new IllegalStateException("Scatter point not in XYZ range. x: "
+								+pt.getX()+" ["+xyz.getMinX()+" "+xyz.getMaxX()
+							+"], y: "+pt.getY()+" ["+xyz.getMinY()+" "+xyz.getMaxY()+"]");
+				xyz.set(index, xyz.get(index)+1);
+			}
+			// convert to density
+			for (int i=0; i<xyz.size(); i++) {
+				// convert to density
+				Point2D pt = xyz.getPoint(i);
+				double x = pt.getX();
+				double y = pt.getY();
+				double binWidth = Math.pow(10, x + 0.5*gridSpacingX) - Math.pow(10, x - 0.5*gridSpacingX);
+				double binHeight = Math.pow(10, y + 0.5*gridSpacingY) - Math.pow(10, y - 0.5*gridSpacingY);
+				double area = binWidth * binHeight;
+				xyz.set(i, xyz.get(i)*area);
+			}
+			xyz.scale(1d/xyz.getSumZ());
+			
+			// set all zero to NaN so that it will plot white
+			for (int i=0; i<xyz.size(); i++) {
+				if (xyz.get(i) == 0)
+					xyz.set(i, Double.NaN);
+			}
+			xyz.log10();
+			
+			double minZ = Double.POSITIVE_INFINITY;
+			double maxZ = Double.NEGATIVE_INFINITY;
+			for (int i=0; i<xyz.size(); i++) {
+				double val = xyz.get(i);
+				if (!Double.isFinite(val))
+					continue;
+				if (val < minZ)
+					minZ = val;
+				if (val > maxZ)
+					maxZ = val;
+			}
+			
+			System.out.println("MinZ: "+minZ);
+			System.out.println("MaxZ: "+maxZ);
+			
+			CPT cpt = GMT_CPT_Files.MAX_SPECTRUM.instance();
+			if ((float)minZ == (float)maxZ)
+				cpt = cpt.rescale(minZ, minZ*2);
+			else if (!Double.isFinite(minZ))
+				cpt = cpt.rescale(0d, 1d);
+			else
+				cpt = cpt.rescale(minZ, maxZ);
+			cpt.setNanColor(new Color(255, 255, 255, 0));
+			
+			String zAxisLabel = "Log10(Density)";
+			XYZPlotSpec xyzSpec = new XYZPlotSpec(xyz, cpt, " ", "Log10 1-D", "Log10 3-D", zAxisLabel);
+			
+			funcs = new ArrayList<>();
+			chars = new ArrayList<>();
+			
+			oneToOne = new DefaultXY_DataSet();
+			oneToOne.set(minX, minY);
+			oneToOne.set(maxX, maxY);
+			
+			funcs.add(oneToOne);
+			chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 2f, Color.GRAY));
+			
+			xyzSpec.setXYElems(funcs);
+			xyzSpec.setXYChars(chars);
+			
+			XYZGraphPanel xyzGP = new XYZGraphPanel(plotPrefs);
+			xyzGP.drawPlot(xyzSpec, false, false, new Range(minX-0.5*gridSpacingX, maxX+0.5*gridSpacingX),
+					new Range(minY-0.5*gridSpacingY, maxY+0.5*gridSpacingY));
+			// write plot
+			xyzGP.getChartPanel().setSize(800, 800);
+			ret[p][1] = new File(resourcesDir, prefix+"_"+optionalDigitDF.format(periods[p])+"s_hist2D.png");
+			xyzGP.saveAsPNG(ret[p][1].getAbsolutePath());
+		}
+		
+		return ret;
+	}
+	
 	private File[] plotMagDist(File resourcesDir, String prefix, List<Site> sites, double[] periods,
 			Table<Site, CSRupture, AmpComparison> comps, Table<Site, CSRupture, Double> dists) throws IOException {
 		SummaryStatistics magStats = new SummaryStatistics();
@@ -460,24 +631,34 @@ public class Study3Dvs1DCompare {
 	public static void main(String[] args) throws SQLException, IOException {
 		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
-		File rsqsimCatalogBaseDir = new File("/data/kevin/simulators/catalogs");
 		
 //		CyberShakeStudy study3D = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
 //		CyberShakeStudy study1D = null;
-//		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(rsqsimCatalogBaseDir);
+//		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance();
 //		double catalogMinMag = 6.5;
-//		File bbpFile1D = new File("/data/kevin/bbp/parallel/2018_04_13-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-csLASites/results_rotD.zip");
-//		String[] siteNames = { "PAS" };
+//		File bbpFile1D = new File("/data/kevin/bbp/parallel/2019_11_11-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites/results_rotD.zip");
+//		double vs30_1d = VelocityModel.LA_BASIN_500.getVs30();
+//		String[] siteNames = { "USC", "STNI", "SBSM", "WNGC" };
 //		double[] periods = {3d, 5d, 7.5, 10d};
 		
-		CyberShakeStudy study3D = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
+//		CyberShakeStudy study3D = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
+//		CyberShakeStudy study1D = null;
+//		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance();
+//		double catalogMinMag = 6.5;
+//		File bbpFile1D = new File("/data/kevin/bbp/parallel/2018_09_10-rundir2740-all-m6.5-skipYears5000-noHF-csLASites/results_rotD.zip");
+//		double vs30_1d = VelocityModel.LA_BASIN_863.getVs30(); // TODO CHANGE WHEN NEW RUNS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+////		String[] siteNames = { "PAS", "s279", "s119", "s480" };
+//		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
+//		double[] periods = {3d, 5d, 7.5, 10d};
+		
+		CyberShakeStudy study3D = CyberShakeStudy.STUDY_20_2_RSQSIM_4841;
 		CyberShakeStudy study1D = null;
-		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance(rsqsimCatalogBaseDir);
+		RSQSimCatalog catalog = Catalogs.BRUCE_4841.instance();
 		double catalogMinMag = 6.5;
-		File bbpFile1D = new File("/data/kevin/bbp/parallel/2018_09_10-rundir2740-all-m6.5-skipYears5000-noHF-csLASites/results_rotD.zip");
-		double vs30_1d = VelocityModel.LA_BASIN_863.getVs30(); // TODO CHANGE WHEN NEW RUNS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		File bbpFile1D = new File("/data/kevin/bbp/parallel/2020_02_03-rundir4841-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites/results_rotD.zip");
+		double vs30_1d = VelocityModel.LA_BASIN_500.getVs30();
 //		String[] siteNames = { "PAS", "s279", "s119", "s480" };
-		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
+		String[] siteNames = { "USC", "WNGC", "OSI", "PDE", "s022" };
 		double[] periods = {3d, 5d, 7.5, 10d};
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;

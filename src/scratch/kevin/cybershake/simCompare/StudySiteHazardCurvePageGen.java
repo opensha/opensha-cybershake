@@ -235,14 +235,22 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_12-rundir2457-all-m6.5-skipYears5000-noHF-standardSites");
 //		RSQSimCatalog catalog = Catalogs.BRUCE_2457.instance(new File("/data/kevin/simulators/catalogs"));
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
-//		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_13-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-csLASites");
-		File bbpDir = new File("/data/kevin/bbp/parallel/2019_11_11-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
-		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(new File("/data/kevin/simulators/catalogs"));
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
+////		File bbpDir = new File("/data/kevin/bbp/parallel/2018_04_13-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-csLASites");
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2019_11_11-rundir2585_1myrs-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_2585_1MYR.instance(new File("/data/kevin/simulators/catalogs"));
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2018_09_10-rundir2740-all-m6.5-skipYears5000-noHF-csLASites");
 //		RSQSimCatalog catalog = Catalogs.BRUCE_2740.instance(new File("/data/kevin/simulators/catalogs"));
+
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4841;
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_03-rundir4841-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_4841.instance();
+		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860;
+		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_07-rundir4860-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
+		RSQSimCatalog catalog = Catalogs.BRUCE_4841.instance();
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 //		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
@@ -263,8 +271,9 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		boolean includeAleatoryStrip = true;
 		
-//		String[] siteNames = { "USC" };
-		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
+		String[] siteNames = { "USC" };
+//		String[] siteNames = { "OSI", "PDE", "s022" };
+//		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
 //		String[] siteNames = { "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "s119", "s279", "s480" };
@@ -328,7 +337,8 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 				StudySiteHazardCurvePageGen pageGen = new StudySiteHazardCurvePageGen(mainProv, study.getName(), compSimProvs);
 				pageGen.setReplotCurves(replotCurves);
 				pageGen.setReplotDisaggs(replotDisaggs);
-				pageGen.setSourceRupContributionFractions(sourceContribFracts, 4e-4, 10);
+//				pageGen.setSourceRupContributionFractions(sourceContribFracts, 4e-4, 10);
+				pageGen.setSourceRupContributionFractions(sourceContribFracts, 0d, 10); // 0 = RTGM
 				if (bbpCompProv != null)
 					pageGen.setCustomPlotColors(bbpCompProv, new PlotCurveCharacterstics(PlotLineType.SOLID, 2f, Color.ORANGE));
 				

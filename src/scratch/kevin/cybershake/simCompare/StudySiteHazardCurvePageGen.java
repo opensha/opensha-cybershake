@@ -250,11 +250,11 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860;
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_07-rundir4860-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
-//		RSQSimCatalog catalog = Catalogs.BRUCE_4841.instance();
+//		RSQSimCatalog catalog = Catalogs.BRUCE_4860.instance();
 		
 		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X;
 		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_12-rundir4860_multi_combine-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
-		RSQSimCatalog catalog = Catalogs.BRUCE_4841.instance();
+		RSQSimCatalog catalog = Catalogs.BRUCE_4860_10X.instance();
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 //		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
@@ -302,7 +302,10 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		try {
 			CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, study.getERF());
-			StudyRotDProvider mainProv = new StudyRotDProvider(study, amps2db, periods, study.getName());
+			String studyName = "CyberShake";
+			if (catalog == null)
+				studyName += study.getName();
+			StudyRotDProvider mainProv = new StudyRotDProvider(study, amps2db, periods, studyName);
 			
 			for (String siteName : siteNames) {
 				List<CybershakeRun> matchingRuns = study.runFetcher().forSiteNames(siteName).fetch();

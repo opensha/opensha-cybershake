@@ -351,7 +351,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_20_2_RSQSIM_4841);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-		studies.add(CyberShakeStudy.STUDY_20_2_RSQSIM_4860);
+//		studies.add(CyberShakeStudy.STUDY_20_2_RSQSIM_4860);
+//		vs30s.add(Vs30_Source.Simulation);
+		
+		studies.add(CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X);
 		vs30s.add(Vs30_Source.Simulation);
 		
 		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014; // this one will include highlight sites

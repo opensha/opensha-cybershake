@@ -248,8 +248,12 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_03-rundir4841-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
 //		RSQSimCatalog catalog = Catalogs.BRUCE_4841.instance();
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860;
-		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_07-rundir4860-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860;
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_07-rundir4860-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_4841.instance();
+		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X;
+		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_12-rundir4860_multi_combine-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
 		RSQSimCatalog catalog = Catalogs.BRUCE_4841.instance();
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;

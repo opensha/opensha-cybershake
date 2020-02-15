@@ -27,9 +27,9 @@ public class RSQSimRuptureVariationInsert {
 
 	public static void main(String[] args) throws IOException {
 		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
-		RSQSimCatalog catalog = Catalogs.BRUCE_4860.instance(localBaseDir);
+		RSQSimCatalog catalog = Catalogs.BRUCE_4860_10X.instance(localBaseDir);
 		
-		int erfID = 54; // THIS ID MUST MATCH!
+		int erfID = 55; // THIS ID MUST MATCH!
 		double minMag = 6.5;
 		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
 		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,

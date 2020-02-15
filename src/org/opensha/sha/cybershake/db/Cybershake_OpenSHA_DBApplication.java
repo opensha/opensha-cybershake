@@ -475,7 +475,7 @@ public class Cybershake_OpenSHA_DBApplication {
 		
 		// *** RSQSim ***
 		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
-		RSQSimCatalog catalog = Catalogs.BRUCE_4860.instance(localBaseDir);
+		RSQSimCatalog catalog = Catalogs.BRUCE_4860_10X.instance(localBaseDir);
 		// regular RSQSim ERF
 		double minMag = 6.5;
 		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
@@ -553,26 +553,14 @@ public class Cybershake_OpenSHA_DBApplication {
 		
 		///////////////// INSERT ERF //////////////////////
 		
-		
-		GriddedRegion region = null;
-		
-		// uncomment and modify if you only want to insert for a region
-//		LocationList corners = new LocationList();
-//		corners.addLocation(new Location(34.19, -116.60));
-//		corners.addLocation(new Location(35.33, -118.75));
-//		corners.addLocation(new Location(34.13, -119.63));
-//		corners.addLocation(new Location(33.00, -117.50));
-//		double gridSpacing = 0.2;
-//		region = new GriddedRegion(corners, gridSpacing);
-		
 		// this inserts it
 		// COMMENT THIS OUT AFTER INSERTING!!!! will insert with new ID if duplicate
-//		Preconditions.checkState(erfID < 0, "ERF ID is positive but you're trying to insert: %s", erfID);
-//		erfDB.insertForecastInDB(erfName, erfDescription, region);
-////		erfDB.insertForecastParamsInDB(erfID);
-////		erfDB.insertSrcRupInDB(erfID, null, 0, 0);
-//		erfID = erfDB.getInserted_ERF_ID(erfName);
-//		System.out.println("Inserted ERF ID: "+erfID);
+		Preconditions.checkState(erfID < 0, "ERF ID is positive but you're trying to insert: %s", erfID);
+		erfDB.insertForecastInDB(erfName, erfDescription, null);
+//		erfDB.insertForecastParamsInDB(erfID);
+//		erfDB.insertSrcRupInDB(erfID, null, 0, 0);
+		erfID = erfDB.getInserted_ERF_ID(erfName);
+		System.out.println("Inserted ERF ID: "+erfID);
 //		System.exit(0);
 		
 		// if you have to reinsert a rupture surface for some reason, do this
@@ -605,15 +593,15 @@ public class Cybershake_OpenSHA_DBApplication {
 		// RSQSim sites
 		// Vs500 sites:
 		sites.add(sites2db.getSiteFromDB("USC"));
-//		sites.add(sites2db.getSiteFromDB("SBSM"));
-//		sites.add(sites2db.getSiteFromDB("WNGC"));
-//		sites.add(sites2db.getSiteFromDB("STNI"));
-//		sites.add(sites2db.getSiteFromDB("SMCA"));
+		sites.add(sites2db.getSiteFromDB("SBSM"));
+		sites.add(sites2db.getSiteFromDB("WNGC"));
+		sites.add(sites2db.getSiteFromDB("STNI"));
+		sites.add(sites2db.getSiteFromDB("SMCA"));
 		sites.add(sites2db.getSiteFromDB("OSI"));
-//		sites.add(sites2db.getSiteFromDB("PDE"));
-//		sites.add(sites2db.getSiteFromDB("WSS"));
-//		sites.add(sites2db.getSiteFromDB("LAF"));
-//		sites.add(sites2db.getSiteFromDB("s022"));
+		sites.add(sites2db.getSiteFromDB("PDE"));
+		sites.add(sites2db.getSiteFromDB("WSS"));
+		sites.add(sites2db.getSiteFromDB("LAF"));
+		sites.add(sites2db.getSiteFromDB("s022"));
 		// Other sites:
 //		sites.add(sites2db.getSiteFromDB("PAS"));
 //		sites.add(sites2db.getSiteFromDB("LAPD"));

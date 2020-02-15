@@ -284,6 +284,11 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		String[] siteNames = { "LAPD" };
 //		String[] siteNames = { "SMCA" };
 		
+		if (args.length > 0) {
+			System.out.println("assuming command line arguments are site name");
+			siteNames = args;
+		}
+		
 		boolean replotCurves = true;
 		boolean replotDisaggs = false;
 		

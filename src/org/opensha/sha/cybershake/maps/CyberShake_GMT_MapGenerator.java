@@ -604,7 +604,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 			GMT_MapGenerator.addSpecialElements(gmtCommandLines, map, region, proj, psFile);
 			
 			GMT_MapGenerator.addColorbarCommand(gmtCommandLines, scaleLabel, map.isLogPlot(), myCPTMin, myCPTMax,
-					myCPTFileName, psFile, cptEqualSpacing, map.getCPTCustomInterval(), map.getLabelSize(), map.getLabelTickSize());
+					myCPTFileName, psFile, cptEqualSpacing, map.getCPTCustomInterval(), map.getLabelSize(), map.getLabelTickSize(), plotWdth);
 			
 			gmtCommandLines.add("# basemap");
 			commandLine = "${GMT_PATH}psbasemap -B0.5/0.5eWNs"+region+proj+"-O >> "+psFile;

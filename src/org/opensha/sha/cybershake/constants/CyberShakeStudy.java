@@ -355,6 +355,32 @@ public enum CyberShakeStudy {
 				catalog = RSQSimCatalog.Catalogs.BRUCE_4860_10X.instance();
 			return catalog;
 		}
+	},
+	STUDY_20_2_RSQSIM_ROT_4860_10X(cal(2019, 3), 94, "RSQSim RotRup 4860 10X",
+			"study_20_2_rsqsim_rot_4860_10x", "RSQSim rotated-rupture variability study with catalog 4860 10X", 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return getRSQSimRotRupERF("rundir4860_multi_combine");
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forERF(56).hasAmplitudes().unique(true);
+		}
+		@Override
+		public List<String> writeStandardDiagnosticPlots(File outputDir, int skipYears, double minMag, boolean replot,
+				String topLink) throws IOException {
+			// standard plots are not relevant for this variability study
+			return new ArrayList<>();
+		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_4860_10X.instance();
+			return catalog;
+		}
 	};
 	
 	public RSQSimCatalog getRSQSimCatalog() {

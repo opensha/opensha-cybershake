@@ -65,16 +65,20 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RSQSimRotatedRupVari
 		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		
-		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_19_2_RSQSIM_ROT_2740;
 //		String[] siteNames = { "USC", "PAS"  };
 
-		CyberShakeStudy study = CyberShakeStudy.STUDY_19_3_RSQSIM_ROT_2585;
-		FilterMethod filter = FilterMethod.CLOSEST_MAG;
-		String[] siteNames = { "USC", "SBSM", "WNGC", "STNI", "SMCA" };
-//		String[] siteNames = { "USC", "PAS", "SBSM", "WNGC", "STNI", "SMCA" };
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_19_3_RSQSIM_ROT_2585;
+//		FilterMethod filter = FilterMethod.CLOSEST_MAG;
+//		String[] siteNames = { "USC", "SBSM", "WNGC", "STNI", "SMCA" };
+////		String[] siteNames = { "USC", "PAS", "SBSM", "WNGC", "STNI", "SMCA" };
+
+		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_ROT_4860_10X;
+		FilterMethod filter = FilterMethod.SECT_VARIABILITY;
+		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
+				"LAF", "s022", "STNI", "WNGC", "PDE" };
 		
 //		String[] siteNames = { "SBSM" };
 		

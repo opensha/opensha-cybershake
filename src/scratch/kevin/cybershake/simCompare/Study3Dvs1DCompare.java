@@ -651,14 +651,26 @@ public class Study3Dvs1DCompare {
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
 //		double[] periods = {3d, 5d, 7.5, 10d};
 		
-		CyberShakeStudy study3D = CyberShakeStudy.STUDY_20_2_RSQSIM_4841;
+//		CyberShakeStudy study3D = CyberShakeStudy.STUDY_20_2_RSQSIM_4841;
+//		CyberShakeStudy study1D = null;
+//		RSQSimCatalog catalog = Catalogs.BRUCE_4841.instance();
+//		double catalogMinMag = 6.5;
+//		File bbpFile1D = new File("/data/kevin/bbp/parallel/2020_02_03-rundir4841-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites/results_rotD.zip");
+//		double vs30_1d = VelocityModel.LA_BASIN_500.getVs30();
+////		String[] siteNames = { "PAS", "s279", "s119", "s480" };
+//		String[] siteNames = { "USC", "WNGC", "OSI", "PDE", "s022" };
+//		double[] periods = {3d, 5d, 7.5, 10d};
+		
+		CyberShakeStudy study3D = CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X;
 		CyberShakeStudy study1D = null;
-		RSQSimCatalog catalog = Catalogs.BRUCE_4841.instance();
+		RSQSimCatalog catalog = Catalogs.BRUCE_4860_10X.instance();
 		double catalogMinMag = 6.5;
-		File bbpFile1D = new File("/data/kevin/bbp/parallel/2020_02_03-rundir4841-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites/results_rotD.zip");
+		File bbpFile1D = new File("/data/kevin/bbp/parallel/2020_02_12-rundir4860_multi_combine-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites/results_rotD.zip");
 		double vs30_1d = VelocityModel.LA_BASIN_500.getVs30();
 //		String[] siteNames = { "PAS", "s279", "s119", "s480" };
-		String[] siteNames = { "USC", "WNGC", "OSI", "PDE", "s022" };
+//		String[] siteNames = { "USC", "WNGC", "OSI", "PDE", "s022" };
+		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
+				"LAF", "s022", "STNI", "WNGC", "PDE" };
 		double[] periods = {3d, 5d, 7.5, 10d};
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;

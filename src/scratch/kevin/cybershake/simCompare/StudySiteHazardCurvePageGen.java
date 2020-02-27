@@ -252,31 +252,33 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_07-rundir4860-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
 //		RSQSimCatalog catalog = Catalogs.BRUCE_4860.instance();
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X;
-		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_12-rundir4860_multi_combine-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
-		RSQSimCatalog catalog = Catalogs.BRUCE_4860_10X.instance();
-		
-		Vs30_Source vs30Source = Vs30_Source.Simulation;
-//		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
-		CyberShakeStudy[] compStudies = {  };
-		double catDurationYears = catalog.getDurationYears() - 5000d;
-		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X;
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_12-rundir4860_multi_combine-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_4860_10X.instance();
+//		
+//		Vs30_Source vs30Source = Vs30_Source.Simulation;
+////		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
+//		CyberShakeStudy[] compStudies = {  };
+//		double catDurationYears = catalog.getDurationYears() - 5000d;
+//		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
 		
 		/*
 		 * For regular studies
 		 */
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
-//		Vs30_Source vs30Source = Vs30_Source.Simulation;
-//		CyberShakeStudy[] compStudies = { };
-//		
-//		RSQSimCatalog catalog = null;
-//		File bbpDir = null;
-//		double catDurationYears = -1;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+		Vs30_Source vs30Source = Vs30_Source.Simulation;
+		CyberShakeStudy[] compStudies = { };
+		
+		RSQSimCatalog catalog = null;
+		File bbpDir = null;
+		double catDurationYears = -1;
 		
 		boolean includeAleatoryStrip = true;
 		
-		String[] siteNames = { "USC" };
-//		String[] siteNames = { "OSI", "PDE", "s022" };
+//		String[] siteNames = { "USC" };
+//		String[] siteNames = { "SBSM", "LAF", "s022", "STNI", "WNGC", "PDE" };
+		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
+				"LAF", "s022", "STNI", "WNGC", "PDE" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
 //		String[] siteNames = { "LAPD", "SBSM", "PAS", "WNGC" };
@@ -285,7 +287,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		String[] siteNames = { "SMCA" };
 		
 		if (args.length > 0) {
-			System.out.println("assuming command line arguments are site name");
+			System.out.println("assuming command line arguments are site names");
 			siteNames = args;
 		}
 		

@@ -6,9 +6,11 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Future;
 
 import org.opensha.commons.data.Site;
@@ -30,14 +32,17 @@ import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
 import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
+import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Table;
 import com.google.common.primitives.Doubles;
 
+import scratch.kevin.bbp.BBP_Site;
 import scratch.kevin.simCompare.MultiRupGMPE_ComparePageGen;
 import scratch.kevin.simCompare.RuptureComparison;
+import scratch.kevin.simulators.ruptures.RSQSimBBP_Config;
 
 public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	
@@ -375,10 +380,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 		boolean limitToHighlight = false;
 		
-		boolean replotScatters = true;
-		boolean replotZScores = true;
+		boolean replotScatters = false;
+		boolean replotZScores = false;
 		boolean replotCurves = false;
-		boolean replotResiduals = true;
+		boolean replotResiduals = false;
 		
 		for (int s=0; s<studies.size(); s++) {
 			System.gc();
@@ -407,8 +412,12 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 				highlightSiteNames.add("STNI");
 //				highlightSiteNames.add("FIL");
 				highlightSiteNames.add("OSI");
+				highlightSiteNames.add("SMCA");
+				highlightSiteNames.add("LAF");
+				highlightSiteNames.add("WSS");
 				highlightSiteNames.add("PDE");
 				highlightSiteNames.add("s022");
+				highlightSiteNames.add("s119");
 			}
 			HashSet<String> limitSiteNames;
 			if (limitToHighlight)
@@ -446,6 +455,24 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 				comp.setReplotResiduals(replotResiduals);
 				comp.setReplotScatters(replotScatters);
 				comp.setReplotZScores(replotZScores);
+				
+				List<Site> vs500_sites = new ArrayList<>();
+				Map<String, Site> siteNamesMap = new HashMap<>();
+				for (Site site : comp.sites) {
+					siteNamesMap.put(site.getName(), site);
+					double vs30 = site.getParameter(Double.class, Vs30_Param.NAME).getValue();
+					if ((float)vs30 == 500f)
+						vs500_sites.add(site);
+				}
+				if (!vs500_sites.isEmpty())
+					comp.addSiteBundle(vs500_sites, "Vs30=500");
+				List<BBP_Site> csLABBPsites = RSQSimBBP_Config.getCyberShakeVs500LASites();
+				List<Site> csLAsites = new ArrayList<>();
+				for (BBP_Site b : csLABBPsites)
+					if (siteNamesMap.containsKey(b.getName()))
+						csLAsites.add(siteNamesMap.get(b.getName()));
+				if (csLAsites.size() > 2)
+					comp.addSiteBundle(csLAsites, "LA Vs30=500 Initial Set");
 				
 				HashSet<CSRupture> allRups = new HashSet<>();
 				for (Site site : comp.sites)

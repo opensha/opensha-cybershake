@@ -25,7 +25,14 @@ import com.google.common.collect.Range;
 public class SiteSearchByVs30 {
 	
 	public static void main(String[] args) throws IOException {
-		Range<Double> vs30Range = Range.closed(500d, 500d);
+//		Range<Double> vs30Range = Range.closed(500d, 500d);
+//		Range<Double> willsRange = Range.closed(180d, 500d);
+//		String outPrefix = "cs_vs30_sites_500";
+		Range<Double> vs30Range = Range.closed(800d, 1000d);
+		Range<Double> willsRange = Range.closed(600d, 1200d);
+		String outPrefix = "cs_vs30_sites_800";
+		
+		File outputDir = new File("/home/kevin/CyberShake/sites/site_search");
 		
 		// study from which we are selecting sites
 		CyberShakeStudy siteStudy = CyberShakeStudy.STUDY_15_4;
@@ -38,8 +45,9 @@ public class SiteSearchByVs30 {
 		
 		for (Site site : sites) {
 			double vs30 = site.getParameter(Double.class, Vs30_Param.NAME).getValue();
-			if (vs30Range.contains(vs30)) {
-				System.out.println("Site: "+site.getName()+"\tVs30: "+vs30+"\tWills: "+wills.getValue(site.getLocation()));
+			double willsVal = wills.getValue(site.getLocation());
+			if (vs30Range.contains(vs30) && (willsRange == null || willsRange.contains(willsVal))) {
+				System.out.println("Site: "+site.getName()+"\tVs30: "+vs30+"\tWills: "+willsVal);
 				matches.add(site);
 				if (site instanceof CyberShakeSiteRun
 						&& ((CyberShakeSiteRun)site).getCS_Site().type_id == CybershakeSite.TYPE_BROADBAND_STATION)
@@ -52,10 +60,10 @@ public class SiteSearchByVs30 {
 		
 		siteStudy.getDB().destroy();
 		
-		File outputFile = new File("/tmp/cs_vs30_sites.kml");
+		File outputFile = new File(outputDir, outPrefix+".kml");
 		System.out.println("Writing KML to "+outputFile.getAbsolutePath());
 		
-		File csvOutFile = new File(outputFile.getAbsolutePath().replaceAll("kml", "csv"));
+		File csvOutFile = new File(outputDir, outPrefix+"csv");
 		CSVFile<String> csv = new CSVFile<>(true);
 		csv.addLine("Name", "CS Vs30 (m/s)", "Wills Vs30 (m/s)", "Z1.0 (m)", "Z2.5 (km)", "Latitude", "Longitude");
 		

@@ -29,16 +29,16 @@ public class RSQSimRuptureVariationInsert {
 		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
 		RSQSimCatalog catalog = Catalogs.BRUCE_4860_10X.instance(localBaseDir);
 		
-		int erfID = 55; // THIS ID MUST MATCH!
-		double minMag = 6.5;
-		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
-		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
-				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
+//		int erfID = 55; // THIS ID MUST MATCH!
+//		double minMag = 6.5;
+//		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
+//		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
+//				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
 		
-//		int erfID = 51; // THIS ID MUST MATCH!
-//		File csRotDir = new File(catalog.getCatalogDir(), "cybershake_rotation_inputs");
-//		Map<Scenario, RSQSimRotatedRupVariabilityConfig> rotConfigs = RSQSimRotatedRuptureFakeERF.loadRotationConfigs(catalog, csRotDir, true);
-//		RSQSimRotatedRuptureFakeERF erf = new RSQSimRotatedRuptureFakeERF(catalog, rotConfigs);
+		int erfID = 56; // THIS ID MUST MATCH!
+		File csRotDir = new File(catalog.getCatalogDir(), "cybershake_rotation_inputs");
+		Map<Scenario, RSQSimRotatedRupVariabilityConfig> rotConfigs = RSQSimRotatedRuptureFakeERF.loadRotationConfigs(catalog, csRotDir, true);
+		RSQSimRotatedRuptureFakeERF erf = new RSQSimRotatedRuptureFakeERF(catalog, rotConfigs);
 		
 		int rupVarScenID = 8;
 		

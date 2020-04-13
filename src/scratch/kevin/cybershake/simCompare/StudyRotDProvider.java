@@ -179,6 +179,10 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 		});
 	}
 	
+	public AbstractERF getERF() {
+		return erf;
+	}
+	
 	public void setSpectraCacheDir(File spectraCacheDir) {
 		this.spectraCacheDir = spectraCacheDir;
 	}
@@ -218,6 +222,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	
 	public CybershakeRun getRun(Site site) {
 		try {
+			Preconditions.checkNotNull(site);
 			return runsCache.get(site);
 		} catch (ExecutionException e) {
 			throw ExceptionUtils.asRuntimeException(e);

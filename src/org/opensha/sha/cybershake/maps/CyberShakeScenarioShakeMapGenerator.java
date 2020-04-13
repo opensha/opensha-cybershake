@@ -45,6 +45,8 @@ import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
 import org.opensha.sha.earthquake.ProbEqkRupture;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
+import org.opensha.sha.imr.param.IntensityMeasureParams.PGA_Param;
+import org.opensha.sha.imr.param.IntensityMeasureParams.PGV_Param;
 import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 import org.opensha.sha.util.SiteTranslator;
 
@@ -72,6 +74,9 @@ public class CyberShakeScenarioShakeMapGenerator {
 	
 	private List<CybershakeRun> runs;
 	
+	private Double cbMin = null;
+	private Double cbMax = null;
+	
 	public CyberShakeScenarioShakeMapGenerator(CommandLine cmd) {
 		study = CyberShakeStudy.valueOf(cmd.getOptionValue("study"));
 		sourceID = Integer.parseInt(cmd.getOptionValue("source-id"));
@@ -86,6 +91,11 @@ public class CyberShakeScenarioShakeMapGenerator {
 		} else {
 			periods = new double[] { Double.parseDouble(periodStr) };
 		}
+		
+		if (cmd.hasOption("colorbar-min"))
+			cbMin = Double.parseDouble(cmd.getOptionValue("colorbar-min"));
+		if (cmd.hasOption("colorbar-max"))
+			cbMax = Double.parseDouble(cmd.getOptionValue("colorbar-max"));
 		
 		if (cmd.hasOption("gmpe"))
 			gmpe = AttenRelRef.valueOf(cmd.getOptionValue("gmpe")).instance(null);
@@ -116,7 +126,10 @@ public class CyberShakeScenarioShakeMapGenerator {
 		} else {
 			ims = new CybershakeIM[periods.length];
 			for (int p=0; p<periods.length; p++)
-				ims[p] = CybershakeIM.getSA(CyberShakeComponent.RotD50, periods[p]);
+				if (periods[p] > 0d)
+					ims[p] = CybershakeIM.getSA(CyberShakeComponent.RotD50, periods[p]);
+				else
+					Preconditions.checkState(periods[p] == 0d || periods[p] == -1d);
 			
 			runs = study.runFetcher().fetch();
 			System.out.println("Have runs for "+runs.size()+" sites");
@@ -146,15 +159,20 @@ public class CyberShakeScenarioShakeMapGenerator {
 				prefix += "_all_rvs";
 			else
 				prefix += "_rv_"+rvID;
-			prefix += "_"+(float)periods[p]+"s";
+			if (periods[p] > 0d)
+				prefix += "_"+(float)periods[p]+"s";
+			else if (periods[p] == 0d)
+				prefix += "_pga";
+			else if (periods[p] == -1d)
+				prefix += "_pgv";
 			
-			if (customIntensities != null)
+			if (customIntensities == null && csXYZs[p] != null)
 				ArbDiscrGeoDataSet.writeXYZFile(csXYZs[p], new File(outputDir, prefix+"_cs_amps.txt"));
 			
 			if (gmpe != null)
 				ArbDiscrGeoDataSet.writeXYZFile(gmpeXYZs[p], new File(outputDir, prefix+"_gmpe_amps.txt"));
 			
-			double maxZ = csXYZs[p].getMaxZ();
+			double maxZ = csXYZs[p] == null ? 0d : csXYZs[p].getMaxZ();
 			if (gmpe != null)
 				maxZ = Math.max(maxZ, gmpeXYZs[p].getMaxZ());
 			
@@ -163,17 +181,31 @@ public class CyberShakeScenarioShakeMapGenerator {
 			String title = study.getName()+", Source "+sourceID+", Rupture "+rupID;
 			if (rvID != null)
 				title += ", RV "+rvID;
-			title += ", "+(float)periods[p]+"s SA";
+			if (periods[p] > 0)
+				title += ", "+(float)periods[p]+"s SA (g)";
+			else if (periods[p] == 0d)
+				title += ", PGA (g)";
+			else if (periods[p] == -1d)
+				title += ", PGV (cm/s)";
+			
+			InterpDiffMapType[] myTypes;
+			if (customIntensities == null && ims[p] == null) {
+				// just GMPE
+				myTypes = new InterpDiffMapType[] { InterpDiffMapType.BASEMAP };
+				Preconditions.checkState(gmpe != null, "Can't plot period "+periods[p]+" without a GMPE!");
+			} else {
+				myTypes = typesToPlot;
+			}
 			
 			InterpDiffMap map = new InterpDiffMap(study.getRegion(), gmpe == null ? null : gmpeXYZs[p], spacing, cpt, csXYZs[p],
-					interpSettings, typesToPlot);
+					interpSettings, myTypes);
 			map.setCustomLabel(title);
 			map.setTopoResolution(TopographicSlopeFile.CA_THREE);
 			map.setLogPlot(false);
 			map.setDpi(300);
 			map.setXyzFileName("base_map.xyz");
-			map.setCustomScaleMin(0d);
-			map.setCustomScaleMax(maxZ);
+			map.setCustomScaleMin(cbMin == null ? 0d : cbMin);
+			map.setCustomScaleMax(cbMax == null ? maxZ : cbMax);
 			
 			String metadata = title;
 			
@@ -182,7 +214,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 			
 			System.out.println("Done, downloading");
 			
-			for (InterpDiffMapType type : typesToPlot) {
+			for (InterpDiffMapType type : myTypes) {
 				File pngFile = new File(outputDir, prefix+"_"+type.getPrefix()+".png");
 				if (!addr.endsWith("/"))
 					addr += "/";
@@ -196,6 +228,10 @@ public class CyberShakeScenarioShakeMapGenerator {
 		GeoDataSet[] xyz = new GeoDataSet[periods.length];
 		
 		for (int p=0; p<periods.length; p++) {
+			if (ims[p] == null) {
+				System.out.println("Skipping period "+periods[p]+" for CyberShake");
+				continue;
+			}
 			xyz[p] = new ArbDiscrGeoDataSet(true);
 		}
 		
@@ -203,6 +239,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 		for (CybershakeRun run : runs) {
 			Location loc = sites2db.getLocationForSiteID(run.getSiteID());
 			for (int p=0; p<periods.length; p++) {
+				if (ims[p] == null)
+					continue;
 				double value;
 				if (rvID == null) {
 					List<Double> values;
@@ -227,8 +265,18 @@ public class CyberShakeScenarioShakeMapGenerator {
 				xyz[p].set(loc, value);
 			}
 		}
-
-		System.out.println("Got IMs for "+xyz[0].size()+"/"+runs.size()+" sites");
+		
+		int numCS = -1;
+		for (GeoDataSet periodXYZ : xyz) {
+			if (periodXYZ != null) {
+				numCS = periodXYZ.size();
+				break;
+			}
+		}
+		if (numCS >= 0)
+			System.out.println("Got IMs for "+numCS+"/"+runs.size()+" sites");
+		else
+			System.out.println("No CyberShake IM matches, skipping");
 		System.out.println("DONE Fetching CyberShake IMs");
 		
 		return xyz;
@@ -245,9 +293,6 @@ public class CyberShakeScenarioShakeMapGenerator {
 		
 		gmpe.setParamDefaults();
 		ProbEqkRupture rup = study.getERF().getSource(sourceID).getRupture(rupID);
-		
-		gmpe.setIntensityMeasure(SA_Param.NAME);
-		SA_Param saParam = (SA_Param)gmpe.getIntensityMeasure();
 		
 		gmpe.setEqkRupture(rup);
 		
@@ -274,7 +319,15 @@ public class CyberShakeScenarioShakeMapGenerator {
 			}
 			gmpe.setSite(site);
 			for (int p=0; p<periods.length; p++) {
-				SA_Param.setPeriodInSA_Param(saParam, periods[p]);
+				if (periods[p] > 0) {
+					gmpe.setIntensityMeasure(SA_Param.NAME);
+					SA_Param saParam = (SA_Param)gmpe.getIntensityMeasure();
+					SA_Param.setPeriodInSA_Param(saParam, periods[p]);
+				} else if (periods[p] == 0d) {
+					gmpe.setIntensityMeasure(PGA_Param.NAME);
+				} else if (periods[p] == -1d) {
+					gmpe.setIntensityMeasure(PGV_Param.NAME);
+				}
 				double value = Math.exp(gmpe.getMean());
 				xyz[p].set(i, value);
 			}
@@ -321,7 +374,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 		rvOp.setRequired(false);
 		ops.addOption(rvOp);
 		
-		Option periodsOp = new Option("p", "period", true, "Period(s) to plot, multiple can be comma separated");
+		Option periodsOp = new Option("p", "period", true, "Period(s) to plot, multiple can be comma separated. O for PGA, -1 for PGV");
 		periodsOp.setRequired(true);
 		ops.addOption(periodsOp);
 		
@@ -336,6 +389,14 @@ public class CyberShakeScenarioShakeMapGenerator {
 		Option spacingOp = new Option("sp", "spacing", true, "Grid spacing in decimal degrees. Default: "+(float)SPACING_DEFAULT);
 		spacingOp.setRequired(false);
 		ops.addOption(spacingOp);
+
+		Option cbMinOp = new Option("cbmin", "colorbar-min", true, "Colorbar min value");
+		cbMinOp.setRequired(false);
+		ops.addOption(cbMinOp);
+		
+		Option cbMaxOp = new Option("cbmax", "colorbar-max", true, "Colorbar max value");
+		cbMaxOp.setRequired(false);
+		ops.addOption(cbMaxOp);
 		
 		Option customIMsOp = new Option("if", "intensity-file", true,
 				"Use the supplied custom intensity file(s) instead of the CyberShake database. Multiple comma separated files must be supplied "
@@ -353,10 +414,12 @@ public class CyberShakeScenarioShakeMapGenerator {
 	public static void main(String[] args) {
 		if (args.length == 1 && args[0].equals("--hardcoded")) {
 			System.out.println("HARDCODED");
-//			String argz = "--study STUDY_15_4 --period 3 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp "
+//			String argz = "--study STUDY_15_4 --period 0,-1,3 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "
 //					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
-			String argz = "--study STUDY_15_12 --period 0.2 --source-id 69 --rupture-id 6 --output-dir /tmp "
-					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --spacing 0.005";
+			String argz = "--study STUDY_15_4 --period -1 --colorbar-min 1 --colorbar-max 7 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "
+					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
+//			String argz = "--study STUDY_15_12 --period 0.2 --source-id 69 --rupture-id 6 --output-dir /tmp "
+//					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --spacing 0.005";
 //			argz += " --intensity-file /tmp/cs_shakemap_src_69_rup_6_all_rvs_0.2s_cs_amps.txt";
 			args = argz.split(" ");
 		}

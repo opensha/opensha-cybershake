@@ -2,18 +2,23 @@ package scratch.kevin.cybershake.simCompare;
 
 import java.awt.Color;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipFile;
 
+import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
+import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.geo.LocationUtils;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotLineType;
@@ -57,9 +62,16 @@ import scratch.kevin.simulators.ruptures.LightweightBBP_CatalogSimZipLoader;
 
 public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CSRupture> {
 
-	public StudySiteHazardCurvePageGen(SimulationRotDProvider<CSRupture> simProv, String simName,
+	private String simName;
+	private StudyRotDProvider studyProv;
+	private List<SimulationRotDProvider<?>> compSimProvs;
+
+	public StudySiteHazardCurvePageGen(StudyRotDProvider simProv, String simName,
 			List<SimulationRotDProvider<?>> compSimProvs) {
 		super(simProv, simName, compSimProvs);
+		this.studyProv = simProv;
+		this.simName = simName;
+		this.compSimProvs = compSimProvs;
 	}
 	
 	public static List<CSRuptureComparison> calcComps(StudyRotDProvider prov, Site site,
@@ -123,7 +135,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 	}
 	
-	private static LightweightBBP_CatalogSimZipLoader loadBBP(File bbpDir, Site site, double durationYears) throws IOException {
+	public static LightweightBBP_CatalogSimZipLoader loadBBP(File bbpDir, Site site, double durationYears) throws IOException {
 		File bbpZip = new File(bbpDir, "results_rotD.zip");
 		Preconditions.checkState(bbpZip.exists(), "BBP zip file not found: "+bbpZip.getAbsolutePath());
 		File sitesFile = new File(bbpDir, "sites.stl");
@@ -223,6 +235,92 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		}
 		return null;
 	}
+	
+	private void writeGroundMotionCSV(File csvFile, Site site, AttenRelRef gmpeRef,
+			List<CSRuptureComparison> comps, double[] periods) throws IOException {
+		CSVFile<String> csv = new CSVFile<>(true);
+		
+		List<String> header = new ArrayList<>();
+		
+		final RSQSimSectBundledERF rsERF = studyProv.getERF() instanceof RSQSimSectBundledERF ?
+				(RSQSimSectBundledERF)studyProv.getERF() : null;
+		
+		if (rsERF != null) {
+			header.add("Event ID");
+		} else {
+			header.add("Source ID");
+			header.add("Rupture ID");
+			header.add("Rupture Variation ID");
+		}
+		header.add("Magnitude");
+		header.add("DistanceRup (km)");
+		header.add("DistanceJB (km)");
+		header.add("Annual Rate");
+		
+		for (double period : periods) {
+			String periodStr = (period == Math.floor(period) ? (int)period : (float)period) + "s";
+			header.add(simName+" ln("+periodStr+" RotD50)");
+			header.add(gmpeRef.getShortName()+" ln("+periodStr+" Median RotD50)");
+			header.add(gmpeRef.getShortName()+" "+periodStr+" Standard Deviation");
+		}
+		csv.addLine(header);
+		
+		if (rsERF != null) {
+			List<CSRuptureComparison> sortedComps = new ArrayList<>(comps);
+			sortedComps.sort(new Comparator<CSRuptureComparison>() {
+
+				@Override
+				public int compare(CSRuptureComparison o1, CSRuptureComparison o2) {
+					CSRupture r1 = o1.getRupture();
+					int event1 = rsERF.getRupture(r1.getSourceID(), r1.getRupID()).getEventID();
+					CSRupture r2 = o2.getRupture();
+					int event2 = rsERF.getRupture(r2.getSourceID(), r2.getRupID()).getEventID();
+					return Integer.compare(event1, event2);
+				}
+			});
+			comps = sortedComps;
+		}
+		
+		for (CSRuptureComparison comp : comps) {
+			if (!comp.isSiteApplicable(site))
+				continue;
+			CSRupture rup = comp.getRupture();
+			double rate = comp.getAnnualRate();
+			double mag = comp.getMagnitude();
+			double rRup = comp.getDistanceRup(site);
+			double rJB = comp.getDistanceJB(site);
+			
+			List<DiscretizedFunc> rds = studyProv.getRotD50s(site, rup);
+			double rateEach = rate/rds.size();
+			for (int i=0; i<rds.size(); i++) {
+				List<String> line = new ArrayList<>(header.size());
+				if (rsERF == null) {
+					line.add(rup.getSourceID()+"");
+					line.add(rup.getRupID()+"");
+					line.add(i+"");
+				} else {
+					int eventID = rsERF.getRupture(rup.getSourceID(), rup.getRupID()).getEventID();
+					line.add(eventID+"");
+				}
+				line.add((float)mag+"");
+				line.add((float)rRup+"");
+				line.add((float)rJB+"");
+				line.add((float)rateEach+"");
+				for (double period : periods) {
+					line.add((float)Math.log(rds.get(i).getInterpolatedY(period))+"");
+					line.add((float)comp.getLogMean(site, period)+"");
+					line.add((float)comp.getStdDev(site, period)+"");
+				}
+				csv.addLine(line);
+			}
+		}
+		if (csvFile.getName().toLowerCase().endsWith(".gz")) {
+			GZIPOutputStream gz = new GZIPOutputStream(new FileOutputStream(csvFile));
+			csv.writeToStream(gz);
+		} else {
+			csv.writeToFile(csvFile);
+		}
+	}
 
 	public static void main(String[] args) throws SQLException, IOException {
 		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
@@ -252,26 +350,26 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_07-rundir4860-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
 //		RSQSimCatalog catalog = Catalogs.BRUCE_4860.instance();
 		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X;
-//		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_12-rundir4860_multi_combine-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
-//		RSQSimCatalog catalog = Catalogs.BRUCE_4860_10X.instance();
-//		
-//		Vs30_Source vs30Source = Vs30_Source.Simulation;
-////		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
-//		CyberShakeStudy[] compStudies = {  };
-//		double catDurationYears = catalog.getDurationYears() - 5000d;
-//		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
+		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X;
+		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_12-rundir4860_multi_combine-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
+		RSQSimCatalog catalog = Catalogs.BRUCE_4860_10X.instance();
+		
+		Vs30_Source vs30Source = Vs30_Source.Simulation;
+//		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
+		CyberShakeStudy[] compStudies = {  };
+		double catDurationYears = catalog.getDurationYears() - 5000d;
+		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
 		
 		/*
 		 * For regular studies
 		 */
-		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
-		Vs30_Source vs30Source = Vs30_Source.Simulation;
-		CyberShakeStudy[] compStudies = { };
-		
-		RSQSimCatalog catalog = null;
-		File bbpDir = null;
-		double catDurationYears = -1;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+//		Vs30_Source vs30Source = Vs30_Source.Simulation;
+//		CyberShakeStudy[] compStudies = { };
+//		
+//		RSQSimCatalog catalog = null;
+//		File bbpDir = null;
+//		double catDurationYears = -1;
 		
 		boolean includeAleatoryStrip = true;
 		
@@ -298,6 +396,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 		double[] periods = { 3, 5, 7.5, 10 };
+		double[] csvPeriods = { 3 };
 		
 		File studyDir = new File(mainOutputDir, study.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
@@ -373,6 +472,14 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 					headerLines.add("");
 					
 					pageGen.generateSitePage(site, comps, outputDir, headerLines, periods, gmpeRef);
+					
+					File resourcesDir = new File(outputDir, "resources");
+					Preconditions.checkState(resourcesDir.exists());
+					File csvFile = new File(resourcesDir, site.getName()+"_rd50s.csv.gz");
+					if (!csvFile.exists() && csvPeriods != null && csvPeriods.length > 0) {
+						System.out.println("Writing CSV: "+csvFile.getAbsolutePath());
+						pageGen.writeGroundMotionCSV(csvFile, site, gmpeRef, comps, csvPeriods);
+					}
 				}
 			}
 			

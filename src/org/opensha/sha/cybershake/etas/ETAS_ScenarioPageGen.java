@@ -1924,10 +1924,10 @@ public class ETAS_ScenarioPageGen {
 		
 		File[] configFiles = {
 //				new File(simsDir, "2019_04_25-2009BombayBeachM48-u2mapped-noSpont-10yr/config.json"),
-//				new File(simsDir, "2019_04_25-2009BombayBeachM6-u2mapped-noSpont-10yr/config.json"),
+				new File(simsDir, "2019_04_25-2009BombayBeachM6-u2mapped-noSpont-10yr/config.json"),
 //				new File(simsDir, "2019_04_25-MojavePointM6-u2mapped-noSpont-10yr/config.json"),
 //				new File(simsDir, "2019_04_25-ParkfieldM6-u2mapped-noSpont-10yr/config.json"),
-				new File(simsDir, "2019_11_19-ComCatM7p1_ci38457511_ShakeMapSurfaces_FM2_1/config.json")
+//				new File(simsDir, "2019_11_19-ComCatM7p1_ci38457511_ShakeMapSurfaces_FM2_1/config.json")
 		};
 		
 		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;

@@ -60,7 +60,7 @@ import com.google.common.primitives.Ints;
 
 public class HardCodedInterpDiffMapCreator {
 	
-	public static boolean LOCAL_MAPGEN = true;
+	public static boolean LOCAL_MAPGEN = false;
 	private static CyberShake_GMT_MapGenerator mapGen;
 	static File KEVIN_GMT_DATA_DIR = new File("/data/kevin/opensha/gmt");
 	
@@ -600,7 +600,7 @@ public class HardCodedInterpDiffMapCreator {
 	public static InterpDiffMapType[] normPlotTypes = { InterpDiffMapType.INTERP_NOMARKS,
 			InterpDiffMapType.INTERP_MARKS, InterpDiffMapType.BASEMAP, InterpDiffMapType.DIFF,
 			InterpDiffMapType.RATIO};
-	protected static InterpDiffMapType[] gainPlotTypes = 
+	public static InterpDiffMapType[] gainPlotTypes = 
 			{ InterpDiffMapType.INTERP_NOMARKS, InterpDiffMapType.INTERP_MARKS};
 	
 	protected static String getMap(Region region, boolean logPlot, int velModelID, int datasetID, int imTypeID,

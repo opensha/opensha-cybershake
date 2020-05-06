@@ -8,6 +8,7 @@ import java.util.Map;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.geo.Location;
+import org.opensha.sha.imr.param.IntensityMeasureParams.DurationTimeInterval;
 import org.opensha.sha.simulators.RSQSimEvent;
 import org.opensha.sha.simulators.utils.RSQSimUtils;
 
@@ -62,6 +63,17 @@ public class CSRuptureBBPWrapperRotDProvider implements SimulationRotDProvider<C
 	}
 
 	@Override
+	public double getPGV(Site site, CSRupture rupture, int index) throws IOException {
+		return bbpLoader.getPGV(site, getEvent(rupture), index);
+	}
+
+	@Override
+	public double getDuration(Site site, CSRupture rupture, DurationTimeInterval interval, int index)
+			throws IOException {
+		return bbpLoader.getDuration(site, getEvent(rupture), interval, index);
+	}
+
+	@Override
 	public int getNumSimulations(Site site, CSRupture rupture) {
 		return bbpLoader.getNumSimulations(site, getEvent(rupture));
 	}
@@ -79,6 +91,16 @@ public class CSRuptureBBPWrapperRotDProvider implements SimulationRotDProvider<C
 	@Override
 	public boolean hasRotD100() {
 		return bbpLoader.hasRotD100();
+	}
+
+	@Override
+	public boolean hasPGV() {
+		return bbpLoader.hasPGV();
+	}
+
+	@Override
+	public boolean hasDurations() {
+		return bbpLoader.hasDurations();
 	}
 
 	@Override

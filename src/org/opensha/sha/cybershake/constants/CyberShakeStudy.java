@@ -425,8 +425,9 @@ public enum CyberShakeStudy {
 	private Region region;
 	private String dbHost;
 	private GregorianCalendar date;
-	
+
 	private DBAccess db;
+	private DBAccess writeDB;
 	private Runs2DB runs2db;
 	
 	private CyberShakeStudy(GregorianCalendar date, int datasetID, String name, String dirName, String description,
@@ -489,6 +490,18 @@ public enum CyberShakeStudy {
 		if (db == null)
 			db = Cybershake_OpenSHA_DBApplication.getDB(dbHost);
 		return db;
+	}
+	
+	public synchronized DBAccess getWriteDB(boolean allowReadOnly, boolean exitOnCancel) {
+		if (writeDB == null) {
+			try {
+				writeDB = Cybershake_OpenSHA_DBApplication.getAuthenticatedDBAccess(
+						exitOnCancel, allowReadOnly, dbHost);
+			} catch (IOException e) {
+				throw ExceptionUtils.asRuntimeException(e);
+			}
+		}
+		return writeDB;
 	}
 	
 	private synchronized Runs2DB getRunsDB() {
@@ -569,6 +582,8 @@ public enum CyberShakeStudy {
 		
 		String hazardMapLink = null;
 		
+		String bgHazardMapLink = null;
+		
 		List<String> rotatedRupLinks = new ArrayList<>();
 		List<String> rotatedRupNames = new ArrayList<>();
 		
@@ -624,6 +639,8 @@ public enum CyberShakeStudy {
 				study_3d_vs_1d_link = name;
 			} else if (name.equals("hazard_maps")) {
 				hazardMapLink = name;
+			} else if (name.equals("hazard_maps_back_seis")) {
+				bgHazardMapLink = name;
 			} else if (name.startsWith("rotated_ruptures_")) {
 				for (Scenario scenario : Scenario.values()) {
 					if (name.contains(scenario.getPrefix())) {
@@ -640,6 +657,14 @@ public enum CyberShakeStudy {
 			lines.add(topLink);
 			lines.add("");
 			lines.add("[Hazard Maps Plotted Here]("+hazardMapLink+"/)");
+		}
+		
+		if (bgHazardMapLink != null) {
+			lines.add("");
+			lines.add("## Hazard Maps (with background seismicity)");
+			lines.add(topLink);
+			lines.add("");
+			lines.add("[Background Seismicity Hazard Maps Plotted Here]("+bgHazardMapLink+"/)");
 		}
 		
 		if (!gmpeLinksMap.isEmpty()) {

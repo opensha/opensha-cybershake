@@ -37,6 +37,7 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 
 import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare.CSRuptureComparison;
+import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.RuptureComparison;
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simCompare.SourceSiteDistPageGen;
@@ -104,10 +105,11 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014, AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
 		double[] periods = { 3, 5, 10 };
+		IMT[] imts = IMT.forPeriods(periods);
 		
 //		StudyRotDProvider simProv = getSimProv(study, siteNames, ampsCacheDir, periods, rd50_ims, vs30Source, csRups);
 		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, study.getERF());
-		StudyRotDProvider simProv = new StudyRotDProvider(study, amps2db, periods, study.getName());
+		StudyRotDProvider simProv = new StudyRotDProvider(study, amps2db, imts, study.getName());
 		
 		File studyDir = new File(mainOutputDir, study.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
@@ -122,13 +124,13 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 			System.out.println("Calculating for "+gmpeRef.getName());
 			Map<CSRupture, CSRuptureComparison> compsMap = new HashMap<>();
 			for (Site site : sites) {
-				List<CSRuptureComparison> siteComps = StudySiteHazardCurvePageGen.calcComps(simProv, site, gmpeRef, periods);
+				List<CSRuptureComparison> siteComps = StudySiteHazardCurvePageGen.calcComps(simProv, site, gmpeRef, imts);
 				for (CSRuptureComparison comp : siteComps) {
 					if (compsMap.containsKey(comp.getRupture())) {
 						// combine
 						CSRuptureComparison prevComp = compsMap.get(comp.getRupture());
-						for (double period : comp.getPeriods(site))
-							prevComp.addResult(site, period, comp.getLogMean(site, period), comp.getStdDev(site, period));
+						for (IMT imt : comp.getIMTs(site))
+							prevComp.addResult(site, imt, comp.getLogMean(site, imt), comp.getStdDev(site, imt));
 					} else {
 						// new
 						compsMap.put(comp.getRupture(), comp);
@@ -169,7 +171,7 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		for (AttenRelRef gmpe : gmpeRefs)
 			headerLines.add("* "+gmpe.getName());
 		
-		pageGen.generatePage(sourceCompsTable, outputDir, headerLines, periods, hypoSort);
+		pageGen.generatePage(sourceCompsTable, outputDir, headerLines, imts, hypoSort);
 		
 		study.writeMarkdownSummary(studyDir);
 		CyberShakeStudy.writeStudiesIndex(mainOutputDir);

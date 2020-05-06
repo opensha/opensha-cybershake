@@ -160,7 +160,8 @@ public class MultiStudyHazardMapPageGen {
 				HashSet<Location> allLocs = new HashSet<Location>();
 				for (int i=0; i<studies.length; i++) {
 					System.out.println("Fetching curves for "+studies[i].getName());
-					HazardCurveFetcher fetch = new HazardCurveFetcher(studies[i].getDB(), studyRuns.get(i), imTypeID);
+					HazardCurveFetcher fetch = new HazardCurveFetcher(
+							studies[i].getDB(), studyRuns.get(i), studies[i].getDatasetIDs(), imTypeID);
 					scatters[i] = HardCodedInterpDiffMapCreator.getMainScatter(
 							isProbAt_IML, val, fetch, imTypeID, null);
 					allLocs.addAll(scatters[i].getLocationList());

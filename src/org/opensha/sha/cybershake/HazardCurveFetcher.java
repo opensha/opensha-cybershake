@@ -26,6 +26,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.siteData.SiteData;
@@ -80,11 +81,12 @@ public class HazardCurveFetcher {
 		init(curve2db.getAllHazardCurveIDs(erfID, rupVarScenarioID, sgtVarID, velModelID, imTypeID), imTypeID);
 	}
 	
-	public HazardCurveFetcher(DBAccess db, List<CybershakeRun> runs, int imTypeID) {
+	public HazardCurveFetcher(DBAccess db, List<CybershakeRun> runs, int[] datasetIDs, int imTypeID) {
 		this.initDBConnections(db);
 		List<Integer> curveIDs = new ArrayList<>();
-		for (CybershakeRun run : runs)
-			curveIDs.addAll(curve2db.getAllHazardCurveIDs(run.getRunID(), imTypeID));
+		for (int datasetID : datasetIDs)
+			for (CybershakeRun run : runs)
+				curveIDs.addAll(curve2db.getAllHazardCurveIDsForRun(run.getRunID(), datasetID, imTypeID));
 		init(curveIDs, imTypeID);
 	}
 	
@@ -111,12 +113,29 @@ public class HazardCurveFetcher {
 			}
 			sites.add(site2db.getSiteFromDB(siteID));
 			DiscretizedFunc curve = curve2db.getHazardCurve(id);
+			Preconditions.checkNotNull(curve, "Curve is null? Curve ID=%s, site ID=%s", id, siteID);
 			funcs.add(curve);
 			runIDs.add(curve2db.getRunIDForCurve(id));
 		}
 		for (int id : duplicateCurveIDs)
 			// use indexof because remove(int) will do index not object
 			curveIDs.remove(curveIDs.indexOf(id));
+	}
+	
+	public List<DiscretizedFunc> getCurvesForRun(int runID) {
+		List<DiscretizedFunc> curves = new ArrayList<>();
+		for (int i=0; i<runIDs.size(); i++)
+			if (runIDs.get(i) == runID)
+				curves.add(funcs.get(i));
+		return curves;
+	}
+	
+	public List<DiscretizedFunc> getCurvesForSite(int siteID) {
+		List<DiscretizedFunc> curves = new ArrayList<>();
+		for (int i=0; i<runIDs.size(); i++)
+			if (sites.get(i).id == siteID)
+				curves.add(funcs.get(i));
+		return curves;
 	}
 	
 	private void initDBConnections(DBAccess db) {

@@ -11,6 +11,7 @@ import org.opensha.commons.geo.Location;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeRun;
+import org.opensha.sha.imr.param.IntensityMeasureParams.DurationTimeInterval;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
@@ -18,6 +19,7 @@ import com.google.common.collect.HashBiMap;
 
 import scratch.kevin.cybershake.simCompare.CSRupture;
 import scratch.kevin.cybershake.simCompare.StudyRotDProvider;
+import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF.RSQSimRotatedRuptureSource;
@@ -29,8 +31,8 @@ public class CSRotatedRupSimProv implements SimulationRotDProvider<RotationSpec>
 	private RSQSimRotatedRuptureFakeERF erf;
 	private BiMap<CSRupture, RotationSpec> rupRotationMap;
 	
-	public CSRotatedRupSimProv(CyberShakeStudy study, CachedPeakAmplitudesFromDB amps2db, double[] periods) {
-		prov = new StudyRotDProvider(study, amps2db, periods, study.getName());
+	public CSRotatedRupSimProv(CyberShakeStudy study, CachedPeakAmplitudesFromDB amps2db, IMT[] imts) {
+		prov = new StudyRotDProvider(study, amps2db, imts, study.getName());
 		
 		Preconditions.checkState(study.getERF() instanceof RSQSimRotatedRuptureFakeERF);
 		erf = (RSQSimRotatedRuptureFakeERF)study.getERF();
@@ -99,6 +101,17 @@ public class CSRotatedRupSimProv implements SimulationRotDProvider<RotationSpec>
 	}
 
 	@Override
+	public double getPGV(Site site, RotationSpec rupture, int index) throws IOException {
+		return prov.getPGV(site, rupForRotation(site, rupture), index);
+	}
+
+	@Override
+	public double getDuration(Site site, RotationSpec rupture, DurationTimeInterval interval, int index)
+			throws IOException {
+		return prov.getDuration(site, rupForRotation(site, rupture), interval, index);
+	}
+
+	@Override
 	public int getNumSimulations(Site site, RotationSpec rupture) {
 		return 1;
 	}
@@ -127,6 +140,11 @@ public class CSRotatedRupSimProv implements SimulationRotDProvider<RotationSpec>
 	}
 
 	@Override
+	public boolean hasPGV() {
+		return prov.hasPGV();
+	}
+
+	@Override
 	public double getAnnualRate(RotationSpec rupture) {
 		return prov.getAnnualRate(rupForRotation(null, rupture));
 	}
@@ -139,6 +157,11 @@ public class CSRotatedRupSimProv implements SimulationRotDProvider<RotationSpec>
 	@Override
 	public double getMagnitude(RotationSpec rupture) {
 		return prov.getMagnitude(rupForRotation(null, rupture));
+	}
+
+	@Override
+	public boolean hasDurations() {
+		return prov.hasDurations();
 	}
 
 }

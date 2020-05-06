@@ -133,7 +133,7 @@ public class CyberShakeMCErProbabilisticCalc extends
 		List<CybershakeIM> ims = getIMsForPeriods(db, component, periods);
 		validateIMs(ims);
 		
-		List<Integer> curveIDs = curves2db.getAllHazardCurveIDs(siteRun.getCS_Run().getRunID(), -1);
+		List<Integer> curveIDs = curves2db.getAllHazardCurveIDsForRun(siteRun.getCS_Run().getRunID(), -1, -1);
 		// filter out any oddball probability models
 		int origSize = curveIDs.size();
 		for (int i=curveIDs.size(); --i>=0;) {
@@ -141,6 +141,9 @@ public class CyberShakeMCErProbabilisticCalc extends
 			int probModelID = dataset2db.getProbModelID(datasetID);
 			if (probModelID != 1)
 				// 1 is time independent poisson
+				curveIDs.remove(i);
+			if (dataset2db.getBackSeisAttenRelID(datasetID) > 0)
+				// this has background seismicity, skip it
 				curveIDs.remove(i);
 		}
 		if (origSize != curveIDs.size())

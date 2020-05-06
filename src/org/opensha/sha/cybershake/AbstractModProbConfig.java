@@ -31,7 +31,7 @@ public abstract class AbstractModProbConfig implements ModProbConfig {
 	public int getHazardDatasetID(int erfID, int rvScenID, int sgtVarID,
 			int velModelID, Date timeSpanDate) {
 		return hd2db.getDatasetID(erfID, rvScenID, sgtVarID, velModelID, probModelID, timeSpanID, timeSpanDate,
-				Double.NaN, Double.NaN);
+				Double.NaN, Double.NaN, -1);
 	}
 
 	@Override

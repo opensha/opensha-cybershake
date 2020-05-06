@@ -28,6 +28,7 @@ import org.opensha.sha.cybershake.db.CybershakeRun;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
 
+import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.SimulationHazardCurveCalc;
 
 public class OldVsNewCalcCheck {
@@ -40,8 +41,9 @@ public class OldVsNewCalcCheck {
 		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
 		
 		String siteName = "USC";
-		
+
 		double[] periods = { 3, 5, 7.5, 10 };
+		IMT[] imts = IMT.forPeriods(periods);
 		CybershakeIM[] rd50_ims = new PeakAmplitudesFromDB(study.getDB()).getIMs(Doubles.asList(periods),
 				IMType.SA, CyberShakeComponent.RotD50).toArray(new CybershakeIM[0]);
 		
@@ -50,12 +52,12 @@ public class OldVsNewCalcCheck {
 		
 //		StudyRotDProvider prov = StudySiteHazardCurvePageGen.getSimProv(study, siteName, ampsCacheDir, periods, rd50_ims, site);
 		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, study.getERF());
-		StudyRotDProvider prov = new StudyRotDProvider(study, amps2db, periods, study.getName());
+		StudyRotDProvider prov = new StudyRotDProvider(study, amps2db, imts, study.getName());
 		SimulationHazardCurveCalc<CSRupture> newCalc = new SimulationHazardCurveCalc<>(prov);
 		
 		for (int p=0; p<periods.length; p++) {
-			double period = periods[p];
-			DiscretizedFunc newCurve = newCalc.calc(site, period, 1d);
+			IMT imt = imts[p];
+			DiscretizedFunc newCurve = newCalc.calc(site, imt, 1d);
 			
 			HazardCurveComputation oldCalc = new HazardCurveComputation(study.getDB());
 			ArrayList<Double> imlVals = new ArrayList<>();

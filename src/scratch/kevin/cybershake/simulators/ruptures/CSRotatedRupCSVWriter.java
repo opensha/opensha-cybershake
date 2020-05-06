@@ -14,10 +14,12 @@ import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
+import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
 
+import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
@@ -46,18 +48,23 @@ public class CSRotatedRupCSVWriter {
 		List<Site> sites = null;
 		
 //		double[] periods = { 3, 5, 10 };
-		double[] periods = { 3 };
+//		double[] periods = { 3 };
+		IMT[] imts = { IMT.SA3P0 };
 		
 		int numDownsamples = 100;
 		List<Map<Integer, List<ASK_EventData>>> askDatas = null;
 		if (numDownsamples > 0) {
 			askDatas = new ArrayList<>();
-			for (double period : periods)
-				askDatas.add(ASK_EventData.load(period));
+			for (IMT imt : imts) {
+				if (imt.getParamName().equals(SA_Param.NAME))
+					askDatas.add(ASK_EventData.load(imt.getPeriod()));
+				else
+					askDatas.add(null);
+			}
 		}
 		
 		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, erf);
-		CSRotatedRupSimProv simProv = new CSRotatedRupSimProv(study, amps2db, periods);
+		CSRotatedRupSimProv simProv = new CSRotatedRupSimProv(study, amps2db, imts);
 		
 		for (Scenario scenario : rotConfigs.keySet()) {
 			RSQSimRotatedRupVariabilityConfig config = rotConfigs.get(scenario);
@@ -84,7 +91,7 @@ public class CSRotatedRupCSVWriter {
 			for (Site site : sites)
 				header.add(site.getName());
 			
-			for (int i=0; i<periods.length; i++) {
+			for (int i=0; i<imts.length; i++) {
 				CSVFile<String> csv = new CSVFile<>(true);
 				csv.addLine(header);
 				csvs.add(csv);
@@ -99,12 +106,11 @@ public class CSRotatedRupCSVWriter {
 							line.add(sourceAz == null ? "0.0" : sourceAz.toString());
 							line.add(siteSourceAz == null ? "0.0" : siteSourceAz.toString());
 							line.add(distance == null ? "0.0" : distance.toString());
-							for (int p=0; p<periods.length; p++) {
+							for (int p=0; p<imts.length; p++) {
 								List<String> periodLine = new ArrayList<>(line);
 								for (Site site : sites) {
 									RotationSpec rot = new RotationSpec(-1, site, eventID, distance, sourceAz, siteSourceAz);
-									DiscretizedFunc func = simProv.getRotD50(site, rot, 0);
-									periodLine.add((float)func.getY(periods[p])+"");
+									periodLine.add((float)simProv.getValue(site, rot, imts[0], 0)+"");
 								}
 								csvs.get(p).addLine(periodLine);
 							}
@@ -113,17 +119,17 @@ public class CSRotatedRupCSVWriter {
 				}
 			}
 			
-			for (int p=0; p<periods.length; p++) {
+			for (int p=0; p<imts.length; p++) {
 				CSVFile<String> csv = csvs.get(p);
-				csv.writeToFile(new File(outputDir, scenario.getPrefix()+"_"+(float)periods[p]+"s.csv"));
+				csv.writeToFile(new File(outputDir, scenario.getPrefix()+"_"+imts[p].getPrefix()+".csv"));
 			}
 			
 			if (numDownsamples > 0) {
 				double dm = 0.2;
 				double minMag = scenario.getMagnitude()-dm;
 				double maxMag = scenario.getMagnitude()+dm;
-				for (int p=0; p<periods.length; p++) {
-					File dsDir = new File(outputDir, scenario.getPrefix()+"_"+(float)periods[p]+"s_downsampled");
+				for (int p=0; p<imts.length; p++) {
+					File dsDir = new File(outputDir, scenario.getPrefix()+"_"+imts[p].getPrefix()+"_downsampled");
 					Preconditions.checkState(dsDir.exists() || dsDir.mkdir());
 					Map<Integer, List<ASK_EventData>> askData = askDatas.get(p);
 					askData = ASK_EventData.getMatches(askData,
@@ -171,8 +177,7 @@ public class CSRotatedRupCSVWriter {
 									line.add(distance == null ? "0.0" : distance.toString());
 									for (Site site : sites) {
 										rot = new RotationSpec(-1, site, eventID, distance, rot.sourceAz, rot.siteToSourceAz);
-										DiscretizedFunc func = simProv.getRotD50(site, rot, 0);
-										line.add((float)func.getY(periods[p])+"");
+										line.add((float)simProv.getValue(site, rot, imts[p], 0)+"");
 									}
 									csv.addLine(line);
 								}

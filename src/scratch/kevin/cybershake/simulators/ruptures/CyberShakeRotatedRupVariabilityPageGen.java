@@ -19,6 +19,7 @@ import org.opensha.sha.simulators.RSQSimEvent;
 
 import com.google.common.base.Preconditions;
 
+import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
@@ -84,7 +85,10 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RSQSimRotatedRupVari
 		
 		boolean skipMissing = false;
 		
-		double[] calcPeriods = { 3, 4, 5, 7.5, 10 };
+		double[] calcPeriods = { 3d, 4d, 5d, 7.5, 10d };
+		IMT[] calcIMTs = new IMT[calcPeriods.length];
+		for (int i=0; i<calcIMTs.length; i++)
+			calcIMTs[i] = IMT.forPeriod(calcPeriods[i]);
 		double[] periods = { 3, 5, 10 };
 		
 //		NGAW2_WrapperFullParam[] refGMPEs = { new NGAW2_Wrappers.ASK_2014_Wrapper(), new NGAW2_Wrappers.BSSA_2014_Wrapper(),
@@ -105,7 +109,7 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RSQSimRotatedRupVari
 			erf.setLoadRuptures(false);
 			
 			CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, erf);
-			CSRotatedRupSimProv simProv = new CSRotatedRupSimProv(study, amps2db, calcPeriods);
+			CSRotatedRupSimProv simProv = new CSRotatedRupSimProv(study, amps2db, calcIMTs);
 			
 //			simProv.getRupturesForSite(site);
 			RSQSimCatalog catalog = erf.getCatalog();

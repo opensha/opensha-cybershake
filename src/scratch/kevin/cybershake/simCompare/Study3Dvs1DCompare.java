@@ -56,6 +56,7 @@ import com.google.common.collect.Table;
 import scratch.kevin.bbp.BBP_Module.VelocityModel;
 import scratch.kevin.bbp.BBP_Site;
 import scratch.kevin.bbp.SpectraPlotter;
+import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
@@ -672,6 +673,7 @@ public class Study3Dvs1DCompare {
 		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
 				"LAF", "s022", "STNI", "WNGC", "PDE" };
 		double[] periods = {3d, 5d, 7.5, 10d};
+		IMT[] imts = IMT.forPeriods(periods);
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 		
@@ -680,7 +682,7 @@ public class Study3Dvs1DCompare {
 		List<CybershakeRun> runs3D = study3D.runFetcher().forSiteNames(siteNames).fetch();
 		List<Site> sites = CyberShakeSiteBuilder.buildSites(study3D, vs30Source, runs3D);
 		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study3D.getDB(), ampsCacheDir, study3D.getERF());
-		StudyRotDProvider prov3D = new StudyRotDProvider(study3D, amps2db, periods, study3D.getName());
+		StudyRotDProvider prov3D = new StudyRotDProvider(study3D, amps2db, imts, study3D.getName());
 		SimulationRotDProvider<CSRupture> prov1D;
 		if (study1D == null) {
 			// BBP for 1D

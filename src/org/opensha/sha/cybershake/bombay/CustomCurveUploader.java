@@ -62,7 +62,7 @@ public class CustomCurveUploader {
 		int velModelID = run0.getVelModelID();
 		System.out.println("inserting "+curves.size()+" curves!");
 		
-		int hdID = hd2db.getDatasetID(erfID, rvScenID, sgtVarID, velModelID, probModelID, timeSpanID, timeSpanStart, maxFreq, lowFreqCutoff);
+		int hdID = hd2db.getDatasetID(erfID, rvScenID, sgtVarID, velModelID, probModelID, timeSpanID, timeSpanStart, maxFreq, lowFreqCutoff, -1);
 		if (hdID < 0) {
 //			hdID = hd2db.addNewDataset(erfID, rvScenID, sgtVarID, velModelID, probModelID, timeSpanID, timeSpanStart);
 		}

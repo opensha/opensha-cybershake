@@ -19,6 +19,7 @@ import org.opensha.sha.cybershake.db.CybershakeRun;
 
 import com.google.common.base.Preconditions;
 
+import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.erf.RSQSimRotatedRuptureFakeERF;
 import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
@@ -32,7 +33,7 @@ public class RSQSimCurveDataCSVWriter {
 		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_ROT_4860_10X;
 		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
 		
-		double[] periods = { 3d };
+		IMT[] imts = { IMT.SA3P0 };
 		
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		
@@ -43,7 +44,7 @@ public class RSQSimCurveDataCSVWriter {
 				"LAF", "s022", "STNI", "WNGC", "PDE" };
 		
 		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, study.getERF());
-		CSRotatedRupSimProv simProv = new CSRotatedRupSimProv(study, amps2db, periods);
+		CSRotatedRupSimProv simProv = new CSRotatedRupSimProv(study, amps2db, imts);
 		
 		File studyDir = new File(mainOutputDir, study.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
@@ -69,10 +70,8 @@ public class RSQSimCurveDataCSVWriter {
 				header.add("Distance Rup (km)");
 				header.add("Source Rotation Azimuth (degrees)");
 				header.add("Site-To-Source Path Azimuth (degrees)");
-				for (double period : periods) {
-					String periodStr = (period == Math.floor(period) ? (int)period : (float)period) + "s";
-					header.add("ln("+periodStr+" RotD50)");
-				}
+				for (IMT imt : imts)
+					header.add("ln("+imt.getShortName()+" RotD50)");
 				csv.addLine(header);
 				for (RotationSpec spec : rots) {
 					List<String> line = new ArrayList<>();
@@ -87,9 +86,8 @@ public class RSQSimCurveDataCSVWriter {
 					if (pathAz == null)
 						pathAz = 0f;
 					line.add(pathAz.toString());
-					DiscretizedFunc rd50 = simProv.getRotD50(site, spec, 0);
-					for (double period : periods)
-						line.add((float)Math.log(rd50.getInterpolatedY(period))+"");
+					for (IMT imt : imts)
+						line.add((float)Math.log(simProv.getValue(site, spec, imt, 0))+"");
 					csv.addLine(line);
 				}
 				File rotDir = new File(studyDir, "rotated_ruptures_"+scen.getPrefix());

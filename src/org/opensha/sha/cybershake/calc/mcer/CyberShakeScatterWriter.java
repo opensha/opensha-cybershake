@@ -157,7 +157,7 @@ public class CyberShakeScatterWriter {
 		for (double period : periods) {
 			CybershakeIM im = CyberShakeMCErProbabilisticCalc.getIMsForPeriods(db, component, Lists.newArrayList(period)).get(0);
 			System.out.println("Period "+(float)period+": "+im);
-			HazardCurveFetcher fetcher = new HazardCurveFetcher(db, runs, im.getID());
+			HazardCurveFetcher fetcher = new HazardCurveFetcher(db, runs, study.getDatasetIDs(), im.getID());
 			
 			List<Site> sites = CyberShakeMCErMapGenerator.getSitesList(fetcher);
 			System.out.println("Will write scatters for "+sites.size()+" sites");

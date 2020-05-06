@@ -103,6 +103,7 @@ import scratch.UCERF3.erf.ETAS.launcher.ETAS_Config.BinaryFilteredOutputConfig;
 import scratch.kevin.cybershake.simCompare.CSRupture;
 import scratch.kevin.cybershake.simCompare.StudyModifiedProbRotDProvider;
 import scratch.kevin.cybershake.simCompare.StudyRotDProvider;
+import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.SimulationHazardCurveCalc;
 import scratch.kevin.simCompare.SiteHazardCurveComarePageGen;
 
@@ -199,8 +200,8 @@ public class ETAS_ScenarioPageGen {
 		
 		amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), ampsCacheDir, study.getERF());
 		
-		hiResXVals = SimulationHazardCurveCalc.getDefaultHazardCurve(4);
-		standardResXVals = SimulationHazardCurveCalc.getDefaultHazardCurve(1);
+		hiResXVals = SimulationHazardCurveCalc.getDefaultHazardCurve(SA_Param.NAME, 4);
+		standardResXVals = SimulationHazardCurveCalc.getDefaultHazardCurve(SA_Param.NAME, 1);
 		lnStandardResXVals = new ArbitrarilyDiscretizedFunc();
 		for (Point2D pt : standardResXVals)
 			lnStandardResXVals.set(Math.log(pt.getX()), 1d);
@@ -215,9 +216,9 @@ public class ETAS_ScenarioPageGen {
 
 			@Override
 			public DiscretizedFunc load(CS_CurveKey key) throws Exception {
-				DiscretizedFunc curve = key.calc.calc(key.site, key.period, 1d);
+				DiscretizedFunc curve = key.calc.calc(key.site, key.imt, 1d);
 				CSVFile<String> csv = csCurveCacheCSVs.get(key.calc);
-				addCurveToCSV(key.site, key.period, curve, csv);
+				addCurveToCSV(key.site, key.imt, curve, csv);
 				return curve;
 			}
 			
@@ -232,7 +233,7 @@ public class ETAS_ScenarioPageGen {
 				HazardCurveCalculator gmpeCalc = new HazardCurveCalculator();
 				DiscretizedFunc curve = lnStandardResXVals.deepClone();
 				ScalarIMR gmpe = checkOutGMPE();
-				SA_Param.setPeriodInSA_Param(gmpe.getIntensityMeasure(), key.period);
+				key.imt.setIMT(gmpe);
 				gmpeCalc.getHazardCurve(curve, key.site, gmpe, key.erf);
 				checkInGMPE(gmpe);
 				DiscretizedFunc linearCurve = new ArbitrarilyDiscretizedFunc();
@@ -240,7 +241,7 @@ public class ETAS_ScenarioPageGen {
 					linearCurve.set(standardResXVals.getX(i), curve.getY(i));
 				linearCurve.setName(key.erf.getName());
 				CSVFile<String> csv = gmpeCurveCacheCSVs.get(key.erf);
-				addCurveToCSV(key.site, key.period, curve, csv);
+				addCurveToCSV(key.site, key.imt, curve, csv);
 				return linearCurve;
 			}
 			
@@ -251,14 +252,14 @@ public class ETAS_ScenarioPageGen {
 	
 	private int unflushed_curves = 0;
 	
-	private synchronized void addCurveToCSV(Site site, double period, DiscretizedFunc curve, CSVFile<String> csv) {
+	private synchronized void addCurveToCSV(Site site, IMT imt, DiscretizedFunc curve, CSVFile<String> csv) {
 //		System.out.println("Adding curve for "+site.getName()+" to CSV");
 		List<String> line = new ArrayList<>();
 		Preconditions.checkNotNull(site.getName());
 		line.add(site.getName());
 		line.add(site.getLocation().getLatitude()+"");
 		line.add(site.getLocation().getLongitude()+"");
-		line.add(period+"");
+		line.add(imt.getPeriod()+"");
 		for (Point2D pt : curve)
 			line.add(pt.getY()+"");
 		// we truncate the curves beyond the minimum possible prob, so  there might be extra x-values missing
@@ -289,7 +290,7 @@ public class ETAS_ScenarioPageGen {
 				for (int i=0; i<xVals.size(); i++)
 					curve.set(xVals.getX(i), Double.parseDouble(line.get(i+4)));
 				curve.setName(erf.getName());
-				GMPE_CurveKey key = new GMPE_CurveKey(new Location(lat, lon), period, erf);
+				GMPE_CurveKey key = new GMPE_CurveKey(new Location(lat, lon), IMT.forPeriod(period), erf);
 				gmpeCurveCache.put(key, curve);
 			}
 		} else {
@@ -308,7 +309,7 @@ public class ETAS_ScenarioPageGen {
 	}
 	
 	private void buildLoadCSV(SimulationHazardCurveCalc<CSRupture> calc, File csvFile) throws IOException {
-		DiscretizedFunc xVals = calc.getXVals();
+		DiscretizedFunc xVals = calc.getXValsMap().get(SA_Param.NAME);
 		CSVFile<String> csv;
 		if (csvFile.exists()) {
 			csv = CSVFile.readFile(csvFile, true);
@@ -329,7 +330,7 @@ public class ETAS_ScenarioPageGen {
 						curve.set(xVals.getX(i), Double.parseDouble(str));
 				}
 				curve.setName(calc.getSimProv().getName());
-				CS_CurveKey key = new CS_CurveKey(new Location(lat, lon), period, calc);
+				CS_CurveKey key = new CS_CurveKey(new Location(lat, lon), IMT.forPeriod(period), calc);
 				csCurveCache.put(key, curve);
 			}
 		} else {
@@ -386,14 +387,14 @@ public class ETAS_ScenarioPageGen {
 		gmpeDeque.push(gmpe);
 	}
 	
-	public void generatePage(File outputDir, double[] periods, double[] mapPeriods, boolean replotMaps) throws IOException, GMT_MapException {
+	public void generatePage(File outputDir, IMT[] imts, IMT[] mapIMTs, boolean replotMaps) throws IOException, GMT_MapException {
 		File resourcesDir = new File(outputDir, "resources");
 		Preconditions.checkState(resourcesDir.exists() || resourcesDir.mkdir());
 		
 		File curvesDir = new File(outputDir, "curves");
 		Preconditions.checkState(curvesDir.exists() || curvesDir.mkdir());
 		
-		StudyRotDProvider rawProv = new StudyRotDProvider(study, amps2db, periods, "CyberShake-TI");
+		StudyRotDProvider rawProv = new StudyRotDProvider(study, amps2db, imts, "CyberShake-TI");
 		rawProv.setSpectraCacheDir(amps2db.getCacheDir());
 
 		List<SimulationHazardCurveCalc<CSRupture>> tiCalcs = new ArrayList<SimulationHazardCurveCalc<CSRupture>>();
@@ -415,17 +416,22 @@ public class ETAS_ScenarioPageGen {
 		tdERF.getTimeSpan().setDuration(1d);
 		tdERF.updateForecast();
 		
+		Map<String, DiscretizedFunc> standardResXValsMap = new HashMap<>();
+		standardResXValsMap.put(SA_Param.NAME, standardResXVals);
+		Map<String, DiscretizedFunc> hiResXValsMap = new HashMap<>();
+		hiResXValsMap.put(SA_Param.NAME, hiResXVals);
+		
 		for (int i=0; i<timeSpans.length; i++) {
 			double durationYears = timeSpans[i].getTimeYears();
 			SimulationHazardCurveCalc<CSRupture> tiCalc = new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
-					new NoEtasRupProbMod(study.getERF(), false, durationYears), "CyberShake, TI"), standardResXVals);
+					new NoEtasRupProbMod(study.getERF(), false, durationYears), "CyberShake, TI"), standardResXValsMap);
 			SimulationHazardCurveCalc<CSRupture> tdCalc = new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
-					new NoEtasRupProbMod(study.getERF(), true, durationYears), "CyberShake, TD"), standardResXVals);
+					new NoEtasRupProbMod(study.getERF(), true, durationYears), "CyberShake, TD"), standardResXValsMap);
 			SimulationHazardCurveCalc<CSRupture> etasCalc = new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
-					modProbConfigs[i].getRupProbModifier(), modProbConfigs[i].getRupVarProbModifier(), "CyberShake, ETAS"), hiResXVals);
+					modProbConfigs[i].getRupProbModifier(), modProbConfigs[i].getRupVarProbModifier(), "CyberShake, ETAS"), hiResXValsMap);
 			SimulationHazardCurveCalc<CSRupture> etasUniformCalc = new SimulationHazardCurveCalc<>(new StudyModifiedProbRotDProvider(rawProv,
 					modProbConfigs[i].getRupProbModifier(), new UniformRVsRupVarProbMod(modProbConfigs[i].getRupVarProbModifier()),
-					"CyberShake, Uniform ETAS"), hiResXVals);
+					"CyberShake, Uniform ETAS"), hiResXValsMap);
 			
 			buildLoadCSV(tiCalc, new File(curvesDir, "cs_ti_"+timeSpans[i].name()+".csv"));
 			tiCalcs.add(tiCalc);
@@ -584,15 +590,15 @@ public class ETAS_ScenarioPageGen {
 				
 				table.initNewLine();
 				table.addColumn("Time Span");
-				for (double period : periods)
-					table.addColumn(optionalDigitDF.format(period)+"s");
+				for (IMT imt : imts)
+					table.addColumn(imt.getShortName());
 				table.finalizeLine();
 				
 				for (int i=0; i<timeSpans.length; i++) {
 					table.initNewLine();
 					table.addColumn(timeSpans[i]);
-					for (double period : periods) {
-						File plot = plotHazardCurves(resourcesDir, site, period, timeSpans[i], tiCalcs.get(i),
+					for (IMT imt : imts) {
+						File plot = plotHazardCurves(resourcesDir, site, imt, timeSpans[i], tiCalcs.get(i),
 								tdCalcs.get(i), etasCalcs.get(i), etasUniformCalcs.get(i));
 						table.addColumn("![plot](resources/"+plot.getName()+")");
 					}
@@ -601,8 +607,8 @@ public class ETAS_ScenarioPageGen {
 				lines.addAll(table.build());
 				lines.add("");
 				
-				for (double period : mapPeriods) {
-					lines.add("#### CyberShake "+site.getName()+" "+optionalDigitDF.format(period)+"s Hazard Gain Table");
+				for (IMT imt : mapIMTs) {
+					lines.add("#### CyberShake "+site.getName()+" "+imt.getDisplayName()+" Hazard Gain Table");
 					lines.add(topLink); lines.add("");
 					
 					DiscretizedFunc tiCurves[] = new DiscretizedFunc[timeSpans.length];
@@ -611,10 +617,10 @@ public class ETAS_ScenarioPageGen {
 					DiscretizedFunc etasCurves[] = new DiscretizedFunc[timeSpans.length];
 					try {
 						for (int i=0; i<timeSpans.length; i++) {
-							tiCurves[i] = csCurveCache.get(new CS_CurveKey(site, period, tiCalcs.get(i)));
-							tdCurves[i] = csCurveCache.get(new CS_CurveKey(site, period, tdCalcs.get(i)));
-							etasUniformCurves[i] = csCurveCache.get(new CS_CurveKey(site, period, etasUniformCalcs.get(i)));
-							etasCurves[i] = csCurveCache.get(new CS_CurveKey(site, period, etasCalcs.get(i)));
+							tiCurves[i] = csCurveCache.get(new CS_CurveKey(site, imt, tiCalcs.get(i)));
+							tdCurves[i] = csCurveCache.get(new CS_CurveKey(site, imt, tdCalcs.get(i)));
+							etasUniformCurves[i] = csCurveCache.get(new CS_CurveKey(site, imt, etasUniformCalcs.get(i)));
+							etasCurves[i] = csCurveCache.get(new CS_CurveKey(site, imt, etasCalcs.get(i)));
 						}
 					} catch (ExecutionException e) {
 						throw ExceptionUtils.asRuntimeException(e);
@@ -631,15 +637,15 @@ public class ETAS_ScenarioPageGen {
 				
 				table.initNewLine();
 				table.addColumn("Time Span");
-				for (double period : periods)
-					table.addColumn(optionalDigitDF.format(period)+"s");
+				for (IMT imt : imts)
+					table.addColumn(imt.getDisplayName());
 				table.finalizeLine();
 				
 				for (int i=0; i<timeSpans.length; i++) {
 					table.initNewLine();
 					table.addColumn(timeSpans[i]);
-					for (double period : periods) {
-						File plot = plotGMPEHazardCurves(resourcesDir, site, period, timeSpans[i], tiERFs.get(i),
+					for (IMT imt : imts) {
+						File plot = plotGMPEHazardCurves(resourcesDir, site, imt, timeSpans[i], tiERFs.get(i),
 								tdERFs.get(i), etasERFs.get(i), etasUniformERFs.get(i));
 						table.addColumn("![plot](resources/"+plot.getName()+")");
 					}
@@ -648,8 +654,8 @@ public class ETAS_ScenarioPageGen {
 				lines.addAll(table.build());
 				lines.add("");
 				
-				for (double period : mapPeriods) {
-					lines.add("#### GMPE "+site.getName()+" "+optionalDigitDF.format(period)+"s Hazard Gain Table");
+				for (IMT imt : mapIMTs) {
+					lines.add("#### GMPE "+site.getName()+" "+imt.getDisplayName()+" Hazard Gain Table");
 					lines.add(topLink); lines.add("");
 					
 					DiscretizedFunc tiCurves[] = new DiscretizedFunc[timeSpans.length];
@@ -658,10 +664,10 @@ public class ETAS_ScenarioPageGen {
 					DiscretizedFunc etasCurves[] = new DiscretizedFunc[timeSpans.length];
 					try {
 						for (int i=0; i<timeSpans.length; i++) {
-							tiCurves[i] = gmpeCurveCache.get(new GMPE_CurveKey(site, period, tiERFs.get(i)));
-							tdCurves[i] = gmpeCurveCache.get(new GMPE_CurveKey(site, period, tdERFs.get(i)));
-							etasUniformCurves[i] = gmpeCurveCache.get(new GMPE_CurveKey(site, period, etasUniformERFs.get(i)));
-							etasCurves[i] = gmpeCurveCache.get(new GMPE_CurveKey(site, period, etasERFs.get(i)));
+							tiCurves[i] = gmpeCurveCache.get(new GMPE_CurveKey(site, imt, tiERFs.get(i)));
+							tdCurves[i] = gmpeCurveCache.get(new GMPE_CurveKey(site, imt, tdERFs.get(i)));
+							etasUniformCurves[i] = gmpeCurveCache.get(new GMPE_CurveKey(site, imt, etasUniformERFs.get(i)));
+							etasCurves[i] = gmpeCurveCache.get(new GMPE_CurveKey(site, imt, etasERFs.get(i)));
 						}
 					} catch (ExecutionException e) {
 						throw ExceptionUtils.asRuntimeException(e);
@@ -681,16 +687,16 @@ public class ETAS_ScenarioPageGen {
 			try {
 				List<Callable<DiscretizedFunc>> callables = new ArrayList<>();
 				for (SimulationHazardCurveCalc<CSRupture> calc : allCalcs) {
-					for (double period : mapPeriods) {
-						CS_CurveKey key = new CS_CurveKey(site, period, calc);
+					for (IMT imt : mapIMTs) {
+						CS_CurveKey key = new CS_CurveKey(site, imt, calc);
 						if (csCurveCache.getIfPresent(key) == null)
 							callables.add(key);
 					}
 				}
 				boolean needsCS = !callables.isEmpty();
 				for (AbstractERF erf : allERFs) {
-					for (double period : mapPeriods) {
-						GMPE_CurveKey key = new GMPE_CurveKey(site, period, erf);
+					for (IMT imt : mapIMTs) {
+						GMPE_CurveKey key = new GMPE_CurveKey(site, imt, erf);
 						if (gmpeCurveCache.getIfPresent(key) == null)
 							callables.add(key);
 					}
@@ -725,12 +731,10 @@ public class ETAS_ScenarioPageGen {
 		
 		boolean[] isProbAtIMLs = { 	false,	false,	false,	true,	true,	true,	true };
 		double[] vals =			 {	0.0001,	0.001,	0.01,	0.01,	0.1,	0.2,	0.5 };
-		for (double period : mapPeriods) {
-			String periodStr = optionalDigitDF.format(period)+"s";
-			
+		for (IMT imt : mapIMTs) {
 			String heading = "###";
-			if (mapPeriods.length > 1) {
-				lines.add("### "+periodStr+" Hazard Maps");
+			if (mapIMTs.length > 1) {
+				lines.add("### "+imt.getDisplayName()+" Hazard Maps");
 				lines.add(topLink); lines.add("");
 				heading += "#";
 			}
@@ -738,7 +742,7 @@ public class ETAS_ScenarioPageGen {
 			for (int t=0; t<timeSpans.length; t++) {
 				String tsLabel = timeSpans[t].toString();
 				String tsPrefix = timeSpans[t].name().toLowerCase();
-				lines.add(heading+" "+periodStr+" "+tsLabel+" Hazard Maps");
+				lines.add(heading+" "+imt.getDisplayName()+" "+tsLabel+" Hazard Maps");
 				lines.add(topLink); lines.add("");
 				
 				TableBuilder gainsTable = MarkdownUtils.tableBuilder();
@@ -766,12 +770,12 @@ public class ETAS_ScenarioPageGen {
 					double val = vals[i];
 					CPT hazardCPT;
 					if (isProbAtIML) {
-						imtLabel = tsLabel+" POE "+(float)val+" (g) "+periodStr+" SA";
-						imtPrefix = tsPrefix+"_"+periodStr+"_poe_"+(float)val+"g";
+						imtLabel = tsLabel+" POE "+(float)val+" ("+imt.getUnits()+") "+imt.getDisplayName();
+						imtPrefix = tsPrefix+"_"+imt.getPrefix()+"_poe_"+(float)val+"g";
 						hazardCPT = poeCPT;
 					} else {
-						imtLabel = tsLabel+" "+periodStr+" Sa (g) with POE="+(float)val;
-						imtPrefix = tsPrefix+"_"+periodStr+"_iml_with_poe_"+(float)val;
+						imtLabel = tsLabel+" "+imt.getDisplayName()+" ("+imt.getUnits()+") with POE="+(float)val;
+						imtPrefix = tsPrefix+"_"+imt.getPrefix()+"_iml_with_poe_"+(float)val;
 						hazardCPT = imlCPT;
 					}
 					imtPrefix = "map_"+imtPrefix;
@@ -783,10 +787,10 @@ public class ETAS_ScenarioPageGen {
 					lines.add(topLink); lines.add("");
 					
 					System.out.println("Calculating "+imtLabel+" CyberShake Maps");
-					GeoDataSet csTI = calcCyberShakeHazardMap(tiCalcs.get(t), period, isProbAtIML, val);
-					GeoDataSet csTD = calcCyberShakeHazardMap(tdCalcs.get(t), period, isProbAtIML, val);
-					GeoDataSet csUniformETAS = calcCyberShakeHazardMap(etasUniformCalcs.get(t), period, isProbAtIML, val);
-					GeoDataSet csETAS = calcCyberShakeHazardMap(etasCalcs.get(t), period, isProbAtIML, val);
+					GeoDataSet csTI = calcCyberShakeHazardMap(tiCalcs.get(t), imt, isProbAtIML, val);
+					GeoDataSet csTD = calcCyberShakeHazardMap(tdCalcs.get(t), imt, isProbAtIML, val);
+					GeoDataSet csUniformETAS = calcCyberShakeHazardMap(etasUniformCalcs.get(t), imt, isProbAtIML, val);
+					GeoDataSet csETAS = calcCyberShakeHazardMap(etasCalcs.get(t), imt, isProbAtIML, val);
 					
 					System.out.println("Plotting "+imtLabel+" CyberShake Maps");
 					lines.addAll(buildMapLines(resourcesDir, imtLabel, imtPrefix, false, hazardCPT, logPlot,
@@ -797,10 +801,10 @@ public class ETAS_ScenarioPageGen {
 					lines.add(topLink); lines.add("");
 					
 					System.out.println("Calculating "+imtLabel+" GMPE Maps");
-					GeoDataSet gmpeTI = calcGMPEHazardMap(tiERFs.get(t), period, isProbAtIML, val);
-					GeoDataSet gmpeTD = calcGMPEHazardMap(tdERFs.get(t), period, isProbAtIML, val);
-					GeoDataSet gmpeUniformETAS = calcGMPEHazardMap(etasUniformERFs.get(t), period, isProbAtIML, val);
-					GeoDataSet gmpeETAS = calcGMPEHazardMap(etasERFs.get(t), period, isProbAtIML, val);
+					GeoDataSet gmpeTI = calcGMPEHazardMap(tiERFs.get(t), imt, isProbAtIML, val);
+					GeoDataSet gmpeTD = calcGMPEHazardMap(tdERFs.get(t), imt, isProbAtIML, val);
+					GeoDataSet gmpeUniformETAS = calcGMPEHazardMap(etasUniformERFs.get(t), imt, isProbAtIML, val);
+					GeoDataSet gmpeETAS = calcGMPEHazardMap(etasERFs.get(t), imt, isProbAtIML, val);
 					
 					System.out.println("Plotting "+imtLabel+" GMPE Maps");
 					lines.addAll(buildMapLines(resourcesDir, imtLabel, imtPrefix, true, hazardCPT, logPlot,
@@ -816,7 +820,7 @@ public class ETAS_ScenarioPageGen {
 							imageIfExists(resourcesDir, imtPrefix+"_gmpe_etas_uni_gain.png"));
 				}
 				
-				lines.add(heading+" "+periodStr+" "+tsLabel+" EATS Gains Table");
+				lines.add(heading+" "+imt.getDisplayName()+" "+tsLabel+" EATS Gains Table");
 				lines.add(topLink); lines.add("");
 				lines.addAll(gainsTable.build());
 				lines.add("");
@@ -841,20 +845,20 @@ public class ETAS_ScenarioPageGen {
 	private class CS_CurveKey implements Callable<DiscretizedFunc> {
 		private final Site site;
 		private final Location loc;
-		private final double period;
+		private final IMT imt;
 		private final SimulationHazardCurveCalc<CSRupture> calc;
 		
-		public CS_CurveKey(Site site, double period, SimulationHazardCurveCalc<CSRupture> calc) {
+		public CS_CurveKey(Site site, IMT imt, SimulationHazardCurveCalc<CSRupture> calc) {
 			this.site = site;
 			this.loc = site.getLocation();
-			this.period = period;
+			this.imt = imt;
 			this.calc = calc;
 		}
 		
-		public CS_CurveKey(Location loc, double period, SimulationHazardCurveCalc<CSRupture> calc) {
+		public CS_CurveKey(Location loc, IMT imt, SimulationHazardCurveCalc<CSRupture> calc) {
 			this.site = null;
 			this.loc = loc;
-			this.period = period;
+			this.imt = imt;
 			this.calc = calc;
 		}
 
@@ -865,9 +869,7 @@ public class ETAS_ScenarioPageGen {
 			result = prime * result + getOuterType().hashCode();
 			result = prime * result + ((calc == null) ? 0 : calc.hashCode());
 			result = prime * result + ((loc == null) ? 0 : loc.hashCode());
-			long temp;
-			temp = Double.doubleToLongBits(period);
-			result = prime * result + (int) (temp ^ (temp >>> 32));
+			result = prime * result + ((imt == null) ? 0 : imt.hashCode());
 			return result;
 		}
 
@@ -892,7 +894,7 @@ public class ETAS_ScenarioPageGen {
 					return false;
 			} else if (!loc.equals(other.loc))
 				return false;
-			if (Double.doubleToLongBits(period) != Double.doubleToLongBits(other.period))
+			if (imt != other.imt)
 				return false;
 			return true;
 		}
@@ -905,25 +907,29 @@ public class ETAS_ScenarioPageGen {
 		public DiscretizedFunc call() throws Exception {
 			return csCurveCache.get(this);
 		}
+
+		private ETAS_ScenarioPageGen getEnclosingInstance() {
+			return ETAS_ScenarioPageGen.this;
+		}
 	}
 	
 	private class GMPE_CurveKey implements Callable<DiscretizedFunc> {
 		private final Site site;
 		private final Location loc;
-		private final double period;
+		private final IMT imt;
 		private final AbstractERF erf;
 		
-		public GMPE_CurveKey(Site site, double period, AbstractERF erf) {
+		public GMPE_CurveKey(Site site, IMT imt, AbstractERF erf) {
 			this.site = site;
 			this.loc = site.getLocation();
-			this.period = period;
+			this.imt = imt;
 			this.erf = erf;
 		}
 		
-		public GMPE_CurveKey(Location loc, double period, AbstractERF erf) {
+		public GMPE_CurveKey(Location loc, IMT imt, AbstractERF erf) {
 			this.site = null;
 			this.loc = loc;
-			this.period = period;
+			this.imt = imt;
 			this.erf = erf;
 		}
 
@@ -934,9 +940,7 @@ public class ETAS_ScenarioPageGen {
 			result = prime * result + getOuterType().hashCode();
 			result = prime * result + ((erf == null) ? 0 : erf.hashCode());
 			result = prime * result + ((loc == null) ? 0 : loc.hashCode());
-			long temp;
-			temp = Double.doubleToLongBits(period);
-			result = prime * result + (int) (temp ^ (temp >>> 32));
+			result = prime * result + ((imt == null) ? 0 : imt.hashCode());
 			return result;
 		}
 
@@ -961,7 +965,7 @@ public class ETAS_ScenarioPageGen {
 					return false;
 			} else if (!loc.equals(other.loc))
 				return false;
-			if (Double.doubleToLongBits(period) != Double.doubleToLongBits(other.period))
+			if (imt != other.imt)
 				return false;
 			return true;
 		}
@@ -1041,7 +1045,7 @@ public class ETAS_ScenarioPageGen {
 	
 	private static final DecimalFormat gainDF = new DecimalFormat("0.000");
 	
-	private File plotHazardCurves(File resourcesDir, Site site, double period, ETAS_Cybershake_TimeSpans timeSpan,
+	private File plotHazardCurves(File resourcesDir, Site site, IMT imt, ETAS_Cybershake_TimeSpans timeSpan,
 			SimulationHazardCurveCalc<CSRupture> tiCalc, SimulationHazardCurveCalc<CSRupture> tdCalc,
 			SimulationHazardCurveCalc<CSRupture> etasCalc, SimulationHazardCurveCalc<CSRupture> uniformEtasCalc)
 					throws IOException {
@@ -1052,20 +1056,20 @@ public class ETAS_ScenarioPageGen {
 		DiscretizedFunc etasCurve;
 		DiscretizedFunc uniformCurve;
 		try {
-			tiCurve = csCurveCache.get(new CS_CurveKey(site, period, tiCalc));
-			tdCurve = csCurveCache.get(new CS_CurveKey(site, period, tdCalc));
-			etasCurve = csCurveCache.get(new CS_CurveKey(site, period, etasCalc));
-			uniformCurve = csCurveCache.get(new CS_CurveKey(site, period, uniformEtasCalc));
+			tiCurve = csCurveCache.get(new CS_CurveKey(site, imt, tiCalc));
+			tdCurve = csCurveCache.get(new CS_CurveKey(site, imt, tdCalc));
+			etasCurve = csCurveCache.get(new CS_CurveKey(site, imt, etasCalc));
+			uniformCurve = csCurveCache.get(new CS_CurveKey(site, imt, uniformEtasCalc));
 		} catch (ExecutionException e) {
 			throw ExceptionUtils.asRuntimeException(e);
 		}
 		
-		String prefix = "hazard_curves_cs_"+site.getName()+"_"+optionalDigitDF.format(period)+"s_"+timeSpan.name().toLowerCase();
-		return plotHazardCurves(resourcesDir, site, period, site.getName()+" CyberShake Hazard Curves", prefix, timeSpan,
+		String prefix = "hazard_curves_cs_"+site.getName()+"_"+imt.getPrefix()+"_"+timeSpan.name().toLowerCase();
+		return plotHazardCurves(resourcesDir, site, imt, site.getName()+" CyberShake Hazard Curves", prefix, timeSpan,
 				tiCurve, tdCurve, etasCurve, uniformCurve);
 	}
 	
-	private File plotGMPEHazardCurves(File resourcesDir, Site site, double period, ETAS_Cybershake_TimeSpans timeSpan,
+	private File plotGMPEHazardCurves(File resourcesDir, Site site, IMT imt, ETAS_Cybershake_TimeSpans timeSpan,
 			AbstractERF tiERF, AbstractERF tdERF, AbstractERF etasERF, AbstractERF uniformETAS_ERF) throws IOException {
 		
 		// actual duration handled by mod probs
@@ -1074,20 +1078,20 @@ public class ETAS_ScenarioPageGen {
 		DiscretizedFunc etasCurve;
 		DiscretizedFunc uniformCurve;
 		try {
-			tiCurve = gmpeCurveCache.get(new GMPE_CurveKey(site, period, tiERF));
-			tdCurve = gmpeCurveCache.get(new GMPE_CurveKey(site, period, tdERF));
-			etasCurve = gmpeCurveCache.get(new GMPE_CurveKey(site, period, etasERF));
-			uniformCurve = gmpeCurveCache.get(new GMPE_CurveKey(site, period, uniformETAS_ERF));
+			tiCurve = gmpeCurveCache.get(new GMPE_CurveKey(site, imt, tiERF));
+			tdCurve = gmpeCurveCache.get(new GMPE_CurveKey(site, imt, tdERF));
+			etasCurve = gmpeCurveCache.get(new GMPE_CurveKey(site, imt, etasERF));
+			uniformCurve = gmpeCurveCache.get(new GMPE_CurveKey(site, imt, uniformETAS_ERF));
 		} catch (ExecutionException e) {
 			throw ExceptionUtils.asRuntimeException(e);
 		}
 		
-		String prefix = "hazard_curves_gmpe_"+site.getName()+"_"+optionalDigitDF.format(period)+"s_"+timeSpan.name().toLowerCase();
-		return plotHazardCurves(resourcesDir, site, period, site.getName()+" Empirical Hazard Curves", prefix, timeSpan,
+		String prefix = "hazard_curves_gmpe_"+site.getName()+"_"+imt.getPrefix()+"_"+timeSpan.name().toLowerCase();
+		return plotHazardCurves(resourcesDir, site, imt, site.getName()+" Empirical Hazard Curves", prefix, timeSpan,
 				tiCurve, tdCurve, etasCurve, uniformCurve);
 	}
 
-	private File plotHazardCurves(File resourcesDir, Site site, double period, String title, String prefix, ETAS_Cybershake_TimeSpans timeSpan,
+	private File plotHazardCurves(File resourcesDir, Site site, IMT imt, String title, String prefix, ETAS_Cybershake_TimeSpans timeSpan,
 			DiscretizedFunc tiCurve, DiscretizedFunc tdCurve, DiscretizedFunc etasCurve, DiscretizedFunc uniformCurve)
 			throws IOException {
 		List<DiscretizedFunc> funcs = new ArrayList<>();
@@ -1106,7 +1110,7 @@ public class ETAS_ScenarioPageGen {
 		chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.RED));
 		
 		PlotSpec spec = new PlotSpec(funcs, chars, title,
-				optionalDigitDF.format(period)+"s SA", timeSpan+" Probability of Exceedance");
+				imt.getDisplayName(), timeSpan+" Probability of Exceedance");
 		spec.setLegendVisible(true);
 		
 		PlotPreferences plotPrefs = PlotPreferences.getDefault();
@@ -1174,7 +1178,7 @@ public class ETAS_ScenarioPageGen {
 		
 	}
 	
-	private GeoDataSet calcCyberShakeHazardMap(SimulationHazardCurveCalc<CSRupture> calc, double period, boolean isProbAtIML, double value) {
+	private GeoDataSet calcCyberShakeHazardMap(SimulationHazardCurveCalc<CSRupture> calc, IMT imt, boolean isProbAtIML, double value) {
 		GeoDataSet ret = new ArbDiscrGeoDataSet(false);
 		
 //		Map<Site, Future<DiscretizedFunc>> futresMap = new HashMap<>();
@@ -1192,7 +1196,7 @@ public class ETAS_ScenarioPageGen {
 		for (Site site : sites) {
 			DiscretizedFunc curve;
 			try {
-				curve = new CSCurveCallable(new CS_CurveKey(site, period, calc)).call();
+				curve = new CSCurveCallable(new CS_CurveKey(site, imt, calc)).call();
 			} catch (Exception e) {
 				throw ExceptionUtils.asRuntimeException(e);
 			}
@@ -1203,13 +1207,13 @@ public class ETAS_ScenarioPageGen {
 		return ret;
 	}
 	
-	private GeoDataSet calcGMPEHazardMap(AbstractERF erf, double period, boolean isProbAtIML, double value) {
+	private GeoDataSet calcGMPEHazardMap(AbstractERF erf, IMT imt, boolean isProbAtIML, double value) {
 		GeoDataSet ret = new ArbDiscrGeoDataSet(false);
 		
 		Map<Site, Future<DiscretizedFunc>> futresMap = new HashMap<>();
 		
 		for (Site site : sites)
-			futresMap.put(site, exec.submit(new GMPECurveCallable(new GMPE_CurveKey(site, period, erf))));
+			futresMap.put(site, exec.submit(new GMPECurveCallable(new GMPE_CurveKey(site, imt, erf))));
 		
 		for (Site site : sites) {
 			DiscretizedFunc curve;
@@ -1940,8 +1944,8 @@ public class ETAS_ScenarioPageGen {
 		boolean replotMaps = false;
 		
 		String[] highlightSiteNames = { "SBSM", "MRSD", "STNI", "PDU" };
-		double[] periods = { 3d, 5d, 10d };
-		double[] mapPeriods = { 5d };
+		IMT[] imts = { IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
+		IMT[] mapIMTs = { IMT.SA5P0 };
 		
 		ETAS_Cybershake_TimeSpans[] timeSpans = ETAS_Cybershake_TimeSpans.values();
 		
@@ -1963,7 +1967,7 @@ public class ETAS_ScenarioPageGen {
 			}
 			
 			try {
-				pageGen.generatePage(outputDir, periods, mapPeriods, replotMaps);
+				pageGen.generatePage(outputDir, imts, mapIMTs, replotMaps);
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.err.flush();

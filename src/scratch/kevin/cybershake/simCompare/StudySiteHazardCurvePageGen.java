@@ -52,6 +52,7 @@ import com.google.common.primitives.Doubles;
 
 import scratch.kevin.bbp.BBP_Site;
 import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare.CSRuptureComparison;
+import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simCompare.SiteHazardCurveComarePageGen;
 import scratch.kevin.simulators.RSQSimCatalog;
@@ -75,7 +76,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 	}
 	
 	public static List<CSRuptureComparison> calcComps(StudyRotDProvider prov, Site site,
-			AttenRelRef gmpeRef, double[] periods) {
+			AttenRelRef gmpeRef, IMT[] imts) {
 		List<CSRuptureComparison> compsList = new ArrayList<>();
 		
 		List<Future<?>> futures = new ArrayList<>();
@@ -86,7 +87,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 			CSRuptureComparison comp = new CSRuptureComparison(siteRup);
 			comp.addApplicableSite(site);
 			compsList.add(comp);
-			futures.add(exec.submit(new GMPECalcRunnable(gmpeRef, site, comp, periods)));
+			futures.add(exec.submit(new GMPECalcRunnable(gmpeRef, site, comp, imts)));
 		}
 		
 		System.out.println("Waiting on "+futures.size()+" GMPE futures");
@@ -107,13 +108,13 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		private AttenRelRef gmpeRef;
 		private Site site;
 		private CSRuptureComparison comp;
-		private double[] periods;
+		private IMT[] imts;
 
-		public GMPECalcRunnable(AttenRelRef gmpeRef, Site site, CSRuptureComparison comp, double[] periods) {
+		public GMPECalcRunnable(AttenRelRef gmpeRef, Site site, CSRuptureComparison comp, IMT[] imts) {
 			this.gmpeRef = gmpeRef;
 			this.site = site;
 			this.comp = comp;
-			this.periods = periods;
+			this.imts = imts;
 		}
 
 		@Override
@@ -125,9 +126,9 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 			RuptureSurface surf = comp.getGMPERupture().getRuptureSurface();
 			comp.setDistances(site, surf.getDistanceRup(site.getLocation()), surf.getDistanceJB(site.getLocation()));
 			
-			for (double period : periods) {
-				SA_Param.setPeriodInSA_Param(gmpe.getIntensityMeasure(), period);
-				comp.addResult(site, period, gmpe.getMean(), gmpe.getStdDev());
+			for (IMT imt : imts) {
+				imt.setIMT(gmpe);
+				comp.addResult(site, imt, gmpe.getMean(), gmpe.getStdDev());
 			}
 			
 			checkInGMPE(gmpeRef, gmpe);
@@ -237,7 +238,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 	}
 	
 	private void writeGroundMotionCSV(File csvFile, Site site, AttenRelRef gmpeRef,
-			List<CSRuptureComparison> comps, double[] periods) throws IOException {
+			List<CSRuptureComparison> comps, IMT[] imts) throws IOException {
 		CSVFile<String> csv = new CSVFile<>(true);
 		
 		List<String> header = new ArrayList<>();
@@ -257,11 +258,10 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		header.add("DistanceJB (km)");
 		header.add("Annual Rate");
 		
-		for (double period : periods) {
-			String periodStr = (period == Math.floor(period) ? (int)period : (float)period) + "s";
-			header.add(simName+" ln("+periodStr+" RotD50)");
-			header.add(gmpeRef.getShortName()+" ln("+periodStr+" Median RotD50)");
-			header.add(gmpeRef.getShortName()+" "+periodStr+" Standard Deviation");
+		for (IMT imt : imts) {
+			header.add(simName+" ln("+imt.getShortName()+" RotD50)");
+			header.add(gmpeRef.getShortName()+" ln("+imt.getShortName()+" Median RotD50)");
+			header.add(gmpeRef.getShortName()+" "+imt.getShortName()+" Standard Deviation");
 		}
 		csv.addLine(header);
 		
@@ -290,9 +290,9 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 			double rRup = comp.getDistanceRup(site);
 			double rJB = comp.getDistanceJB(site);
 			
-			List<DiscretizedFunc> rds = studyProv.getRotD50s(site, rup);
-			double rateEach = rate/rds.size();
-			for (int i=0; i<rds.size(); i++) {
+			int numRVs = studyProv.getNumSimulations(site, rup);
+			double rateEach = rate/(double)numRVs;
+			for (int i=0; i<numRVs; i++) {
 				List<String> line = new ArrayList<>(header.size());
 				if (rsERF == null) {
 					line.add(rup.getSourceID()+"");
@@ -306,10 +306,10 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 				line.add((float)rRup+"");
 				line.add((float)rJB+"");
 				line.add((float)rateEach+"");
-				for (double period : periods) {
-					line.add((float)Math.log(rds.get(i).getInterpolatedY(period))+"");
-					line.add((float)comp.getLogMean(site, period)+"");
-					line.add((float)comp.getStdDev(site, period)+"");
+				for (IMT imt : imts) {
+					line.add((float)Math.log(studyProv.getValue(site, rup, imt, i))+"");
+					line.add((float)comp.getLogMean(site, imt)+"");
+					line.add((float)comp.getStdDev(site, imt)+"");
 				}
 				csv.addLine(line);
 			}
@@ -395,8 +395,8 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
-		double[] periods = { 3, 5, 7.5, 10 };
-		double[] csvPeriods = { 3 };
+		IMT[] imts = IMT.forPeriods(new double[] { 3, 5, 7.5, 10 });
+		IMT[] csvIMTs = { IMT.SA3P0 };
 		
 		File studyDir = new File(mainOutputDir, study.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
@@ -406,7 +406,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 			String studyName = "CyberShake";
 			if (catalog == null)
 				studyName += study.getName();
-			StudyRotDProvider mainProv = new StudyRotDProvider(study, amps2db, periods, studyName);
+			StudyRotDProvider mainProv = new StudyRotDProvider(study, amps2db, imts, studyName);
 			
 			for (String siteName : siteNames) {
 				List<CybershakeRun> matchingRuns = study.runFetcher().forSiteNames(siteName).fetch();
@@ -430,7 +430,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 						site = oSite;
 					}
 					CachedPeakAmplitudesFromDB compAmps2db = new CachedPeakAmplitudesFromDB(compStudy.getDB(), ampsCacheDir, compStudy.getERF());
-					StudyRotDProvider compProv = new StudyRotDProvider(compStudy, compAmps2db, periods, compStudy.getName());
+					StudyRotDProvider compProv = new StudyRotDProvider(compStudy, compAmps2db, imts, compStudy.getName());
 					compSimProvs.add(compProv);
 					if (includeAleatoryStrip && compStudy.getERF() instanceof MeanUCERF2)
 						compSimProvs.add(new StudyModifiedProbRotDProvider(
@@ -459,7 +459,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 					File outputDir = new File(studyDir, "site_hazard_"+siteName+"_"+gmpeRef.getShortName()+"_Vs30"+vs30Source.name());
 					Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
 					
-					List<CSRuptureComparison> comps = calcComps(mainProv, site, gmpeRef, periods);
+					List<CSRuptureComparison> comps = calcComps(mainProv, site, gmpeRef, imts);
 					
 					List<String> headerLines = new ArrayList<>();
 					headerLines.add("# "+study.getName()+" "+siteName+" Hazard Curves");
@@ -471,14 +471,14 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 					headerLines.addAll(study.getMarkdownMetadataTable());
 					headerLines.add("");
 					
-					pageGen.generateSitePage(site, comps, outputDir, headerLines, periods, gmpeRef);
+					pageGen.generateSitePage(site, comps, outputDir, headerLines, imts, gmpeRef);
 					
 					File resourcesDir = new File(outputDir, "resources");
 					Preconditions.checkState(resourcesDir.exists());
 					File csvFile = new File(resourcesDir, site.getName()+"_rd50s.csv.gz");
-					if (!csvFile.exists() && csvPeriods != null && csvPeriods.length > 0) {
+					if (!csvFile.exists() && csvIMTs != null && csvIMTs.length > 0) {
 						System.out.println("Writing CSV: "+csvFile.getAbsolutePath());
-						pageGen.writeGroundMotionCSV(csvFile, site, gmpeRef, comps, csvPeriods);
+						pageGen.writeGroundMotionCSV(csvFile, site, gmpeRef, comps, csvIMTs);
 					}
 				}
 			}

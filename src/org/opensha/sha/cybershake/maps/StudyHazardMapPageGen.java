@@ -1,13 +1,24 @@
 package org.opensha.sha.cybershake.maps;
 
+import java.awt.Color;
+import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
+import org.jfree.chart.plot.DatasetRenderingOrder;
+import org.jfree.data.Range;
+import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
+import org.opensha.commons.data.function.DefaultXY_DataSet;
+import org.opensha.commons.data.function.DiscretizedFunc;
+import org.opensha.commons.data.function.XY_DataSet;
 import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.impl.CS_Study18_8_BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
@@ -18,20 +29,30 @@ import org.opensha.commons.data.xyz.AbstractGeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSet;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.Region;
+import org.opensha.commons.gui.plot.HeadlessGraphPanel;
+import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
+import org.opensha.commons.gui.plot.PlotLineType;
+import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.mapping.gmt.elements.PSXYSymbol;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.commons.util.MarkdownUtils;
 import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 import org.opensha.commons.util.cpt.CPT;
+import org.opensha.sha.calc.hazardMap.HazardDataSetLoader;
 import org.opensha.sha.cybershake.HazardCurveFetcher;
 import org.opensha.sha.cybershake.ModProbConfig;
 import org.opensha.sha.cybershake.bombay.ModProbConfigFactory;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
+import org.opensha.sha.cybershake.db.AttenRels2DB;
+import org.opensha.sha.cybershake.db.CybershakeHazardDataset;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
+import org.opensha.sha.cybershake.db.HazardDataset2DB;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeRun;
+import org.opensha.sha.cybershake.db.CybershakeSite;
+import org.opensha.sha.cybershake.db.CybershakeSiteInfo2DB;
 import org.opensha.sha.cybershake.maps.InterpDiffMap.InterpDiffMapType;
 import org.opensha.sha.cybershake.maps.servlet.CS_InterpDiffMapServletAccessor;
 import org.opensha.sha.imr.AttenRelRef;
@@ -45,7 +66,7 @@ import scratch.kevin.cybershake.BatchBaseMapPlot;
 
 public class StudyHazardMapPageGen {
 	
-	private static final boolean LOCAL_MAPGEN = false;
+	private static final boolean LOCAL_MAPGEN = true;
 
 	public static void main(String[] args) throws IOException {
 		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
@@ -56,6 +77,7 @@ public class StudyHazardMapPageGen {
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
 //		SiteData<?>[] siteDatas = { new WillsMap2015(), new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
 //				new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+//		ScalarIMR backgroundGMPE = baseMapGMPE;
 //		Region zoomRegion = new Region(new Location(38.5, -121.5), new Location(37, -123));
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_17_3_3D;
@@ -73,13 +95,17 @@ public class StudyHazardMapPageGen {
 //		SiteData<?>[] siteDatas = null;
 //		Region zoomRegion = null;
 		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
-//		double[] periods = { 2d, 3d, 5d, 10d };
+		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+		double[] periods = { 2d, 3d, 5d, 10d };
 //		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
-//		SiteData<?>[] siteDatas = { new WillsMap2015(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
-//				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
-//		Region zoomRegion = null;
+		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
+		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+//		ScalarIMR backgroundGMPE = baseMapGMPE;
+		ScalarIMR backgroundGMPE = null;
+		SiteData<?>[] siteDatas = { new WillsMap2015(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+		Region zoomRegion = null;
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_14_2_CVM_S426;
 //		double[] periods = { 3d, 5d, 10d };
@@ -89,14 +115,14 @@ public class StudyHazardMapPageGen {
 //				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 //		Region zoomRegion = null;
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_14_2_1D;
-		double[] periods = { 3d, 5d, 10d };
-		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
-		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
-		SiteData<?>[] siteDatas = null;
-		Region zoomRegion = null;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_14_2_1D;
+//		double[] periods = { 3d, 5d, 10d };
+//		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
+//		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
+//		SiteData<?>[] siteDatas = null;
+//		Region zoomRegion = null;
 		
-		boolean replot = false;
+		boolean replot = true;
 		
 		List<Double> probLevels = new ArrayList<>();
 		List<String> probLabels = new ArrayList<>();
@@ -106,9 +132,15 @@ public class StudyHazardMapPageGen {
 		probLabels.add("2% in 50 yr");
 		probFileLables.add("2in50");
 		
-//		probLevels.add(0.002);
-//		probLabels.add("10% in 50 yr");
-//		probFileLables.add("10in50");
+		if (backgroundGMPE != null) {
+			probLevels.add(0.002);
+			probLabels.add("10% in 50 yr");
+			probFileLables.add("10in50");
+			
+			probLevels.add(1d/10000);
+			probLabels.add("10000 yr");
+			probFileLables.add("10000yr");
+		}
 		
 		boolean isProbAt_IML = false;
 		
@@ -130,23 +162,39 @@ public class StudyHazardMapPageGen {
 			baseMapGMPE.setParamDefaults();
 			HardCodedInterpDiffMapCreator.setTruncation(baseMapGMPE, 3.0);
 		}
+		if (backgroundGMPE != null && backgroundGMPE != baseMapGMPE) {
+			backgroundGMPE.setParamDefaults();
+			HardCodedInterpDiffMapCreator.setTruncation(backgroundGMPE, 3.0);
+		}
 		
 		File studyDir = new File(mainOutputDir, study.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
 		
-		File mapsDir = new File(studyDir, "hazard_maps");
+		File mapsDir;
+		if (backgroundGMPE == null)
+			mapsDir = new File(studyDir, "hazard_maps");
+		else
+			mapsDir = new File(studyDir, "hazard_maps_back_seis");
 		Preconditions.checkState(mapsDir.exists() || mapsDir.mkdir());
 		
 		File resourcesDir = new File(mapsDir, "resources");
 		Preconditions.checkState(resourcesDir.exists() || resourcesDir.mkdir());
 		
 		List<String> lines = new ArrayList<>();
-		lines.add("# "+study.getName()+" Hazard Maps");
+		if (backgroundGMPE == null)
+			lines.add("# "+study.getName()+" Hazard Maps");
+		else
+			lines.add("# "+study.getName()+" Hazard Maps (with "+backgroundGMPE.getShortName()+" Background Seismicity)");
 		lines.add("");
 		lines.add("**Study Details**");
 		lines.add("");
 		lines.addAll(study.getMarkdownMetadataTable());
 		lines.add("");
+		if (backgroundGMPE != null) {
+			lines.add("This map includes background seismicity sources computed with the "+backgroundGMPE.getName()
+				+" empirical GMPE.");
+			lines.add("");
+		}
 		if (baseMapGMPE != null) {
 			lines.add("**Basemap GMPE:** "+baseMapGMPE.getName());
 			lines.add("");
@@ -154,6 +202,10 @@ public class StudyHazardMapPageGen {
 					+ "are interpolated and then added to the GMPE basemap. This results in a map which matches the CyberShake "
 					+ "values exactly at each CyberShake site, but retains the detail (largely due to inclusion of site effects) "
 					+ "of the GMPE basemap.");
+			if (backgroundGMPE != null) {
+				lines.add("");
+				lines.add("Note: the basemap does not include background seismicity (even though the CyberShake map does).");
+			}
 		} else {
 			lines.add("These are diretly interpolated CyberShake maps (without a GMPE basemap)");
 		}
@@ -165,7 +217,11 @@ public class StudyHazardMapPageGen {
 		double baseMapRes = 0.005;
 		InterpDiffMapType[] mapTypes;
 		InterpDiffMapType[][] typeTable;
-		if (baseMapGMPE == null) {
+		if (backgroundGMPE != null) {
+			mapTypes = new InterpDiffMapType [] { InterpDiffMapType.INTERP_NOMARKS, InterpDiffMapType.INTERP_MARKS};
+			typeTable = new InterpDiffMapType[1][];
+			typeTable[0] = new InterpDiffMapType[] { InterpDiffMapType.INTERP_NOMARKS, InterpDiffMapType.INTERP_MARKS };
+		} else if (baseMapGMPE == null) {
 			mapTypes = new InterpDiffMapType [] { InterpDiffMapType.INTERP_NOMARKS, InterpDiffMapType.INTERP_MARKS};
 			typeTable = new InterpDiffMapType[2][1];
 			typeTable[0][0] = InterpDiffMapType.INTERP_NOMARKS;
@@ -185,11 +241,42 @@ public class StudyHazardMapPageGen {
 		HardCodedInterpDiffMapCreator.cs_db = study.getDB();
 		HardCodedInterpDiffMapCreator.gmpe_db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
 		
-		List<CybershakeRun> runs = study.runFetcher().fetch();
-		Preconditions.checkState(!runs.isEmpty(), "no runs found!");
-		System.out.println(runs.size()+" runs found");
 		
 		try {
+			int[] origIDs;
+			int[] dsIDs;
+			List<CybershakeRun> runs;
+			if (backgroundGMPE == null) {
+				dsIDs = study.getDatasetIDs();
+				origIDs = dsIDs;
+				runs = study.runFetcher().fetch();
+			} else {
+				origIDs = study.getDatasetIDs();
+				dsIDs = new int[origIDs.length];
+				System.out.println("Finding back seis dataset IDs");
+				int backSeisAttenRelID = new AttenRels2DB(study.getDB()).getAttenRelID(backgroundGMPE);
+				Preconditions.checkState(backSeisAttenRelID > 0, "Back seis GMPE not found");
+				HazardDataset2DB datasets2db = new HazardDataset2DB(study.getDB());
+				for (int j=0; j<origIDs.length; j++) {
+					CybershakeHazardDataset ds = datasets2db.getDataset(origIDs[j]);
+					
+					// see if we already have a bg dataset ID
+					int bgDSID = datasets2db.getDatasetID(ds.erfID, ds.rvScenID, ds.sgtVarID, ds.velModelID,
+							ds.probModelID, ds.timeSpanID, ds.timeSpanStart, ds.maxFreq, ds.lowFreqCutoff,
+							backSeisAttenRelID);
+					Preconditions.checkState(bgDSID > 0, "Back seis version of dataset "
+							+origIDs[j]+" not found");
+					System.out.println("\t"+origIDs[j]+" => "+bgDSID);
+					dsIDs[j] = bgDSID;
+				}
+				runs = study.runFetcher().hasHazardCurves(dsIDs).fetch();
+			}
+			Preconditions.checkState(!runs.isEmpty(), "no runs found!");
+			System.out.println(runs.size()+" runs found");
+			
+			Map<Integer, CybershakeSite> siteIDMap = new HashMap<>();
+			CybershakeSiteInfo2DB sites2db = new CybershakeSiteInfo2DB(study.getDB());
+			
 			List<Region> mapRegions = new ArrayList<>();
 			mapRegions.add(region);
 			if (zoomRegion != null)
@@ -214,6 +301,7 @@ public class StudyHazardMapPageGen {
 						System.out.println("Doing "+periodLabel);
 						
 						HazardCurveFetcher fetch = null;
+						HazardCurveFetcher origFetch = null;
 						
 						for (int i=0; i<probLevels.size(); i++) {
 							double probLevel = probLevels.get(i);
@@ -233,6 +321,7 @@ public class StudyHazardMapPageGen {
 									typesToPlot.add(type);
 							}
 							
+							GeoDataSet scatterData = null;
 							if (!typesToPlot.isEmpty()) {
 								System.out.println("Plotting "+typesToPlot.size()+" maps");
 								
@@ -243,9 +332,12 @@ public class StudyHazardMapPageGen {
 									baseMap = HardCodedInterpDiffMapCreator.loadBaseMap(
 											baseMapGMPE, isProbAt_IML, probLevel, study.getVelocityModelID(),im.getID(), region);
 								}
-								if (fetch == null)
-									fetch = new HazardCurveFetcher(study.getDB(), runs, im.getID());
-								GeoDataSet scatterData = HardCodedInterpDiffMapCreator.getMainScatter(
+								if (fetch == null) {
+									fetch = new HazardCurveFetcher(study.getDB(), runs, dsIDs, im.getID());
+									if (backgroundGMPE != null)
+										origFetch = new HazardCurveFetcher(study.getDB(), runs, origIDs, im.getID());
+								}
+								scatterData = HardCodedInterpDiffMapCreator.getMainScatter(
 										isProbAt_IML, probLevel, fetch, im.getID(), null);
 								
 								System.out.println("Creating map instance...");
@@ -288,11 +380,11 @@ public class StudyHazardMapPageGen {
 									File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
 									File psFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".ps");
 									if (LOCAL_MAPGEN) {
-										File inFile = new File(addr, pngFile.getName());
+										File inFile = new File(addr, type.getPrefix()+".150.png");
 										Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
 										Files.copy(inFile, pngFile);
 										if (psSaveTypes.contains(type)) {
-											inFile = new File(addr, psFile.getName());
+											inFile = new File(addr, type.getPrefix()+".ps");
 											Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
 											Files.copy(inFile, psFile);
 										}
@@ -330,12 +422,149 @@ public class StudyHazardMapPageGen {
 								}
 								table.finalizeLine();
 							}
+							if (backgroundGMPE != null) {
+								// now ratio/diff to without background
+								
+								String diffPrefix = prefix+"_bg_diff";
+								String ratioPrefix = prefix+"_bg_ratio";
+								
+								File diffPNG = new File(resourcesDir, diffPrefix+".png");
+								File diffPS = new File(resourcesDir, diffPrefix+".ps");
+								File ratioPNG = new File(resourcesDir, ratioPrefix+".png");
+								File ratioPS = new File(resourcesDir, ratioPrefix+".ps");
+								
+								if (!diffPNG.exists() || !diffPS.exists() || !ratioPNG.exists() || !ratioPS.exists()) {
+									if (scatterData == null) {
+										// need to grab it
+										if (fetch == null) {
+											fetch = new HazardCurveFetcher(study.getDB(), runs, dsIDs, im.getID());
+											if (backgroundGMPE != null)
+												origFetch = new HazardCurveFetcher(study.getDB(), runs, origIDs, im.getID());
+										}
+										scatterData = HardCodedInterpDiffMapCreator.getMainScatter(
+												isProbAt_IML, probLevel, fetch, im.getID(), null);
+									}
+									
+									GeoDataSet origScatterData = HardCodedInterpDiffMapCreator.getMainScatter(
+											isProbAt_IML, probLevel, origFetch, im.getID(), null);
+									boolean tightCPTs = true;
+									String customLabel = "Background vs Without Background";
+									String[] addrs = HardCodedInterpDiffMapCreator.getCompareMap(false, scatterData,
+											origScatterData, customLabel, tightCPTs, mapRegion);
+									
+									String diff = addrs[0];
+									String ratio = addrs[1];
+									
+									System.out.println("Comp map address:\n\tdiff: "+diff+"\n\tratio: "+ratio);
+									
+									HardCodedInterpDiffMapCreator.fetchPlot(diff, "interpolated_marks.150.png",
+											diffPNG);
+									HardCodedInterpDiffMapCreator.fetchPlot(diff, "interpolated_marks.ps",
+											diffPS);
+									HardCodedInterpDiffMapCreator.fetchPlot(ratio, "interpolated_marks.150.png",
+											ratioPNG);
+									HardCodedInterpDiffMapCreator.fetchPlot(ratio, "interpolated_marks.ps",
+											ratioPS);
+									if (HardCodedInterpDiffMapCreator.LOCAL_MAPGEN) {
+										FileUtils.deleteRecursive(new File(diff));
+										FileUtils.deleteRecursive(new File(ratio));
+									}
+								}
+								
+								table.initNewLine();
+								table.addColumn("<p align=\"center\">**Background Seismicity Difference**</p>");
+								table.addColumn("<p align=\"center\">**Background Seismicity Ratio**</p>");
+								table.finalizeLine();
+								table.initNewLine();
+								table.addColumn("![Difference](resources/"+diffPrefix+".png)");
+								table.addColumn("![Ratio](resources/"+ratioPrefix+".png)");
+								table.finalizeLine();
+							}
 //							table.addLine("**Map Type**", "**Map**");
 //							for (InterpDiffMapType type : mapTypes) {
 //								File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
 //								Preconditions.checkState(pngFile.exists(), "Map doesn't exist: %s", pngFile.getAbsolutePath());
 //								table.addLine("**"+type.getName()+"**", "!["+type.getName()+"](resources/"+pngFile.getName()+")");
 //							}
+							if (backgroundGMPE != null) {
+								// add hazard curves
+								File medianCurvePNG = new File(resourcesDir, prefix+"_median_curve.png");
+								File maxCurvePNG = new File(resourcesDir, prefix+"_max_curve.png");
+								
+								if (!medianCurvePNG.exists() || !maxCurvePNG.exists()) {
+									if (fetch == null) {
+										fetch = new HazardCurveFetcher(study.getDB(), runs, dsIDs, im.getID());
+										if (backgroundGMPE != null)
+											origFetch = new HazardCurveFetcher(study.getDB(), runs, origIDs, im.getID());
+									}
+									List<Double> ratioVals = new ArrayList<>();
+									List<DiscretizedFunc> origCurves = new ArrayList<>();
+									List<DiscretizedFunc> bgCurves = new ArrayList<>();
+									List<String> siteNames = new ArrayList<>();
+									
+									for (CybershakeRun run : runs) {
+										DiscretizedFunc origCurve = origFetch.getCurvesForRun(run.getRunID()).get(0);
+										DiscretizedFunc bgCurve = fetch.getCurvesForRun(run.getRunID()).get(0);
+										
+										double bgVal = HazardDataSetLoader.getCurveVal(bgCurve, isProbAt_IML, probLevel);
+										double origVal = HazardDataSetLoader.getCurveVal(origCurve, isProbAt_IML, probLevel);
+										double ratio = bgVal/origVal;
+										CybershakeSite site = siteIDMap.get(run.getSiteID());
+										if (site == null) {
+											site = sites2db.getSiteFromDB(run.getSiteID());
+											siteIDMap.put(run.getSiteID(), site);
+										}
+										if (!mapRegion.contains(site.createLocation()))
+											continue;
+										String siteName = site.short_name+" (Run "+run.getRunID()+")";
+										
+										int insertionIndex;
+										
+										if (ratioVals.isEmpty()) {
+											insertionIndex = 0;
+										} else {
+											insertionIndex = Collections.binarySearch(ratioVals, ratio);
+											if (insertionIndex < 0)
+												insertionIndex = -(insertionIndex+1);
+										}
+										ratioVals.add(insertionIndex, ratio);
+										origCurves.add(insertionIndex, origCurve);
+										bgCurves.add(insertionIndex, bgCurve);
+										siteNames.add(insertionIndex, siteName);
+									}
+									
+									int medianIndex = (int)(0.5 + ratioVals.size()/2d);
+									System.out.println(probLabel+" median ratio="+ratioVals.get(medianIndex));
+									
+									String curveTitle = "Median "+probLabel+" ratio="
+											+optionalDigitDF.format(ratioVals.get(medianIndex))
+//											+ratioVals.get(medianIndex).floatValue()
+											+", "+siteNames.get(medianIndex);
+									plotBGCurves(medianCurvePNG, bgCurves.get(medianIndex),
+											origCurves.get(medianIndex), curveTitle, periodLabel,
+											probLevel, isProbAt_IML);
+									
+									int maxIndex = ratioVals.size()-1;
+									System.out.println(probLabel+" max ratio="+ratioVals.get(maxIndex));
+									
+									curveTitle = "Max "+probLabel+" ratio="
+											+optionalDigitDF.format(ratioVals.get(maxIndex))
+//											+ratioVals.get(maxIndex).floatValue()
+											+", "+siteNames.get(maxIndex);
+									plotBGCurves(maxCurvePNG, bgCurves.get(maxIndex),
+											origCurves.get(maxIndex), curveTitle, periodLabel,
+											probLevel, isProbAt_IML);
+								}
+								
+								table.initNewLine();
+								table.addColumn("<p align=\"center\">**Curves w/ median ratio**</p>");
+								table.addColumn("<p align=\"center\">**Curves w/ max ratio**</p>");
+								table.finalizeLine();
+								table.initNewLine();
+								table.addColumn("![Median](resources/"+medianCurvePNG.getName()+")");
+								table.addColumn("![Max](resources/"+maxCurvePNG.getName()+")");
+								table.finalizeLine();
+							}
 							lines.addAll(table.build());
 							lines.add("");
 						}
@@ -395,5 +624,63 @@ public class StudyHazardMapPageGen {
 	}
 	
 	static final DecimalFormat optionalDigitDF = new DecimalFormat("0.##");
+	
+	private static void plotBGCurves(File outputFile, DiscretizedFunc bgCurve,
+			DiscretizedFunc origCurve, String title, String xAxisLabel, double level, boolean isProbAtIML)
+					throws IOException {
+		List<XY_DataSet> funcs = new ArrayList<>();
+		List<PlotCurveCharacterstics> chars = new ArrayList<>();
+		
+		bgCurve.setName("Total");
+		funcs.add(bgCurve);
+		chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 4f, Color.BLACK));
+		
+		origCurve.setName("CS Faults Only");
+		funcs.add(origCurve);
+		chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.BLUE));
+		
+		DiscretizedFunc bgOnlyCurve = new ArbitrarilyDiscretizedFunc();
+		for (Point2D pt : bgCurve) {
+			if (pt.getX() < origCurve.getMinX() || pt.getX() > origCurve.getMaxX())
+				continue;
+			double csVal = origCurve.getInterpolatedY_inLogXLogYDomain(pt.getX());
+			double bgVal = 1d - (1d - pt.getY())/(1d - csVal);
+			bgOnlyCurve.set(pt.getX(), bgVal);
+		}
+		bgOnlyCurve.setName("GMPE Background Only");
+		funcs.add(bgOnlyCurve);
+		chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, Color.RED));
+		
+		Range xRange = new Range(Math.max(1e-3, bgCurve.getMinX()), 1e1);
+		Range yRange = new Range(1e-8, 1e0);
+		
+		XY_DataSet xy = new DefaultXY_DataSet();
+		if (isProbAtIML) {
+			xy.set(level, yRange.getLowerBound());
+			xy.set(level, yRange.getUpperBound());
+		} else {
+			xy.set(xRange.getLowerBound(), level);
+			xy.set(xRange.getUpperBound(), level);
+		}
+		
+		funcs.add(xy);
+		chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 2f, Color.GRAY));
+		
+		PlotSpec spec = new PlotSpec(funcs, chars, title, xAxisLabel, "Annual Probability of Exceedance");
+		spec.setLegendVisible(true);
+		
+		HeadlessGraphPanel gp = new HeadlessGraphPanel();
+		gp.setTickLabelFontSize(18);
+		gp.setAxisLabelFontSize(24);
+		gp.setPlotLabelFontSize(24);
+		gp.setLegendFontSize(24);
+		gp.setBackgroundColor(Color.WHITE);
+		gp.setRenderingOrder(DatasetRenderingOrder.REVERSE);
+		
+		gp.drawGraphPanel(spec, true, true, xRange, yRange);
+		
+		gp.getChartPanel().setSize(800, 600);
+		gp.saveAsPNG(outputFile.getAbsolutePath());
+	}
 
 }

@@ -40,6 +40,7 @@ import com.google.common.collect.Table;
 import com.google.common.primitives.Doubles;
 
 import scratch.kevin.bbp.BBP_Site;
+import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.MultiRupGMPE_ComparePageGen;
 import scratch.kevin.simCompare.RuptureComparison;
 import scratch.kevin.simulators.ruptures.RSQSimBBP_Config;
@@ -63,7 +64,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	
 	private Vs30_Source vs30Source;
 	
-	public StudyGMPE_Compare(CyberShakeStudy study, AbstractERF erf, DBAccess db, File ampsCacheDir, double[] periods,
+	public StudyGMPE_Compare(CyberShakeStudy study, AbstractERF erf, DBAccess db, File ampsCacheDir, IMT[] imts,
 			double minMag, HashSet<String> limitSiteNames, HashSet<String> highlightSiteNames, boolean doRotD,
 			Vs30_Source vs30Source) throws IOException, SQLException {
 		this.study = study;
@@ -93,7 +94,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 					highlightSites.add(site);
 		}
 		
-		prov = new StudyRotDProvider(study, amps2db, periods, study.getName());
+		prov = new StudyRotDProvider(study, amps2db, imts, study.getName());
 		
 		System.out.println("Done with setup");
 		
@@ -177,13 +178,13 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		private AttenRelRef gmpeRef;
 		private Site site;
 		private CSRuptureComparison comp;
-		private double[] periods;
+		private IMT[] imts;
 
-		public GMPECalcRunnable(AttenRelRef gmpeRef, Site site, CSRuptureComparison comp, double[] periods) {
+		public GMPECalcRunnable(AttenRelRef gmpeRef, Site site, CSRuptureComparison comp, IMT[] imts) {
 			this.gmpeRef = gmpeRef;
 			this.site = site;
 			this.comp = comp;
-			this.periods = periods;
+			this.imts = imts;
 		}
 
 		@Override
@@ -195,9 +196,9 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			RuptureSurface surf = comp.getGMPERupture().getRuptureSurface();
 			comp.setDistances(site, surf.getDistanceRup(site.getLocation()), surf.getDistanceJB(site.getLocation()));
 			
-			for (double period : periods) {
-				SA_Param.setPeriodInSA_Param(gmpe.getIntensityMeasure(), period);
-				comp.addResult(site, period, gmpe.getMean(), gmpe.getStdDev());
+			for (IMT imt : imts) {
+				imt.setIMT(gmpe);
+				comp.addResult(site, imt, gmpe.getMean(), gmpe.getStdDev());
 			}
 			
 			checkInGMPE(gmpeRef, gmpe);
@@ -205,7 +206,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 	}
 	
-	public List<CSRuptureComparison> loadCalcComps(AttenRelRef gmpeRef, double[] periods) throws SQLException {
+	public List<CSRuptureComparison> loadCalcComps(AttenRelRef gmpeRef, IMT[] imts) throws SQLException {
 		CSRuptureComparison[][] comps = new CSRuptureComparison[erf.getNumSources()][];
 		
 		List<CSRuptureComparison> ret = new ArrayList<>();
@@ -225,7 +226,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 					ret.add(comps[sourceID][rupID]);
 				}
 				comps[sourceID][rupID].addApplicableSite(site);
-				futures.add(exec.submit(new GMPECalcRunnable(gmpeRef, site, comps[sourceID][rupID], periods)));
+				futures.add(exec.submit(new GMPECalcRunnable(gmpeRef, site, comps[sourceID][rupID], imts)));
 			}
 		}
 		
@@ -242,7 +243,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		return ret;
 	}
 	
-	public void generateGMPE_page(File outputDir, AttenRelRef gmpeRef, double[] periods, List<CSRuptureComparison> comps)
+	public void generateGMPE_page(File outputDir, AttenRelRef gmpeRef, IMT[] imts, List<CSRuptureComparison> comps)
 			throws IOException {
 		LinkedList<String> lines = new LinkedList<>();
 		
@@ -261,7 +262,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		lines.add("");
 		lines.add("Ruptures are binned by their moment magnitude (**Mw**) and the "+distDescription);
 		
-		super.generateGMPE_Page(outputDir, lines, gmpeRef, periods, comps, highlightSites);
+		super.generateGMPE_Page(outputDir, lines, gmpeRef, imts, comps, highlightSites);
 	}
 	
 	@Override
@@ -305,21 +306,14 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		lines.add("Distance dependent plots use the "+distDescription+" distance metric");
 		lines.add("");
 		
-		if (gmpeComps == null)
-			gmpeComps = loadCalcComps(gmpeRef, aggregatedPeriods);
+		if (gmpeComps == null) {
+			IMT[] imts = new IMT[aggregatedPeriods.length];
+			for (int i=0; i<imts.length; i++)
+				imts[i] = IMT.forPeriod(aggregatedPeriods[i]);
+			gmpeComps = loadCalcComps(gmpeRef, imts);
+		}
 		
 		super.generateRotDRatioPage(outputDir, lines, aggregatedPeriods, scatterPeriods, gmpeRef, gmpeComps);
-	}
-	
-	private static double[] union(double[] array1, double[] array2) {
-		HashSet<Double> set = new HashSet<>();
-		for (double val : array1)
-			set.add(val);
-		for (double val : array2)
-			set.add(val);
-		double[] ret = Doubles.toArray(set);
-		Arrays.sort(ret);
-		return ret;
 	}
 	
 	public static void main(String[] args) throws IOException, SQLException {
@@ -370,7 +364,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 //		double[] periods = { 2, 3, 5 };
 //		double[] rotDPeriods = { 2, 3, 5, 7.5, 10 };
-		double[] periods = { 3, 5, 10 };
+		IMT[] imts = { IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 //		double[] periods = { 3 };
 		double[] rotDPeriods = { 3, 5, 7.5, 10 };
 		double minMag = 6;
@@ -384,6 +378,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		boolean replotZScores = false;
 		boolean replotCurves = false;
 		boolean replotResiduals = false;
+		
+		IMT[] rotDIMTs = new IMT[rotDPeriods.length];
+		for (int i=0; i<rotDIMTs.length; i++)
+			rotDIMTs[i] = IMT.forPeriod(rotDPeriods[i]);
 		
 		for (int s=0; s<studies.size(); s++) {
 			System.gc();
@@ -425,31 +423,37 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			else
 				limitSiteNames = null;
 			
-			double[] calcPeriods = null;
+			IMT[] calcIMTs = null;
 			Preconditions.checkState(doGMPE || doRotD);
 			if (doGMPE)
-				calcPeriods = periods;
+				calcIMTs = imts;
 			if (doRotD) {
-				if (calcPeriods == null)
-					calcPeriods = rotDPeriods;
-				else
-					calcPeriods = union(rotDPeriods, calcPeriods);
+				if (calcIMTs == null) {
+					calcIMTs = rotDIMTs;
+				} else {
+					HashSet<IMT> imtSet = new HashSet<>();
+					for (IMT imt : calcIMTs)
+						imtSet.add(imt);
+					for (IMT imt : rotDIMTs)
+						imtSet.add(imt);
+					calcIMTs = imtSet.toArray(new IMT[0]);
+				}
 			}
 			
 			if (limitSiteNames == null)
 				CachedPeakAmplitudesFromDB.MAX_CACHE_SIZE = 50;
 			else
-				CachedPeakAmplitudesFromDB.MAX_CACHE_SIZE = limitSiteNames.size()*periods.length*2+10;
+				CachedPeakAmplitudesFromDB.MAX_CACHE_SIZE = limitSiteNames.size()*calcIMTs.length*2+10;
 			DBAccess db = study.getDB();
 			
 			AbstractERF erf = study.getERF();
 			erf.getTimeSpan().setDuration(1d);
 			erf.updateForecast();
 			
-			System.out.println("Calc periods: "+Joiner.on(",").join(Doubles.asList(calcPeriods)));
+			System.out.println("Calc IMTs: "+Joiner.on(",").join(calcIMTs));
 			
 			try {
-				StudyGMPE_Compare comp = new StudyGMPE_Compare(study, erf, db, ampsCacheDir, calcPeriods,
+				StudyGMPE_Compare comp = new StudyGMPE_Compare(study, erf, db, ampsCacheDir, calcIMTs,
 						minMag, limitSiteNames, highlightSiteNames, doRotD, vs30Source);
 				comp.setReplotCurves(replotCurves);
 				comp.setReplotResiduals(replotResiduals);
@@ -488,25 +492,25 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 					List<CSRuptureComparison> comps;
 					if (gmpeRef == primaryGMPE) {
 						comp.highlightSites = highlightSites;
-						comps = comp.loadCalcComps(gmpeRef, calcPeriods);
+						comps = comp.loadCalcComps(gmpeRef, calcIMTs);
 					} else {
 						if (!doGMPE)
 							continue;
 						// don't include RotD periods
-						comps = comp.loadCalcComps(gmpeRef, periods);
+						comps = comp.loadCalcComps(gmpeRef, imts);
 						comp.highlightSites = new ArrayList<>();
 					}
 					
 					if (doGMPE) {
 						File catalogGMPEDir = new File(studyDir, "gmpe_comparisons_"+gmpeRef.getShortName()+"_Vs30"+vs30Source.name());
 						Preconditions.checkState(catalogGMPEDir.exists() || catalogGMPEDir.mkdir());
-						comp.generateGMPE_page(catalogGMPEDir, gmpeRef, periods, comps);
+						comp.generateGMPE_page(catalogGMPEDir, gmpeRef, imts, comps);
 					}
 					
 					if (doRotD && gmpeRef == primaryGMPE) {
 						File catalogRotDDir = new File(studyDir, "rotd_ratio_comparisons");
 						Preconditions.checkState(catalogRotDDir.exists() || catalogRotDDir.mkdir());
-						comp.generateRotDRatioPage(catalogRotDDir, rotDPeriods, periods, gmpeRef, comps);
+						comp.generateRotDRatioPage(catalogRotDDir, rotDPeriods, rotDPeriods, gmpeRef, comps);
 					}
 				}
 			} catch (Exception e) {

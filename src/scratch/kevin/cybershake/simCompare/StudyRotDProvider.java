@@ -12,7 +12,9 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 import org.opensha.commons.data.Site;
@@ -35,6 +37,7 @@ import org.opensha.sha.earthquake.ProbEqkSource;
 import org.opensha.sha.imr.param.IntensityMeasureParams.DurationTimeInterval;
 import org.opensha.sha.imr.param.IntensityMeasureParams.PGV_Param;
 import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
+import org.opensha.sha.imr.param.IntensityMeasureParams.SignificantDurationParam;
 
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
@@ -58,6 +61,8 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	private String name;
 	private CSRupture[][] csRups;
 	
+	private Map<IMT, CybershakeIM[]> durComponents;
+	
 	private AbstractERF erf;
 	
 	public static int DEFAULT_MAX_CACHE_SIZE = 100000;
@@ -67,6 +72,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	private LoadingCache<CacheKey, DiscretizedFunc[]> rd50Cache;
 	private LoadingCache<CacheKey, DiscretizedFunc[][]> rd100Cache;
 	private LoadingCache<CacheKey, DiscretizedFunc[]> rdRatioCache;
+	private LoadingCache<CacheKey, Map<DurationTimeInterval, double[]>> durationCache;
 	
 	private File spectraCacheDir;
 	
@@ -146,6 +152,14 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 			if (imt.getParamName().equals(SA_Param.NAME)) {
 				ims[i] = CybershakeIM.getSA(CyberShakeComponent.RotD50, imt.getPeriod());
 				sa_rd100_ims[i] = CybershakeIM.getSA(CyberShakeComponent.RotD100, imt.getPeriod());
+			} else if (imt.getParamName().equals(SignificantDurationParam.NAME)) {
+				// need to goe-mean them ourselves
+				if (durComponents == null)
+					durComponents = new HashMap<>();
+				DurationTimeInterval interval = imt.getDurationInterval();
+				CybershakeIM xIM = CybershakeIM.getDuration(CyberShakeComponent.X, interval);
+				CybershakeIM yIM = CybershakeIM.getDuration(CyberShakeComponent.Y, interval);
+				durComponents.put(imt, new CybershakeIM[] { xIM, yIM });
 			} else {
 				throw new IllegalStateException(imt+" is not yet supported here");
 			}
@@ -164,9 +178,20 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 			rdRatioCache = CacheBuilder.newBuilder().maximumSize(cacheSize).build(new RDRatioLoader());
 		}
 		
+		if (hasDurations())
+			durationCache = CacheBuilder.newBuilder().maximumSize(cacheSize).build(new DurationLoader());
+		
 		runsCache = CacheBuilder.newBuilder().build(runCacheLoader);
 		
 		csRups = new CSRupture[erf.getNumSources()][];
+		
+		final CybershakeIM refIM;
+		if (ims[0] == null) {
+			Preconditions.checkNotNull(durComponents);
+			refIM = durComponents.values().iterator().next()[0];
+		} else {
+			refIM = ims[0];
+		}
 		
 		siteRupsCache = CacheBuilder.newBuilder().build(new CacheLoader<Site, List<CSRupture>>() {
 
@@ -174,7 +199,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 			public List<CSRupture> load(Site site) throws Exception {
 				System.out.println("Fetching sources for "+site.getName());
 				CybershakeRun run = runsCache.get(site);
-				double[][][] allAmps = amps2db.getAllIM_Values(run.getRunID(), ims[0]);
+				double[][][] allAmps = amps2db.getAllIM_Values(run.getRunID(), refIM);
 				List<CSRupture> siteRups = new ArrayList<>();
 				for (int sourceID=0; sourceID<allAmps.length; sourceID++) {
 					if (allAmps[sourceID] != null) {
@@ -304,6 +329,45 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 		}
 		return ret;
 	}
+	
+	private class DurationLoader extends CacheLoader<CacheKey, Map<DurationTimeInterval, double[]>> {
+
+		@Override
+		public Map<DurationTimeInterval, double[]> load(CacheKey key) throws Exception {
+			CSRupture rup = key.rup;
+			Site site = key.site;
+			Preconditions.checkNotNull(rup);
+			int runID;
+			try {
+				runID = runsCache.get(site).getRunID();
+			} catch (ExecutionException e1) {
+				throw ExceptionUtils.asRuntimeException(e1);
+			}
+			Map<DurationTimeInterval, double[]> ret = new HashMap<>();
+			for (IMT imt : durComponents.keySet()) {
+				DurationTimeInterval interval = imt.getDurationInterval();
+				CybershakeIM[] compIMs = durComponents.get(imt);
+				Preconditions.checkState(compIMs.length == 2);
+				
+				double[][] vals = null;
+				for (int i=0; i<compIMs.length; i++) {
+					double[][][] amps = amps2db.getAllIM_Values(runID, compIMs[i]);
+					double[] myAmps = amps[rup.getSourceID()][rup.getRupID()];
+					Preconditions.checkNotNull(myAmps);
+					if (vals == null)
+						vals = new double[myAmps.length][compIMs.length];
+					for (int j=0; j<myAmps.length; j++)
+						vals[j][i] = myAmps[j];
+				}
+				double[] geoMeans = new double[vals.length];
+				for (int i=0; i<geoMeans.length; i++)
+					geoMeans[i] = Math.sqrt(vals[i][0]*vals[i][1]);
+				ret.put(interval, geoMeans);
+			}
+			return ret;
+		}
+		
+	}
 
 	@Override
 	public DiscretizedFunc getRotD50(Site site, CSRupture rupture, int index) throws IOException {
@@ -383,7 +447,11 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	@Override
 	public double getDuration(Site site, CSRupture rupture, DurationTimeInterval interval, int index)
 			throws IOException {
-		throw new UnsupportedOperationException("not yet implemented");
+		try {
+			return durationCache.get(new CacheKey(rupture, site)).get(interval)[index];
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
+		}
 	}
 
 	@Override
@@ -430,7 +498,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 
 	@Override
 	public boolean hasDurations() {
-		return false; // TODO
+		return durComponents != null;
 	}
 
 	@Override

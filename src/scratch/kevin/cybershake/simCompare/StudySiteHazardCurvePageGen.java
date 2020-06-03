@@ -323,7 +323,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 	}
 
 	public static void main(String[] args) throws SQLException, IOException {
-		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
+		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		
 		/*
@@ -350,9 +350,13 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_07-rundir4860-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
 //		RSQSimCatalog catalog = Catalogs.BRUCE_4860.instance();
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X;
-		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_12-rundir4860_multi_combine-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
-		RSQSimCatalog catalog = Catalogs.BRUCE_4860_10X.instance();
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X;
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_12-rundir4860_multi_combine-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_4860_10X.instance();
+		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_20_5_RSQSIM_4983;
+		File bbpDir = new File("/data/kevin/bbp/parallel/2020_05_05-rundir4983_stitched-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
+		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 //		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
@@ -373,7 +377,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		boolean includeAleatoryStrip = true;
 		
-//		String[] siteNames = { "USC" };
+//		String[] siteNames = { "PAS", "s119" };
 //		String[] siteNames = { "SBSM", "LAF", "s022", "STNI", "WNGC", "PDE" };
 		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
 				"LAF", "s022", "STNI", "WNGC", "PDE" };
@@ -382,12 +386,14 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		String[] siteNames = { "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "s119", "s279", "s480" };
 //		String[] siteNames = { "LAPD" };
-//		String[] siteNames = { "SMCA" };
+//		String[] siteNames = { "SBSM" };
 		
 		if (args.length > 0) {
 			System.out.println("assuming command line arguments are site names");
 			siteNames = args;
 		}
+		
+		boolean sourceFractional = true;
 		
 		boolean replotCurves = true;
 		boolean replotDisaggs = false;
@@ -420,7 +426,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 							mainProv, new UCERF2_AleatoryMagVarRemovalMod(study.getERF()), study.getName()+" w/o Aleatory Mag"));
 				
 				Table<String, CSRupture, Double> sourceContribFracts =
-						getSourceContribFracts(study.getERF(), mainProv.getRupturesForSite(site), catalog, false);
+						getSourceContribFracts(study.getERF(), mainProv.getRupturesForSite(site), catalog, sourceFractional);
 				
 				for (CyberShakeStudy compStudy : compStudies) {
 					// strip the run out of the site so we don't get bad associations

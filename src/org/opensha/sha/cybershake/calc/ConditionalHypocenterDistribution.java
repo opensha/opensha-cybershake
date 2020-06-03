@@ -557,7 +557,7 @@ public class ConditionalHypocenterDistribution {
 		HardCodedInterpDiffMapCreator.gainPlotTypes = new InterpDiffMapType[] {
 				InterpDiffMapType.INTERP_NOMARKS
 		};
-		File gitDir = new File("/home/kevin/git/cybershake-analysis");
+		File gitDir = new File("/home/kevin/markdown/cybershake-analysis");
 		
 		File studyDir = new File(gitDir, study.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());

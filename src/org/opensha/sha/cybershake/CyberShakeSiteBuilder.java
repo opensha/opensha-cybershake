@@ -163,13 +163,15 @@ public class CyberShakeSiteBuilder {
 			site.setName(csSite.short_name);
 			Vs30_Param vs30Param = new Vs30_Param();
 			site.addParameter(vs30Param);
-			site.addParameter(new Vs30_TypeParam());
+			Vs30_TypeParam vsTypeParam = new Vs30_TypeParam();
+			vsTypeParam.setValue(Vs30_TypeParam.VS30_TYPE_INFERRED);
+			site.addParameter(vsTypeParam);
 			DepthTo1pt0kmPerSecParam z10Param = new DepthTo1pt0kmPerSecParam(null, true);
 			site.addParameter(z10Param);
 			DepthTo2pt5kmPerSecParam z25Param = new DepthTo2pt5kmPerSecParam(null, true);
 			site.addParameter(z25Param);
-			for (Parameter<?> param : site)
-				param.setValueAsDefault();
+//			for (Parameter<?> param : site)
+//				param.setValueAsDefault();
 			
 			// set site parameters
 			double vs30;

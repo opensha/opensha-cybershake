@@ -36,7 +36,8 @@ public class RotDZipDBInsert {
 //		int runID = 7019;
 //		File zipFile = new File("/data-0/kevin/simulators/catalogs/rundir2585_1myr/cybershake_rotation_inputs/SMCA_7019_rotd.zip");
 		
-		File rotDir = new File("/data-0/kevin/simulators/catalogs/rundir4860_multi_combine/cybershake_rotation_inputs");
+//		File rotDir = new File("/data-0/kevin/simulators/catalogs/rundir4860_multi_combine/cybershake_rotation_inputs");
+		File rotDir = new File("/data-0/kevin/simulators/catalogs/rundir4983_stitched/cybershake_rotation_inputs");
 		
 //		int runID = 7090;
 //		File zipFile = new File(rotDir, "OSI_7090_rotd.zip");
@@ -46,16 +47,16 @@ public class RotDZipDBInsert {
 //		File zipFile = new File(rotDir, "SBSM_7092_rotd.zip");
 //		int runID = 7093;
 //		File zipFile = new File(rotDir, "WSS_7093_rotd.zip");
-//		int runID = 7094;
-//		File zipFile = new File(rotDir, "WNGC_7094_rotd.zip");
 //		int runID = 7095;
 //		File zipFile = new File(rotDir, "STNI_7095_rotd.zip");
-//		int runID = 7096;
-//		File zipFile = new File(rotDir, "PDE_7096_rotd.zip");
 //		int runID = 7097;
 //		File zipFile = new File(rotDir, "LAF_7097_rotd.zip");
-		int runID = 7098;
-		File zipFile = new File(rotDir, "s022_7098_rotd.zip");
+//		int runID = 7125;
+//		File zipFile = new File(rotDir, "WNGC_"+runID+"_rotd.zip");
+//		int runID = 7126;
+//		File zipFile = new File(rotDir, "PDE_"+runID+"_rotd.zip");
+		int runID = 7127;
+		File zipFile = new File(rotDir, "s022_"+runID+"_rotd.zip");
 		
 		Preconditions.checkState(zipFile.getName().contains(runID+""));
 		

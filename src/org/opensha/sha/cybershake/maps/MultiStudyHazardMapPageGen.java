@@ -51,7 +51,7 @@ public class MultiStudyHazardMapPageGen {
 	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
 		HardCodedInterpDiffMapCreator.LOCAL_MAPGEN = true;
-		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
+		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		
 		CyberShakeStudy[] studies = {
 				CyberShakeStudy.STUDY_15_4,

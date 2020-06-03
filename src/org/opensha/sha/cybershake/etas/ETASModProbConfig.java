@@ -64,6 +64,7 @@ import scratch.UCERF3.enumTreeBranches.FaultModels;
 import scratch.UCERF3.erf.ETAS.ETAS_CatalogIO;
 import scratch.UCERF3.erf.ETAS.ETAS_CubeDiscretizationParams;
 import scratch.UCERF3.erf.ETAS.ETAS_EqkRupture;
+import scratch.UCERF3.erf.ETAS.ETAS_LongTermMFDs;
 import scratch.UCERF3.erf.ETAS.ETAS_PrimaryEventSampler;
 import scratch.UCERF3.erf.ETAS.ETAS_Utils;
 import scratch.UCERF3.erf.ETAS.FaultSystemSolutionERF_ETAS;
@@ -1199,7 +1200,8 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 		List<int[]> srcAtPointList = MatrixIO.intArraysListFromFile(srcAtPointListFile);
 		int[] isCubeInsideFaultPolygon = MatrixIO.intArrayFromFile(isCubeInsideFaultPolygonFile);
 		ETAS_CubeDiscretizationParams cubeParams = new ETAS_CubeDiscretizationParams(griddedRegion);
-		ETAS_PrimaryEventSampler sampler = new ETAS_PrimaryEventSampler(cubeParams, erf, sourceRates,
+		ETAS_LongTermMFDs longTermMFDs = new ETAS_LongTermMFDs(erf, etasParams.getApplySubSeisForSupraNucl());
+		ETAS_PrimaryEventSampler sampler = new ETAS_PrimaryEventSampler(cubeParams, erf, longTermMFDs, sourceRates,
 				null, etasParams, etas_utils, fractionSrcAtPointList, srcAtPointList, isCubeInsideFaultPolygon);
 		
 		List<ETAS_EqkRupture> triggerRuptures = new ETAS_Launcher(scenario).getTriggerRuptures();

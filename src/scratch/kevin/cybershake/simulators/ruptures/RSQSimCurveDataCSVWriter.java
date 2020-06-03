@@ -31,7 +31,7 @@ public class RSQSimCurveDataCSVWriter {
 
 	public static void main(String[] args) throws IOException {
 		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_ROT_4860_10X;
-		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
+		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		
 		IMT[] imts = { IMT.SA3P0 };
 		

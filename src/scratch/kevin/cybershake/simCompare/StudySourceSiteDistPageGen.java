@@ -77,14 +77,16 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 	}
 
 	public static void main(String[] args) throws SQLException, IOException {
-		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
+		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
+		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
 		
 		// RSQSim
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457;
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
-		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_20_5_RSQSIM_4983;
 		
 		List<String> sourceNames = new ArrayList<>();
 		List<int[]> parentIDs = new ArrayList<>();
@@ -95,9 +97,12 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		sourceNames.add("Puente Hills");
 		parentIDs.add(new int[] { 240});
 		
+		sourceNames.add("San Jacinto (San Beranardino)");
+		parentIDs.add(new int[] { 119});
+		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 		
-		String[] siteNames = { "USC" };
+		String[] siteNames = { "USC", "SBSM" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "USC", "OSI", "PDE", "s022", "WNGC" };
 		

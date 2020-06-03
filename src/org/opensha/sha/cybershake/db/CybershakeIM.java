@@ -24,6 +24,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 import org.opensha.commons.util.ClassUtils;
+import org.opensha.sha.imr.param.IntensityMeasureParams.DurationTimeInterval;
 import org.opensha.sha.imr.param.OtherParams.Component;
 import org.opensha.sha.imr.param.OtherParams.ComponentParam;
 
@@ -80,8 +81,66 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 		return new CybershakeIM(id, IMType.SA, period, "cm per sec squared", comp);
 	}
 	
+	private static Table<CyberShakeComponent, DurationTimeInterval, Integer> durIDsMap;
+	private static Table<CyberShakeComponent, DurationTimeInterval, Integer> velDurIDsMap;
+	
+	static {
+		// validate these mappings with the main method below
+		durIDsMap = HashBasedTable.create();
+		velDurIDsMap = HashBasedTable.create();
+		durIDsMap.put(CyberShakeComponent.X, DurationTimeInterval.INTERVAL_5_75, 176);
+		durIDsMap.put(CyberShakeComponent.X, DurationTimeInterval.INTERVAL_5_95, 177);
+		velDurIDsMap.put(CyberShakeComponent.X, DurationTimeInterval.INTERVAL_5_75, 178);
+		velDurIDsMap.put(CyberShakeComponent.X, DurationTimeInterval.INTERVAL_5_95, 179);
+		
+		durIDsMap.put(CyberShakeComponent.Y, DurationTimeInterval.INTERVAL_5_75, 180);
+		durIDsMap.put(CyberShakeComponent.Y, DurationTimeInterval.INTERVAL_5_95, 181);
+		velDurIDsMap.put(CyberShakeComponent.Y, DurationTimeInterval.INTERVAL_5_75, 182);
+		velDurIDsMap.put(CyberShakeComponent.Y, DurationTimeInterval.INTERVAL_5_95, 183);
+	}
+	
+	public static CybershakeIM getDuration(CyberShakeComponent comp, DurationTimeInterval interval) {
+		Integer id = durIDsMap.get(comp, interval);
+		Preconditions.checkNotNull(id, "ID not yet hardcoded for comp=%s, interval=%s", comp, interval);
+		IMType type;
+		switch (interval) {
+		case INTERVAL_5_75:
+			type = IMType.ACCEL_DUR_5_75;
+			break;
+		case INTERVAL_5_95:
+			type = IMType.ACCEL_DUR_5_95;
+			break;
+
+		default:
+			throw new IllegalStateException("Duration interval not supported: "+interval);
+		}
+		return new CybershakeIM(id, type, Double.NaN, "seconds", comp);
+	}
+	
+	public static CybershakeIM getVelDuration(CyberShakeComponent comp, DurationTimeInterval interval) {
+		Integer id = velDurIDsMap.get(comp, interval);
+		Preconditions.checkNotNull(id, "ID not yet hardcoded for comp=%s, interval=%s", comp, interval);
+		IMType type;
+		switch (interval) {
+		case INTERVAL_5_75:
+			type = IMType.VEL_DUR_5_75;
+			break;
+		case INTERVAL_5_95:
+			type = IMType.VEL_DUR_5_95;
+			break;
+
+		default:
+			throw new IllegalStateException("Duration interval not supported: "+interval);
+		}
+		return new CybershakeIM(id, type, Double.NaN, "seconds", comp);
+	}
+	
 	public enum IMType implements DBField {
-		SA("spectral acceleration", "SA");
+		SA("spectral acceleration", "SA"),
+		VEL_DUR_5_95("velocity significant duration, 5% to 95%", "VelDur5-95"),
+		VEL_DUR_5_75("velocity significant duration, 5% to 75%", "VelDur5-75"),
+		ACCEL_DUR_5_95("acceleration significant duration, 5% to 95%", "Dur5-95"),
+		ACCEL_DUR_5_75("acceleration significant duration, 5% to 75%", "Dur5-75");
 		
 		private String dbName, shortName;
 		private IMType(String dbName, String shortName) {
@@ -274,7 +333,7 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 		DBAccess db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
 		
 		HazardCurve2DB curves2db = new HazardCurve2DB(db);
-		
+
 		for (Cell<CyberShakeComponent, Double, Integer> cell : saIDsMap.cellSet()) {
 			CybershakeIM im = curves2db.getIMFromID(cell.getValue());
 			Preconditions.checkState(cell.getRowKey().equals(im.component),
@@ -283,6 +342,22 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 			int p2 = (int)Math.round(im.val*100d);
 			Preconditions.checkState(p1 == p2,
 					"Period mismatch for %s. Hardcoded is %s, DB is %s", im.getID(), cell.getColumnKey(), im.val);
+		}
+		for (Cell<CyberShakeComponent, DurationTimeInterval, Integer> cell : durIDsMap.cellSet()) {
+			CybershakeIM im = curves2db.getIMFromID(cell.getValue());
+			Preconditions.checkState(cell.getRowKey().equals(im.component),
+					"Component mismatch for %s. Hardcoded is %s, DB is %s", im.getID(), cell.getRowKey(), im.getComponent());
+			CybershakeIM oIM = getDuration(cell.getRowKey(), cell.getColumnKey());
+			Preconditions.checkState(im.getMeasure() == oIM.getMeasure(),
+					"IMType mismatch for %s. Hardcoded is %s, DB is %s", im.getID(), oIM.getMeasure(), im.getMeasure());
+		}
+		for (Cell<CyberShakeComponent, DurationTimeInterval, Integer> cell : velDurIDsMap.cellSet()) {
+			CybershakeIM im = curves2db.getIMFromID(cell.getValue());
+			Preconditions.checkState(cell.getRowKey().equals(im.component),
+					"Component mismatch for %s. Hardcoded is %s, DB is %s", im.getID(), cell.getRowKey(), im.getComponent());
+			CybershakeIM oIM = getVelDuration(cell.getRowKey(), cell.getColumnKey());
+			Preconditions.checkState(im.getMeasure() == oIM.getMeasure(),
+					"IMType mismatch for %s. Hardcoded is %s, DB is %s", im.getID(), oIM.getMeasure(), im.getMeasure());
 		}
 		
 		db.destroy();

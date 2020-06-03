@@ -16,6 +16,7 @@ import java.util.concurrent.Future;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.region.CaliforniaRegions;
 import org.opensha.commons.geo.Location;
+import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
@@ -192,6 +193,9 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			ScalarIMR gmpe = checkOutGMPE(gmpeRef);
 			
 			gmpe.setAll(comp.getGMPERupture(), site, gmpe.getIntensityMeasure());
+//			for (Parameter<?> param : gmpe.getSiteParams())
+//				System.out.println(param.getName()+": "+param.getValue());
+//			System.exit(0);
 			
 			RuptureSurface surf = comp.getGMPERupture().getRuptureSurface();
 			comp.setDistances(site, surf.getDistanceRup(site.getLocation()), surf.getDistanceJB(site.getLocation()));
@@ -317,7 +321,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	}
 	
 	public static void main(String[] args) throws IOException, SQLException {
-		File outputDir = new File("/home/kevin/git/cybershake-analysis/");
+		File outputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		
 		List<CyberShakeStudy> studies = new ArrayList<>();
@@ -353,7 +357,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_20_2_RSQSIM_4860);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-		studies.add(CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X);
+//		studies.add(CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X);
+//		vs30s.add(Vs30_Source.Simulation);
+		
+		studies.add(CyberShakeStudy.STUDY_20_5_RSQSIM_4983);
 		vs30s.add(Vs30_Source.Simulation);
 		
 		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014; // this one will include highlight sites
@@ -362,27 +369,34 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 		
-//		double[] periods = { 2, 3, 5 };
-//		double[] rotDPeriods = { 2, 3, 5, 7.5, 10 };
 		IMT[] imts = { IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
-//		double[] periods = { 3 };
 		double[] rotDPeriods = { 3, 5, 7.5, 10 };
 		double minMag = 6;
+		
+//		AttenRelRef primaryGMPE = AttenRelRef.AFSHARI_STEWART_2016; // this one will include highlight sites
+//		AttenRelRef[] gmpeRefs = { primaryGMPE };
+//		
+//		IMT[] imts = { IMT.DUR_5_75, IMT.DUR_5_95 };
+//		double[] rotDPeriods = null;
+//		double minMag = 6;
 		
 		boolean doGMPE = true;
 		boolean doRotD = false;
 		
 		boolean limitToHighlight = false;
 		
-		boolean replotScatters = false;
-		boolean replotZScores = false;
-		boolean replotCurves = false;
-		boolean replotResiduals = false;
+		boolean replotScatters = true;
+		boolean replotZScores = true;
+		boolean replotCurves = true;
+		boolean replotResiduals = true;
 		
-		IMT[] rotDIMTs = new IMT[rotDPeriods.length];
-		for (int i=0; i<rotDIMTs.length; i++)
-			rotDIMTs[i] = IMT.forPeriod(rotDPeriods[i]);
-		
+		IMT[] rotDIMTs = null;
+		if (rotDPeriods != null) {
+			rotDIMTs = new IMT[rotDPeriods.length];
+			for (int i=0; i<rotDIMTs.length; i++)
+				rotDIMTs[i] = IMT.forPeriod(rotDPeriods[i]);
+		}
+				
 		for (int s=0; s<studies.size(); s++) {
 			System.gc();
 			

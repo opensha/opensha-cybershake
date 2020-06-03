@@ -25,11 +25,11 @@ import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
 public class SubsetBetweenCalc {
 
 	public static void main(String[] args) throws IOException {
-//		File csvFile = new File("/home/kevin/git/cybershake-analysis/"
+//		File csvFile = new File("/home/kevin/markdown/cybershake-analysis/"
 //				+ "study_19_3_rsqsim_rot_2585/rotated_ruptures_m7p2_vert_ss_surface/"
 //				+ "resources/between_events_m7.2_50km_std_dev_3s_medians_table.csv");
 //		File outputFile = new File("/tmp/m7.2_50km_tau_fault_dependence.csv");
-		File csvFile = new File("/home/kevin/git/cybershake-analysis/"
+		File csvFile = new File("/home/kevin/markdown/cybershake-analysis/"
 				+ "study_19_3_rsqsim_rot_2585/rotated_ruptures_m6p6_vert_ss_surface/"
 				+ "resources/between_events_m6.6_50km_std_dev_3s_medians_table.csv");
 		File outputFile = new File("/tmp/m6.6_50km_tau_fault_dependence.csv");

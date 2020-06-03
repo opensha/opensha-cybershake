@@ -630,7 +630,7 @@ public class Study3Dvs1DCompare {
 //	private void plotCheckerboard()
 
 	public static void main(String[] args) throws SQLException, IOException {
-		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
+		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		
 //		CyberShakeStudy study3D = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;

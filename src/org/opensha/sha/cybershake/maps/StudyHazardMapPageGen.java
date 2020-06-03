@@ -69,7 +69,7 @@ public class StudyHazardMapPageGen {
 	private static final boolean LOCAL_MAPGEN = true;
 
 	public static void main(String[] args) throws IOException {
-		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
+		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
 //		double[] periods = { 2d, 3d, 5d, 10d };
@@ -122,7 +122,7 @@ public class StudyHazardMapPageGen {
 //		SiteData<?>[] siteDatas = null;
 //		Region zoomRegion = null;
 		
-		boolean replot = true;
+		boolean replot = false;
 		
 		List<Double> probLevels = new ArrayList<>();
 		List<String> probLabels = new ArrayList<>();

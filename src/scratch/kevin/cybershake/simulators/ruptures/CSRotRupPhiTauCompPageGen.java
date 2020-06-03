@@ -21,7 +21,7 @@ import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityPageGen.V
 public class CSRotRupPhiTauCompPageGen {
 
 	public static void main(String[] args) throws IOException {
-		File mainOutputDir = new File("/home/kevin/git/cybershake-analysis/");
+		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		CyberShakeStudy study = CyberShakeStudy.STUDY_19_3_RSQSIM_ROT_2585;
 		String[] siteNames = { "USC", "PAS", "SBSM", "WNGC", "STNI", "SMCA" };
 		Float[] dists = { 20f, 50f, 100f };

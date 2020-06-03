@@ -356,7 +356,7 @@ public enum CyberShakeStudy {
 			return catalog;
 		}
 	},
-	STUDY_20_2_RSQSIM_ROT_4860_10X(cal(2019, 3), 94, "RSQSim RotRup 4860 10X",
+	STUDY_20_2_RSQSIM_ROT_4860_10X(cal(2020, 3), 94, "RSQSim RotRup 4860 10X",
 			"study_20_2_rsqsim_rot_4860_10x", "RSQSim rotated-rupture variability study with catalog 4860 10X", 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
@@ -379,6 +379,53 @@ public enum CyberShakeStudy {
 		public synchronized RSQSimCatalog getRSQSimCatalog() {
 			if (catalog == null)
 				catalog = RSQSimCatalog.Catalogs.BRUCE_4860_10X.instance();
+			return catalog;
+		}
+	},
+	STUDY_20_5_RSQSIM_4983(cal(2020, 5), 98, "RSQSim 4983",
+			"study_20_5_rsqsim_4983", "RSQSim prototype with catalog 4983 (stitched, 4x, 775yr)", 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return getRSQSimERF("rundir4983_stitched");
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forERF(58).hasAmplitudes().unique(false);
+		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_4983_STITCHED.instance();
+			return catalog;
+		}
+	},
+	STUDY_20_5_RSQSIM_ROT_4983(cal(2020, 5), 100, "RSQSim RotRup 4983 10X",
+			"study_20_5_rsqsim_rot_4983", "RSQSim rotated-rupture variability study with "
+					+ "catalog 4983 (stitched, 4x, 775yr)", 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return getRSQSimRotRupERF("rundir4983_stitched");
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forERF(59).hasAmplitudes().unique(true);
+		}
+		@Override
+		public List<String> writeStandardDiagnosticPlots(File outputDir, int skipYears, double minMag, boolean replot,
+				String topLink) throws IOException {
+			// standard plots are not relevant for this variability study
+			return new ArrayList<>();
+		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_4983.instance();
 			return catalog;
 		}
 	};
@@ -576,6 +623,10 @@ public enum CyberShakeStudy {
 		Table<String, Vs30_Source, List<String>> siteHazardNamesTable = HashBasedTable.create();
 		
 		Map<Vs30_Source, String> sourceSiteLinksMap = new HashMap<>();
+		
+		List<String> sourceDetailLinks = new ArrayList<>();
+		List<String> sourceDetailNames = new ArrayList<>();
+		
 		String rotDDLink = null;
 		
 		String study_3d_vs_1d_link = null;
@@ -629,12 +680,15 @@ public enum CyberShakeStudy {
 				
 				siteHazardLinksTable.get(gmpeName, vs30).add(name);
 				siteHazardNamesTable.get(gmpeName, vs30).add(siteName);
-			} else if (name.startsWith("source_site_comparisons_")) {
+			} else if (name.startsWith("source_site_comparisons_Vs30")) {
 				String vs30Name = name.substring(name.indexOf("_Vs30")+5);
 				Vs30_Source vs30 = Vs30_Source.valueOf(vs30Name);
 				Preconditions.checkNotNull(vs30);
 				
 				sourceSiteLinksMap.put(vs30, name);
+			} else if (name.startsWith("source_site_detail")) {
+				sourceDetailLinks.add(name);
+				sourceDetailNames.add(MarkdownUtils.getTitle(mdFile));
 			} else if (name.equals("3d_1d_comparison")) {
 				study_3d_vs_1d_link = name;
 			} else if (name.equals("hazard_maps")) {
@@ -716,6 +770,14 @@ public enum CyberShakeStudy {
 					lines.add("[Source/Site Ground Motion Comparisons Here]("+link+"/)");
 				}
 			}
+		}
+		if (!sourceDetailLinks.isEmpty()) {
+			lines.add("");
+			lines.add("## Source/Site Ground Motion Details");
+			lines.add(topLink);
+			lines.add("");
+			for (int i=0; i<sourceDetailLinks.size(); i++)
+				lines.add("* ["+sourceDetailNames.get(i)+"]("+sourceDetailLinks.get(i)+"/)");
 		}
 		if (rotDDLink != null) {
 			lines.add("");
@@ -799,6 +861,7 @@ public enum CyberShakeStudy {
 		table.finalizeLine();
 		lines.addAll(table.build());
 		
+		AbstractERF erf = getERF();
 		if (new File(outputDir, "mfd_no_aleatory.png").exists()
 				|| erf != null && (erf instanceof MeanUCERF2 || erf.getName().startsWith(MeanUCERF2.NAME))) {
 			UCERF2_AleatoryMagVarRemovalMod probMod = new UCERF2_AleatoryMagVarRemovalMod(erf);
@@ -1066,7 +1129,7 @@ public enum CyberShakeStudy {
 	public abstract RunIDFetcher runFetcher();
 	
 	public static void main(String[] args) throws IOException {
-		File gitDir = new File("/home/kevin/git/cybershake-analysis");
+		File gitDir = new File("/home/kevin/markdown/cybershake-analysis");
 		
 		boolean replot = false;
 		

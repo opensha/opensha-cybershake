@@ -27,10 +27,10 @@ import scratch.kevin.simulators.ruptures.rotation.RSQSimRotatedRupVariabilityCon
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.Quantity;
 import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig.RotationSpec;
 
-public class RSQSimCurveDataCSVWriter {
+public class RSQSimRotationDataCSVWriter {
 
 	public static void main(String[] args) throws IOException {
-		CyberShakeStudy study = CyberShakeStudy.STUDY_20_2_RSQSIM_ROT_4860_10X;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_20_5_RSQSIM_ROT_4983;
 		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		
 		IMT[] imts = { IMT.SA3P0 };
@@ -96,7 +96,9 @@ public class RSQSimCurveDataCSVWriter {
 				Preconditions.checkState(resourcesDir.exists() || resourcesDir.mkdir());
 				File outputFile = new File(resourcesDir, site.getName()+"_"+scen.getPrefix()+"_rd50s.csv.gz");
 				System.out.println("Writing to: "+outputFile.getAbsolutePath());
-				csv.writeToStream(new GZIPOutputStream(new FileOutputStream(outputFile)));
+				GZIPOutputStream gz = new GZIPOutputStream(new FileOutputStream(outputFile));
+				csv.writeToStream(gz);
+				gz.close();
 			}
 		}
 		

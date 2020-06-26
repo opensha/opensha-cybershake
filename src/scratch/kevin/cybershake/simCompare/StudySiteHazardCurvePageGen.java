@@ -317,6 +317,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		if (csvFile.getName().toLowerCase().endsWith(".gz")) {
 			GZIPOutputStream gz = new GZIPOutputStream(new FileOutputStream(csvFile));
 			csv.writeToStream(gz);
+			gz.close();
 		} else {
 			csv.writeToFile(csvFile);
 		}
@@ -354,33 +355,33 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2020_02_12-rundir4860_multi_combine-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
 //		RSQSimCatalog catalog = Catalogs.BRUCE_4860_10X.instance();
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_20_5_RSQSIM_4983;
-		File bbpDir = new File("/data/kevin/bbp/parallel/2020_05_05-rundir4983_stitched-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
-		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_20_5_RSQSIM_4983;
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2020_05_05-rundir4983_stitched-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
 		
-		Vs30_Source vs30Source = Vs30_Source.Simulation;
-//		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
-		CyberShakeStudy[] compStudies = {  };
-		double catDurationYears = catalog.getDurationYears() - 5000d;
-		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
+//		Vs30_Source vs30Source = Vs30_Source.Simulation;
+////		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
+//		CyberShakeStudy[] compStudies = {  };
+//		double catDurationYears = catalog.getDurationYears() - 5000d;
+//		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
 		
 		/*
 		 * For regular studies
 		 */
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
-//		Vs30_Source vs30Source = Vs30_Source.Simulation;
-//		CyberShakeStudy[] compStudies = { };
-//		
-//		RSQSimCatalog catalog = null;
-//		File bbpDir = null;
-//		double catDurationYears = -1;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+		Vs30_Source vs30Source = Vs30_Source.Simulation;
+		CyberShakeStudy[] compStudies = { };
+		
+		RSQSimCatalog catalog = null;
+		File bbpDir = null;
+		double catDurationYears = -1;
 		
 		boolean includeAleatoryStrip = true;
 		
-//		String[] siteNames = { "PAS", "s119" };
+		String[] siteNames = { "USC" };
 //		String[] siteNames = { "SBSM", "LAF", "s022", "STNI", "WNGC", "PDE" };
-		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
-				"LAF", "s022", "STNI", "WNGC", "PDE" };
+//		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
+//				"LAF", "s022", "STNI", "WNGC", "PDE" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
 //		String[] siteNames = { "LAPD", "SBSM", "PAS", "WNGC" };
@@ -395,7 +396,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		boolean sourceFractional = true;
 		
-		boolean replotCurves = true;
+		boolean replotCurves = false;
 		boolean replotDisaggs = false;
 		
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };

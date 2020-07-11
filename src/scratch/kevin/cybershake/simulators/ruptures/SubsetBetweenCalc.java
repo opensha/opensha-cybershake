@@ -13,6 +13,7 @@ import org.apache.commons.math3.stat.StatUtils;
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.util.DataUtils;
 import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
+import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.simulators.RSQSimEvent;
 
 import com.google.common.base.Preconditions;
@@ -55,7 +56,7 @@ public class SubsetBetweenCalc {
 		for (RSQSimEvent event : eventsMap.values()) {
 			Integer eventID = event.getID();
 			HashSet<Integer> parents = new HashSet<>();
-			for (FaultSectionPrefData sect : catalog.getSubSectsForRupture(event))
+			for (FaultSection sect : catalog.getSubSectsForRupture(event))
 				parents.add(sect.getParentSectionId());
 			eventParentsMap.put(eventID, parents);
 		}

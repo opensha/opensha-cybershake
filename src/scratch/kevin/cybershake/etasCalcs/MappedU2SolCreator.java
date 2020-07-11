@@ -13,6 +13,7 @@ import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
 import org.opensha.sha.earthquake.ERF;
 import org.opensha.sha.earthquake.ProbEqkRupture;
 import org.opensha.sha.earthquake.ProbEqkSource;
+import org.opensha.sha.faultSurface.FaultSection;
 
 import scratch.UCERF3.FaultSystemRupSet;
 import scratch.UCERF3.FaultSystemSolution;
@@ -82,7 +83,7 @@ public class MappedU2SolCreator {
 				ProbEqkRupture rup = source.getRupture(ruptureIndex);
 				int fssIndex = findUCERF2_Rups.getEquivFaultSystemRupIndexForUCERF2_Rupture(r);
 				if (fssIndex >= 0) {
-					List<FaultSectionPrefData> subs = rupSet.getFaultSectionDataForRupture(fssIndex);
+					List<FaultSection> subs = rupSet.getFaultSectionDataForRupture(fssIndex);
 					mapping.addLine(sourceIndex+"", ruptureIndex+"", source.getName(), rup.getMag()+"",
 							fssIndex+"", subs.get(0).getName(), subs.get(subs.size()-1).getName());
 				}

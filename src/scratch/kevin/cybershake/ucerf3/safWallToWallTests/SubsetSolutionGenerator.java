@@ -12,6 +12,7 @@ import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.Region;
 import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
 import org.opensha.sha.faultSurface.CompoundSurface;
+import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.faultSurface.RuptureSurface;
 
 import com.google.common.collect.Lists;
@@ -39,7 +40,7 @@ public class SubsetSolutionGenerator {
 		
 		Map<Integer, Boolean> safSectsInSoCal = Maps.newHashMap();
 		for (int sectIndex=0; sectIndex<rupSet.getNumSections(); sectIndex++) {
-			FaultSectionPrefData sect = rupSet.getFaultSectionData(sectIndex);
+			FaultSection sect = rupSet.getFaultSectionData(sectIndex);
 			if (!parents.contains(sect.getParentSectionId()))
 				continue;
 			boolean inside = false;
@@ -115,7 +116,7 @@ public class SubsetSolutionGenerator {
 		System.out.println("Longest All SAF: "+longestSAF);
 		System.out.println("Longest So Cal SAF: "+longestSAF_soCal);
 		
-		CompoundSurface surf = (CompoundSurface) rupSet.getSurfaceForRupupture(longestSAF, 1d, false);
+		CompoundSurface surf = (CompoundSurface) rupSet.getSurfaceForRupupture(longestSAF, 1d);
 		System.out.println();
 		System.out.println("Longest Rupture:");
 		System.out.println("\tLength: "+longestSAFLength+" (km)");
@@ -144,9 +145,8 @@ public class SubsetSolutionGenerator {
 		for (double gridSpacing : gridSpacings) {
 			long count = 0;
 			
-			for (FaultSectionPrefData sect : rupSet.getFaultSectionDataList()) {
-				count += sect.getStirlingGriddedSurface(gridSpacing).size();
-			}
+			for (FaultSection sect : rupSet.getFaultSectionDataList())
+				count += sect.getFaultSurface(gridSpacing).getEvenlyDiscretizedNumLocs();
 			
 			System.out.println((int)(gridSpacing*1000d)+"m: "+count);
 		}

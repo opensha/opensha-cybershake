@@ -38,6 +38,7 @@ import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.MeanUCERF2.MeanUCERF2;
+import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
@@ -192,17 +193,17 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 			
 			for (int sourceID=0; sourceID<erf.getNumSources(); sourceID++) {
 				RSQSimSectBundledSource source = ((RSQSimSectBundledERF)erf).getSource(sourceID);
-				List<FaultSectionPrefData> sects = source.getSortedSourceSects();
+				List<FaultSection> sects = source.getSortedSourceSects();
 				double totArea = 0d;
 				List<Double> areas = new ArrayList<>();
-				for (FaultSectionPrefData sect : sects) {
+				for (FaultSection sect : sects) {
 					double area = sect.getOrigDownDipWidth()*sect.getTraceLength();
 					totArea += area;
 					areas.add(area);
 				}
 				Map<String, Double> sourceFracts = new HashMap<>();
 				for (int i=0; i<sects.size(); i++) {
-					FaultSectionPrefData sect = sects.get(i);
+					FaultSection sect = sects.get(i);
 					int id = sect.getParentSectionId();
 					String name = idsToFaultNamesMap.get(id);
 					if (name == null) {

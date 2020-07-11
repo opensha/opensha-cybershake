@@ -40,8 +40,6 @@ import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
 import org.opensha.sha.util.SiteTranslator;
 import org.opensha.sha.util.TectonicRegionType;
 
-import scratch.UCERF3.oldStuff.OldInversionSolutionERF;
-
 public class SpeedTestComparisonGen {
 
 	public static void main(String[] args) throws IOException {

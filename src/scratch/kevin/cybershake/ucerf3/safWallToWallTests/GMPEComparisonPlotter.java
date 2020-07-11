@@ -28,6 +28,7 @@ import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.earthquake.EqkRupture;
+import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.gui.infoTools.IMT_Info;
 import org.opensha.sha.imr.AttenRelRef;
@@ -143,11 +144,11 @@ public class GMPEComparisonPlotter {
 		return ret;
 	}
 	
-	static void printRupSections(List<FaultSectionPrefData> sects) {
+	static void printRupSections(List<FaultSection> sects) {
 		String firstForParent = null;
 		String prevParent = null;
 		String prevSub = null;
-		for (FaultSectionPrefData sect : sects) {
+		for (FaultSection sect : sects) {
 			String parent = sect.getParentSectionName();
 			if (!parent.equals(prevParent)) {
 				// new parent section
@@ -177,9 +178,9 @@ public class GMPEComparisonPlotter {
 	}
 	
 	static int getLargestSubRupInRegion(FaultSystemRupSet rupSet, int origRupIndex, Region region) {
-		List<FaultSectionPrefData> origSects = rupSet.getFaultSectionDataForRupture(origRupIndex);
+		List<FaultSection> origSects = rupSet.getFaultSectionDataForRupture(origRupIndex);
 		HashSet<Integer> allowedSectionIndices = new HashSet<Integer>();
-		for (FaultSectionPrefData sect : origSects) {
+		for (FaultSection sect : origSects) {
 			boolean inside = true;
 			for (Location loc : sect.getFaultTrace())
 				if (!region.contains(loc))
@@ -210,7 +211,7 @@ public class GMPEComparisonPlotter {
 	}
 	
 	static EqkRupture getRup(FaultSystemRupSet rupSet, int rupIndex) {
-		RuptureSurface surf = rupSet.getSurfaceForRupupture(rupIndex, 1d, false);
+		RuptureSurface surf = rupSet.getSurfaceForRupupture(rupIndex, 1d);
 		return new EqkRupture(rupSet.getMagForRup(rupIndex), rupSet.getAveRakeForRup(rupIndex), surf, null);
 	}
 

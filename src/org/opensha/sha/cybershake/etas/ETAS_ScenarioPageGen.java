@@ -78,6 +78,7 @@ import org.opensha.sha.earthquake.ProbEqkRupture;
 import org.opensha.sha.earthquake.ProbEqkSource;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.UCERF2;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.MeanUCERF2.MeanUCERF2;
+import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
@@ -535,7 +536,7 @@ public class ETAS_ScenarioPageGen {
 			if (count < minRupsForParent)
 				break;
 			String parentSectionName = null;
-			for (FaultSectionPrefData sect : rupSet.getFaultSectionDataList()) {
+			for (FaultSection sect : rupSet.getFaultSectionDataList()) {
 				if (sect.getParentSectionId() == parentID) {
 					parentSectionName = sect.getParentSectionName();
 					break;
@@ -1467,8 +1468,8 @@ public class ETAS_ScenarioPageGen {
 	private File[] plotCHDs(File resourcesDir, FaultSystemRupSet rupSet, int parentSectionID, boolean plotCS) throws IOException {
 		File[] ret = new File[timeSpans.length];
 		
-		List<FaultSectionPrefData> sects = new ArrayList<>();
-		for (FaultSectionPrefData sect : rupSet.getFaultSectionDataList())
+		List<FaultSection> sects = new ArrayList<>();
+		for (FaultSection sect : rupSet.getFaultSectionDataList())
 			if (sect.getParentSectionId() == parentSectionID)
 				sects.add(sect);
 		Preconditions.checkState(!sects.isEmpty());
@@ -1636,7 +1637,7 @@ public class ETAS_ScenarioPageGen {
 			
 			if (scenarioLoc != null) {
 				double minDist = Double.POSITIVE_INFINITY;
-				for (FaultSectionPrefData sect : sects)
+				for (FaultSection sect : sects)
 					for (Location loc : sect.getFaultTrace())
 						minDist = Math.min(minDist, LocationUtils.horzDistanceFast(loc, scenarioLoc));
 				if (minDist < 10d) {
@@ -1735,7 +1736,7 @@ public class ETAS_ScenarioPageGen {
 	private boolean isHypocenterOnParentSect(int fssIndex, Location hypo, FaultSystemRupSet rupSet, int parentSectionID) {
 		double minDist = Double.POSITIVE_INFINITY;
 		boolean closestIsMatch = false;
-		for (FaultSectionPrefData sect : rupSet.getFaultSectionDataForRupture(fssIndex)) {
+		for (FaultSection sect : rupSet.getFaultSectionDataForRupture(fssIndex)) {
 			for (Location loc : sect.getFaultTrace()) {
 				double dist = LocationUtils.horzDistanceFast(hypo, loc);
 				if (dist < minDist) {

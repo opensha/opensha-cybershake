@@ -28,6 +28,7 @@ import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
 import org.opensha.sha.earthquake.AbstractERF;
+import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.imr.AttenRelRef;
 
 import com.google.common.base.Preconditions;
@@ -60,7 +61,7 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 				ret.add(rupsForSource);
 				int[] sourceParents = parentIDs.get(i);
 				for (CSRupture rup : csRuptures) {
-					for (FaultSectionPrefData sect : rsERF.getRupture(rup.getSourceID(), rup.getRupID()).getSortedSubSects()) {
+					for (FaultSection sect : rsERF.getRupture(rup.getSourceID(), rup.getRupID()).getSortedSubSects()) {
 						if (Ints.contains(sourceParents, sect.getParentSectionId())) {
 							rupsForSource.add(rup);
 							break;

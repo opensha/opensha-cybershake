@@ -458,7 +458,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 			IDPairing match = null;
 			
 			double origMag = sol.getRupSet().getMagForRup(fssIndex);
-			CompoundSurface surf = (CompoundSurface) sol.getRupSet().getSurfaceForRupupture(fssIndex, 1d, false);
+			CompoundSurface surf = (CompoundSurface) sol.getRupSet().getSurfaceForRupupture(fssIndex, 1d);
 			List<? extends RuptureSurface> surfs = surf.getSurfaceList();
 			Location fssFirstLoc = surfs.get(0).getFirstLocOnUpperEdge();
 			Location fssLastLoc = surfs.get(surfs.size()-1).getFirstLocOnUpperEdge();

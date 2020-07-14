@@ -82,7 +82,8 @@ public class CybershakeRun {
 	private double maxFreq;
 	private double lowFreqCutof;
 	private Double modelVs30; // m/s, UCVM input to CyberShake, with floor applied
-	private Double meshVsSurface; // m/s, as discretized in CyberShake mesh
+	private Integer meshVsitopID; // ID of algorithm used to determine this value in Mesh_Vsitop_Metadata table
+	private Double meshVsitop; // m/s, as discretized in CyberShake mesh
 	private Double minVs; // m/s
 	private String vs30Source;
 	private Double z10; // m
@@ -90,7 +91,7 @@ public class CybershakeRun {
 	
 	public CybershakeRun(int runID, int siteID, int erfID, int sgtVarID, int rupVarScenID, int velModelID,
 			Timestamp sgtTime, Timestamp ppTime, String sgtHost, String ppHost, Status status, Timestamp statusTime,
-			double maxFreq, double lowFreqCutoff, Double modelVs30, Double meshVsSurface, Double minVs, String vs30Source, Double z10, Double z25) {
+			double maxFreq, double lowFreqCutoff, Double modelVs30, Double meshVsitop, Integer meshVsitopID, Double minVs, String vs30Source, Double z10, Double z25) {
 		this.runID = runID;
 		this.siteID = siteID;
 		this.erfID = erfID;
@@ -104,7 +105,8 @@ public class CybershakeRun {
 		this.maxFreq = maxFreq;
 		this.lowFreqCutof = lowFreqCutoff;
 		this.modelVs30 = modelVs30;
-		this.meshVsSurface = meshVsSurface;
+		this.meshVsitop = meshVsitop;
+		this.meshVsitopID = meshVsitopID;
 		this.minVs = minVs;
 		this.vs30Source = vs30Source;
 		this.z10 = z10;
@@ -177,12 +179,22 @@ public class CybershakeRun {
 	}
 	
 	/**
-	 * Model Vs30 is exactly what the CyberShake SGT code sees as Vs30. If grid spacig is larger
-	 * than 30m, then the uppermost grid node is reported. Minimum Vs threshold is applied.
+	 * Mesh Vsitop is the representative value of Vs30 from the SGT code mesh. This value has been
+	 * computed different ways in different CyberShake studies, and metadata for the exact algorithm
+	 * used can be found in the Mesh_Vsitop_Metadata table (see getMeshVsitopID()).
 	 * @return mesh Vs30 (m/s), or null if not defined in the database
 	 */
-	public Double getMeshVsSurface() {
-		return meshVsSurface;
+	public Double getMeshVsitop() {
+		return meshVsitop;
+	}
+	
+	/**
+	 * ID number in the Mesh_Vsitop_Metadata table, which describes the algorithm used to calculate
+	 * the Mesh_Vsitop value.
+	 * @return
+	 */
+	public Integer getMeshVsitopID() {
+		return meshVsitopID;
 	}
 	
 	public Double getMinimumVs() {
@@ -260,9 +272,12 @@ public class CybershakeRun {
 		Double modelVs30 = rs.getDouble(prefix+"Model_Vs30");
 		if (rs.wasNull())
 			modelVs30 = null;
-		Double meshVsSurface = rs.getDouble(prefix+"Mesh_Vs_Surface");
+		Double meshVsitop = rs.getDouble(prefix+"Mesh_Vsitop");
 		if (rs.wasNull())
-			meshVsSurface = null;
+			meshVsitop = null;
+		Integer meshVsitopID = rs.getInt(prefix+"Mesh_Vsitop_ID");
+		if (rs.wasNull())
+			meshVsitopID = null;
 		Double minVs = rs.getDouble(prefix+"Minimum_Vs");
 		if (rs.wasNull())
 			minVs = null;
@@ -278,7 +293,7 @@ public class CybershakeRun {
 		
 		return new CybershakeRun(runID, siteID, erfID, sgtVarID, rupVarScenID, velModelID,
 				sgtTime, ppTime, sgtHost, ppHost, status, statusTime, maxFreq, lowFreqCutoff,
-				modelVs30, meshVsSurface, minVs, vs30Source, z10, z25);
+				modelVs30, meshVsitop, meshVsitopID, minVs, vs30Source, z10, z25);
 	}
 
 }

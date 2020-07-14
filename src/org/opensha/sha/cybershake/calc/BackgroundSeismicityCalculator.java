@@ -88,7 +88,7 @@ public class BackgroundSeismicityCalculator {
 				// make sure simulation vs30 fields populated
 				for (int r=runs.size(); --r>=0 && vs30Source == Vs30_Source.Simulation;) {
 					CybershakeRun run = runs.get(r);
-					if (!(run.getModelVs30() != null || run.getMeshVsSurface() != null)) {
+					if (!(run.getModelVs30() != null || run.getMeshVsitop() != null)) {
 						System.out.println("Will skip run "+run.getRunID()+" as simulation Vs is not definied");
 						runs.remove(r);
 					}

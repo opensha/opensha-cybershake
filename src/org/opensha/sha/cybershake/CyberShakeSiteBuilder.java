@@ -88,7 +88,7 @@ public class CyberShakeSiteBuilder {
 					throw ExceptionUtils.asRuntimeException(e);
 				}
 			} else if (this == Vs30_Source.Simulation) {
-				Double meshVs30 = run.getMeshVsSurface();
+				Double meshVs30 = run.getMeshVsitop();
 				if (meshVs30 != null && !Double.isFinite(meshVs30))
 					meshVs30 = null;
 				Double modelVs30 = run.getModelVs30();
@@ -108,8 +108,8 @@ public class CyberShakeSiteBuilder {
 					vs30 = modelVs30;
 				Preconditions.checkNotNull(vs30, "No simulation Vs30 defined for run %s", run.getRunID());
 				Preconditions.checkState(Double.isFinite(vs30));
-				if (run.getMinimumVs() != null)
-					vs30 = Math.max(vs30, run.getMinimumVs());
+				if (minVs != null) // TODO ?
+					vs30 = Math.max(vs30, minVs);
 				return vs30;
 			} else {
 				throw new IllegalStateException("Unknown Vs30_Source: "+this);

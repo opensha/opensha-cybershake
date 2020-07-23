@@ -26,7 +26,7 @@ import scratch.UCERF3.enumTreeBranches.SpatialSeisPDF;
 import scratch.UCERF3.inversion.InversionFaultSystemRupSet;
 import scratch.UCERF3.inversion.InversionFaultSystemRupSetFactory;
 import scratch.UCERF3.inversion.InversionFaultSystemSolution;
-import scratch.UCERF3.inversion.laughTest.LaughTestFilter;
+import scratch.UCERF3.inversion.laughTest.UCERF3PlausibilityConfig;
 import scratch.UCERF3.utils.FaultSystemIO;
 import scratch.UCERF3.utils.UCERF3_DataUtils;
 import scratch.UCERF3.utils.FindEquivUCERF2_Ruptures.FindEquivUCERF2_FM2pt1_Ruptures;
@@ -43,7 +43,7 @@ public class MappedU2SolCreator {
 		FaultModels fm = FaultModels.FM3_1;
 		DeformationModels dm = DeformationModels.GEOLOGIC;
 		InversionFaultSystemRupSet rupSet = InversionFaultSystemRupSetFactory.forBranch(
-				LaughTestFilter.getDefault(), 0, fm, dm, ScalingRelationships.AVE_UCERF2,
+				UCERF3PlausibilityConfig.getDefault(), 0, fm, dm, ScalingRelationships.AVE_UCERF2,
 				SlipAlongRuptureModels.TAPERED, InversionModels.CHAR_CONSTRAINED, SpatialSeisPDF.UCERF2);
 		
 		FindEquivUCERF2_Ruptures findUCERF2_Rups;
@@ -101,7 +101,7 @@ public class MappedU2SolCreator {
 //				rupSet.getAreaForAllRups(), rupSet.getLengthForAllRups(), "Mapped UCERF2 for CyberShake");
 //		
 		InversionFaultSystemRupSet modRupSet = new InversionFaultSystemRupSet(rupSet, rupSet.getLogicTreeBranch(),
-				rupSet.getLaughTestFilter(), new double[rupSet.getNumRuptures()], rupSet.getCloseSectionsListList(),
+				rupSet.getPlausibilityConfiguration(), new double[rupSet.getNumRuptures()], rupSet.getCloseSectionsListList(),
 				rupSet.getRupturesForClusters(), rupSet.getSectionsForClusters());
 
 		modRupSet.setMagForallRups(mags);

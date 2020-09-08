@@ -59,6 +59,14 @@ public class CSRupture {
 			return false;
 		return true;
 	}
+	
+	public int getERFID() {
+		return erfID;
+	}
+	
+	public int getRupVarScenID() {
+		return rvScenID;
+	}
 
 	public int getSourceID() {
 		return sourceID;
@@ -78,6 +86,10 @@ public class CSRupture {
 
 	public double getRate() {
 		return rate;
+	}
+	
+	public void setRate(double rate) {
+		this.rate = rate;
 	}
 	
 	public Location getHypocenter(int rv, ERF2DB erf2db) {

@@ -17,6 +17,7 @@ import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
 import org.opensha.commons.data.siteData.impl.ThompsonVs30_2018;
+import org.opensha.commons.data.siteData.impl.ThompsonVs30_2020;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.data.xyz.GeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSetMath;
@@ -58,6 +59,7 @@ public class Vs30ModelCompare {
 		Region zoomRegion = new CaliforniaRegions.CYBERSHAKE_MAP_REGION();
 		
 		File outputDir = new File(mainOutputDir, "thompson_2018_vs_wills_2015");
+//		File outputDir = new File(mainOutputDir, "thompson_2020_vs_wills_2015");
 		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
 		File resourcesDir = new File(outputDir, "resources");
 		Preconditions.checkState(resourcesDir.exists() || resourcesDir.mkdir());
@@ -68,6 +70,8 @@ public class Vs30ModelCompare {
 		double maxDiff = 150d;
 		
 		SiteData<Double> prov1 = new ThompsonVs30_2018();
+//		SiteData<Double> prov1 = new ThompsonVs30_2020(
+//				"/tmp/thompson_vs30/Wills15_hybk_3c_2020v2.flt");
 		String name1 = prov1.getName();
 		String prefix1 = "thompson_2018";
 		
@@ -97,8 +101,8 @@ public class Vs30ModelCompare {
 		dataCPT.setNanColor(Color.GRAY);
 		
 		CPT diffCPT = GMT_CPT_Files.GMT_POLAR.instance().rescale(-maxDiff, maxDiff);
-		diffCPT.setBelowMinColor(dataCPT.getMinColor());
-		diffCPT.setAboveMaxColor(dataCPT.getMaxColor());
+		diffCPT.setBelowMinColor(diffCPT.getMinColor());
+		diffCPT.setAboveMaxColor(diffCPT.getMaxColor());
 		diffCPT.setNanColor(Color.GRAY);
 		
 		List<String> lines = new ArrayList<>();

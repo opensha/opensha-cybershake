@@ -18,38 +18,30 @@ import java.util.zip.ZipFile;
 
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
-import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.geo.LocationUtils;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.util.ExceptionUtils;
-import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.UCERF2_AleatoryMagVarRemovalMod;
 import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
-import org.opensha.sha.cybershake.db.CybershakeIM;
-import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
-import org.opensha.sha.cybershake.db.CybershakeIM.IMType;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
-import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.MeanUCERF2.MeanUCERF2;
 import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
-import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Table;
-import com.google.common.primitives.Doubles;
 
 import scratch.kevin.bbp.BBP_Site;
 import scratch.kevin.cybershake.simCompare.StudyGMPE_Compare.CSRuptureComparison;
@@ -65,10 +57,10 @@ import scratch.kevin.simulators.ruptures.LightweightBBP_CatalogSimZipLoader;
 public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CSRupture> {
 
 	private String simName;
-	private StudyRotDProvider studyProv;
+	private SimulationRotDProvider<CSRupture> studyProv;
 	private List<SimulationRotDProvider<?>> compSimProvs;
 
-	public StudySiteHazardCurvePageGen(StudyRotDProvider simProv, String simName,
+	public StudySiteHazardCurvePageGen(SimulationRotDProvider<CSRupture> simProv, String simName,
 			List<SimulationRotDProvider<?>> compSimProvs) {
 		super(simProv, simName, compSimProvs);
 		this.studyProv = simProv;
@@ -76,7 +68,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		this.compSimProvs = compSimProvs;
 	}
 	
-	public static List<CSRuptureComparison> calcComps(StudyRotDProvider prov, Site site,
+	public static List<CSRuptureComparison> calcComps(SimulationRotDProvider<CSRupture> prov, Site site,
 			AttenRelRef gmpeRef, IMT[] imts) {
 		List<CSRuptureComparison> compsList = new ArrayList<>();
 		
@@ -137,7 +129,19 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 	}
 	
-	public static LightweightBBP_CatalogSimZipLoader loadBBP(File bbpDir, Site site, double durationYears) throws IOException {
+	public static LightweightBBP_CatalogSimZipLoader loadBBP(File bbpDir, Site site, RSQSimCatalog catalog) throws IOException {
+		double catDurationYears = catalog.getDurationYears();
+		String bbpDirName = bbpDir.getName();
+		if (bbpDirName.contains("-skipYears")) {
+			String yearStr = bbpDirName.substring(bbpDirName.indexOf("-skipYears")+"-skipYears".length());
+			if (yearStr.contains("-"))
+				yearStr = yearStr.substring(0, yearStr.indexOf("-"));
+			int skipYears = Integer.parseInt(yearStr);
+			System.out.println("Detected BBP skipYears="+skipYears);
+			catDurationYears -= skipYears;
+		}
+		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
+		
 		File bbpZip = new File(bbpDir, "results_rotD.zip");
 		Preconditions.checkState(bbpZip.exists(), "BBP zip file not found: "+bbpZip.getAbsolutePath());
 		File sitesFile = new File(bbpDir, "sites.stl");
@@ -159,7 +163,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		BiMap<BBP_Site, Site> gmpeSites = HashBiMap.create();
 		gmpeSites.put(bbpSite, site);
 		
-		return new LightweightBBP_CatalogSimZipLoader(new ZipFile(bbpZip), bbpSites, gmpeSites, durationYears);
+		return new LightweightBBP_CatalogSimZipLoader(new ZipFile(bbpZip), bbpSites, gmpeSites, catDurationYears);
 	}
 	
 	static Table<String, CSRupture, Double> getSourceContribFracts(
@@ -244,8 +248,14 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		List<String> header = new ArrayList<>();
 		
-		final RSQSimSectBundledERF rsERF = studyProv.getERF() instanceof RSQSimSectBundledERF ?
-				(RSQSimSectBundledERF)studyProv.getERF() : null;
+		AbstractERF studyERF = null;
+		if (studyProv instanceof StudyRotDProvider)
+			studyERF = ((StudyRotDProvider)studyProv).getERF();
+		else if (studyProv instanceof RSQSimSubsetStudyRotDProvider)
+			studyERF = ((RSQSimSubsetStudyRotDProvider)studyProv).getERF();
+		
+		final RSQSimSectBundledERF rsERF = studyERF instanceof RSQSimSectBundledERF
+				? (RSQSimSectBundledERF)studyERF : null;
 		
 		if (rsERF != null) {
 			header.add("Event ID");
@@ -360,29 +370,31 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2020_05_05-rundir4983_stitched-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
 //		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
 		
-//		Vs30_Source vs30Source = Vs30_Source.Simulation;
-////		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
-//		CyberShakeStudy[] compStudies = {  };
-//		double catDurationYears = catalog.getDurationYears() - 5000d;
-//		System.out.println("Catalog duration: "+(int)Math.round(catDurationYears)+" years");
+		CyberShakeStudy study = CyberShakeStudy.STUDY_20_5_RSQSIM_4983_SKIP65k;
+		File bbpDir = new File("/data/kevin/bbp/parallel/2020_09_03-rundir4983_stitched-all-m6.5-skipYears65000-noHF-vmLA_BASIN_500-cs500Sites");
+		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
+		
+		Vs30_Source vs30Source = Vs30_Source.Simulation;
+//		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
+		CyberShakeStudy[] compStudies = {  };
 		
 		/*
 		 * For regular studies
 		 */
-		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
-		Vs30_Source vs30Source = Vs30_Source.Simulation;
-		CyberShakeStudy[] compStudies = { };
-		
-		RSQSimCatalog catalog = null;
-		File bbpDir = null;
-		double catDurationYears = -1;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+//		Vs30_Source vs30Source = Vs30_Source.Simulation;
+//		CyberShakeStudy[] compStudies = { };
+//		
+//		RSQSimCatalog catalog = null;
+//		File bbpDir = null;
+//		double catDurationYears = -1;
 		
 		boolean includeAleatoryStrip = true;
 		
-		String[] siteNames = { "USC" };
+//		String[] siteNames = { "USC" };
 //		String[] siteNames = { "SBSM", "LAF", "s022", "STNI", "WNGC", "PDE" };
-//		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
-//				"LAF", "s022", "STNI", "WNGC", "PDE" };
+		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
+				"LAF", "s022", "STNI", "WNGC", "PDE" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
 //		String[] siteNames = { "LAPD", "SBSM", "PAS", "WNGC" };
@@ -397,7 +409,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		boolean sourceFractional = true;
 		
-		boolean replotCurves = false;
+		boolean replotCurves = true;
 		boolean replotDisaggs = false;
 		
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
@@ -414,7 +426,11 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 			String studyName = "CyberShake";
 			if (catalog == null)
 				studyName += study.getName();
-			StudyRotDProvider mainProv = new StudyRotDProvider(study, amps2db, imts, studyName);
+			SimulationRotDProvider<CSRupture> mainProv = new StudyRotDProvider(study, amps2db, imts, studyName);
+			if (study == CyberShakeStudy.STUDY_20_5_RSQSIM_4983_SKIP65k) {
+				RSQSimSectBundledERF erf = (RSQSimSectBundledERF)study.getERF();
+				mainProv = new RSQSimSubsetStudyRotDProvider(mainProv, erf, catalog, 65000d);
+			}
 			
 			for (String siteName : siteNames) {
 				List<CybershakeRun> matchingRuns = study.runFetcher().forSiteNames(siteName).fetch();
@@ -425,7 +441,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 				
 				if (includeAleatoryStrip && study.getERF() instanceof MeanUCERF2)
 					compSimProvs.add(new StudyModifiedProbRotDProvider(
-							mainProv, new UCERF2_AleatoryMagVarRemovalMod(study.getERF()), study.getName()+" w/o Aleatory Mag"));
+							(StudyRotDProvider)mainProv, new UCERF2_AleatoryMagVarRemovalMod(study.getERF()), study.getName()+" w/o Aleatory Mag"));
 				
 				Table<String, CSRupture, Double> sourceContribFracts =
 						getSourceContribFracts(study.getERF(), mainProv.getRupturesForSite(site), catalog, sourceFractional);
@@ -448,7 +464,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 				LightweightBBP_CatalogSimZipLoader bbpCompProv = null;
 				if (bbpDir != null) {
 					try {
-						bbpCompProv = loadBBP(bbpDir, site, catDurationYears);
+						bbpCompProv = loadBBP(bbpDir, site, catalog);
 						compSimProvs.add(bbpCompProv);
 					} catch (IllegalStateException e) {
 						System.err.println("BBP load error for site "+siteName+": "+e.getMessage());

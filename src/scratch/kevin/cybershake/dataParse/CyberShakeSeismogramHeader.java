@@ -59,7 +59,7 @@ public class CyberShakeSeismogramHeader {
 		String ret = "";
 		for (int i=0; i<bytes; i++) {
 			byte b = din.readByte();
-//			System.out.println(i+". "+b);
+//			System.out.println(i+". "+(char)b);
 			if (b >= 0 && b < 127) // 127 is DEL
 				ret += (char)b;
 		}
@@ -78,6 +78,7 @@ public class CyberShakeSeismogramHeader {
 		int rvID = din.readInt();
 		float dt = din.readFloat();
 		int nt = din.readInt();
+//		System.out.println("dt="+dt+", nt="+nt);
 		int comps = din.readInt();
 		float detMaxFreq = din.readFloat();
 		float stochMaxFreq = din.readFloat();

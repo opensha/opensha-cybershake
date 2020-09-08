@@ -44,6 +44,8 @@ import scratch.kevin.bbp.BBP_Site;
 import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.MultiRupGMPE_ComparePageGen;
 import scratch.kevin.simCompare.RuptureComparison;
+import scratch.kevin.simCompare.SimulationRotDProvider;
+import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
 import scratch.kevin.simulators.ruptures.RSQSimBBP_Config;
 
 public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
@@ -56,7 +58,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	private List<CybershakeRun> csRuns;
 	private List<Site> sites;
 	
-	private StudyRotDProvider prov;
+	private SimulationRotDProvider<CSRupture> prov;
 	
 	private List<Site> highlightSites;
 	
@@ -96,6 +98,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		}
 		
 		prov = new StudyRotDProvider(study, amps2db, imts, study.getName());
+		if (study == CyberShakeStudy.STUDY_20_5_RSQSIM_4983_SKIP65k) {
+			prov = new RSQSimSubsetStudyRotDProvider(prov, (RSQSimSectBundledERF)erf,
+					study.getRSQSimCatalog(), 65000d);
+		}
 		
 		System.out.println("Done with setup");
 		
@@ -346,8 +352,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_17_3_1D);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-//		studies.add(CyberShakeStudy.STUDY_15_4);
-//		vs30s.add(Vs30_Source.Simulation);
+		studies.add(CyberShakeStudy.STUDY_15_4);
+		vs30s.add(Vs30_Source.Simulation);
 //		studies.add(CyberShakeStudy.STUDY_15_4);
 //		vs30s.add(Vs30_Source.Wills2015);
 		
@@ -360,8 +366,11 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_20_2_RSQSIM_4860_10X);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-		studies.add(CyberShakeStudy.STUDY_20_5_RSQSIM_4983);
-		vs30s.add(Vs30_Source.Simulation);
+//		studies.add(CyberShakeStudy.STUDY_20_5_RSQSIM_4983);
+//		vs30s.add(Vs30_Source.Simulation);
+		
+//		studies.add(CyberShakeStudy.STUDY_20_5_RSQSIM_4983_SKIP65k);
+//		vs30s.add(Vs30_Source.Simulation);
 		
 		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014; // this one will include highlight sites
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
@@ -385,10 +394,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 		boolean limitToHighlight = false;
 		
-		boolean replotScatters = true;
+		boolean replotScatters = false;
 		boolean replotZScores = true;
-		boolean replotCurves = true;
-		boolean replotResiduals = true;
+		boolean replotCurves = false;
+		boolean replotResiduals = false;
 		
 		IMT[] rotDIMTs = null;
 		if (rotDPeriods != null) {

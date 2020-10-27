@@ -64,14 +64,14 @@ public class FSS_ERF2DB extends ERF2DB {
 		}
 
 		@Override
-		public synchronized RuptureSurface getSurfaceForRupupture(int rupIndex, double gridSpacing) {
+		public synchronized RuptureSurface getSurfaceForRupture(int rupIndex, double gridSpacing) {
 			// use global grid spacing
 			gridSpacing = this.createGridSpacing;
 			RuptureSurface cached = surfCache.get(rupIndex);
 			if (cached != null)
 				return cached;
 			
-			RuptureSurface combSurface = super.getSurfaceForRupupture(rupIndex, gridSpacing);
+			RuptureSurface combSurface = super.getSurfaceForRupture(rupIndex, gridSpacing);
 			double aveTopDepth = combSurface.getAveRupTopDepth();
 			double aveWidth = combSurface.getAveWidth();
 			

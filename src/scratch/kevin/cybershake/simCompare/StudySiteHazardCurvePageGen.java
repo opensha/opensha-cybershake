@@ -217,6 +217,10 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 							name = "San Andreas";
 						else if (name.startsWith("San Jacinto"))
 							name = "San Jacinto";
+						if (name.contains(" alt"))
+							name = name.substring(0, name.indexOf("alt")).trim();
+						if (name.contains("("))
+							name = name.substring(0, name.indexOf("(")).trim();
 					}
 					if (fractional) {
 						double fract = areas.get(i)/totArea;

@@ -4,7 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import org.jfree.chart.ChartUtilities;
+import org.jfree.chart.ChartUtils;
 import org.jfree.data.Range;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
@@ -92,7 +92,7 @@ public class SingleCurveDebugTest {
 		this.gp.repaint();
 		
 		System.out.println("Saving PNG to: " + outFile);
-		ChartUtilities.saveChartAsPNG(new File(outFile), gp.getChartPanel().getChart(), 600, 500);
+		ChartUtils.saveChartAsPNG(new File(outFile), gp.getChartPanel().getChart(), 600, 500);
 	}
 
 }

@@ -101,7 +101,7 @@ public class MappedU2SolCreator {
 //				rupSet.getAreaForAllRups(), rupSet.getLengthForAllRups(), "Mapped UCERF2 for CyberShake");
 //		
 		InversionFaultSystemRupSet modRupSet = new InversionFaultSystemRupSet(rupSet, rupSet.getLogicTreeBranch(),
-				rupSet.getPlausibilityConfiguration(), new double[rupSet.getNumRuptures()], rupSet.getCloseSectionsListList(),
+				rupSet.getOldPlausibilityConfiguration(), new double[rupSet.getNumRuptures()], rupSet.getCloseSectionsListList(),
 				rupSet.getRupturesForClusters(), rupSet.getSectionsForClusters());
 
 		modRupSet.setMagForallRups(mags);

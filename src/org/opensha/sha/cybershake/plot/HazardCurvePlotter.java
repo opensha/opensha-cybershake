@@ -48,10 +48,10 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.dom4j.DocumentException;
-import org.jfree.chart.ChartUtilities;
+import org.jfree.chart.ChartUtils;
 import org.jfree.chart.plot.DatasetRenderingOrder;
 import org.jfree.data.Range;
-import org.jfree.ui.RectangleEdge;
+import org.jfree.chart.ui.RectangleEdge;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
@@ -1029,12 +1029,12 @@ public class HazardCurvePlotter {
 	
 	private void plotCurvesToPNG(String outFile) throws IOException {
 		System.out.println("Saving PNG to: " + outFile);
-		ChartUtilities.saveChartAsPNG(new File(outFile), gp.getChartPanel().getChart(), plotWidth, plotHeight);
+		ChartUtils.saveChartAsPNG(new File(outFile), gp.getChartPanel().getChart(), plotWidth, plotHeight);
 	}
 	
 	private void plotCurvesToJPG(String outFile) throws IOException {
 		System.out.println("Saving JPG to: " + outFile);
-		ChartUtilities.saveChartAsJPEG(new File(outFile), gp.getChartPanel().getChart(), plotWidth, plotHeight);
+		ChartUtils.saveChartAsJPEG(new File(outFile), gp.getChartPanel().getChart(), plotWidth, plotHeight);
 	}
 	
 	private void plotCurvesToTXT(String outFile, ArrayList<DiscretizedFunc> curves) throws IOException {

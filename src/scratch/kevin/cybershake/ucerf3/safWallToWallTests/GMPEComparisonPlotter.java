@@ -211,7 +211,7 @@ public class GMPEComparisonPlotter {
 	}
 	
 	static EqkRupture getRup(FaultSystemRupSet rupSet, int rupIndex) {
-		RuptureSurface surf = rupSet.getSurfaceForRupupture(rupIndex, 1d);
+		RuptureSurface surf = rupSet.getSurfaceForRupture(rupIndex, 1d);
 		return new EqkRupture(rupSet.getMagForRup(rupIndex), rupSet.getAveRakeForRup(rupIndex), surf, null);
 	}
 

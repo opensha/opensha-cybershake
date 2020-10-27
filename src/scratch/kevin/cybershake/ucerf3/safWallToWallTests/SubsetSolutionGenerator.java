@@ -116,7 +116,7 @@ public class SubsetSolutionGenerator {
 		System.out.println("Longest All SAF: "+longestSAF);
 		System.out.println("Longest So Cal SAF: "+longestSAF_soCal);
 		
-		CompoundSurface surf = (CompoundSurface) rupSet.getSurfaceForRupupture(longestSAF, 1d);
+		CompoundSurface surf = (CompoundSurface) rupSet.getSurfaceForRupture(longestSAF, 1d);
 		System.out.println();
 		System.out.println("Longest Rupture:");
 		System.out.println("\tLength: "+longestSAFLength+" (km)");

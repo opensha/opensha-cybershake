@@ -17,7 +17,7 @@ import java.util.Map;
 import org.apache.commons.math3.stat.StatUtils;
 import org.dom4j.DocumentException;
 import org.jfree.chart.annotations.XYTextAnnotation;
-import org.jfree.ui.TextAnchor;
+import org.jfree.chart.ui.TextAnchor;
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.DiscretizedFunc;
@@ -458,7 +458,7 @@ public class ETASModProbConfig extends AbstractModProbConfig {
 			IDPairing match = null;
 			
 			double origMag = sol.getRupSet().getMagForRup(fssIndex);
-			CompoundSurface surf = (CompoundSurface) sol.getRupSet().getSurfaceForRupupture(fssIndex, 1d);
+			CompoundSurface surf = (CompoundSurface) sol.getRupSet().getSurfaceForRupture(fssIndex, 1d);
 			List<? extends RuptureSurface> surfs = surf.getSurfaceList();
 			Location fssFirstLoc = surfs.get(0).getFirstLocOnUpperEdge();
 			Location fssLastLoc = surfs.get(surfs.size()-1).getFirstLocOnUpperEdge();

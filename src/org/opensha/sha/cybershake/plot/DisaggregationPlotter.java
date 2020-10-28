@@ -82,6 +82,7 @@ public class DisaggregationPlotter {
 	
 	private List<AttenuationRelationship> gmpeComparisons;
 	private double forceVs30 = Double.NaN;
+	private boolean skipSiteParams = false;
 	
 	private HazardCurveCalculator gmpeCurveCalc;
 	private DisaggregationCalculator disaggCalc;
@@ -205,6 +206,8 @@ public class DisaggregationPlotter {
 				forceVs30 = Double.parseDouble(cmd.getOptionValue("force-vs30"));
 		}
 		
+		this.skipSiteParams = cmd.hasOption("skip-site-params");
+		
 		Preconditions.checkArgument(cmd.hasOption("erf-file"), "Must supply ERF file argument!");
 		File erfFile = new File(cmd.getOptionValue("erf-file"));
 		Preconditions.checkArgument(erfFile.exists(), "ERF file doesn't exist: %s", erfFile.getAbsolutePath());
@@ -243,10 +246,17 @@ public class DisaggregationPlotter {
 			imlLevels = new ArrayList<Double>();
 		this.imlLevels = imlLevels;
 		this.csSite = site2db.getSiteFromDB(run.getSiteID());
-		CyberShakeSiteBuilder siteBuilder = new CyberShakeSiteBuilder(Vs30_Source.Wills2015, run.getVelModelID());
-		if (!Double.isNaN(forceVs30))
-			siteBuilder.setForceVs30(forceVs30);
-		this.site = siteBuilder.buildSite(run, csSite);
+		if (skipSiteParams) {
+			System.out.println("Skipping fetching of site parameters");
+			Preconditions.checkState(gmpeComparisons == null,
+					"Cannot skip site params if GMPE comparisons are included");
+			this.site = new Site(csSite.createLocation());
+		} else {
+			CyberShakeSiteBuilder siteBuilder = new CyberShakeSiteBuilder(Vs30_Source.Wills2015, run.getVelModelID());
+			if (!Double.isNaN(forceVs30))
+				siteBuilder.setForceVs30(forceVs30);
+			this.site = siteBuilder.buildSite(run, csSite);
+		}
 		
 		erf = new CyberShakeWrapper_ERF(run.getERFID(), rawERF);
 		erf.updateForecast();
@@ -500,18 +510,24 @@ public class DisaggregationPlotter {
 				+ " in GMPE calculations.");
 		ops.addOption(forceVs30);
 		
+		Option skipSiteParams = new Option("ssp", "skip-site-params", false,
+				"Flag to skip fetching site parameters. Cannot be combined with GMPE comparisons.");
+		skipSiteParams.setRequired(false);
+		ops.addOption(skipSiteParams);
+		
 		return ops;
 	}
 
 	public static void main(String args[]) throws DocumentException, InvocationTargetException {
-////		String[] newArgs = {"-R", "5760", "-p", "3,5,10", "-pr", "0.002,4.0e-4", "-o", "/tmp", "-t", "png",
-////				"-ef", "/home/kevin/workspace/opensha-cybershake/src/org/opensha/sha/cybershake/conf/MeanUCERF.xml"};
+		String[] newArgs = {"-R", "5760", "-p", "3,5,10", "-pr", "0.002,4.0e-4", "-o", "/tmp", "-t", "png",
+				"-ef", "/home/kevin/workspace/opensha-cybershake/src/org/opensha/sha/cybershake/conf/MeanUCERF.xml",
+				"--skip-site-params"};
 //		String[] newArgs = {"-R", "3970", "-p", "5", "--component", CyberShakeComponent.RotD100.getShortName(), "-pr", "4.0e-4",
 //				"-o", "/tmp", "-t", "png", "-ef", "/home/kevin/workspace/opensha-cybershake/src/org/opensha/sha/cybershake/conf/MeanUCERF.xml"};
 ////		String[] newArgs = {"--help"};
-////		String[] newArgs = {"-R", "792", "-p", "3", "-pr", "4.0e-4", "-t", "pdf", "-o", "D:\\Documents\\temp"};
+//		String[] newArgs = {"-R", "792", "-p", "3", "-pr", "4.0e-4", "-t", "pdf", "-o", "/tmp", "--skip-site-params"};
 //		Cybershake_OpenSHA_DBApplication.HOST_NAME = Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME;
-//		args = newArgs;
+		args = newArgs;
 		
 		try {
 			Options options = createOptions();

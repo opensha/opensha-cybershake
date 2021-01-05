@@ -1552,7 +1552,7 @@ public class HazardCurvePlotter {
 	
 	public static void printHelp(Options options, String appName) {
 		HelpFormatter formatter = new HelpFormatter();
-		formatter.printHelp( appName, options, true );
+		formatter.printHelp(120, appName, null, options, null, true );
 		System.exit(2);
 	}
 	

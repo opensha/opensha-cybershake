@@ -16,6 +16,7 @@ import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVMHBasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
 import org.opensha.commons.data.siteData.impl.ConstantValueDataProvider;
+import org.opensha.commons.data.siteData.impl.ThompsonVs30_2020;
 import org.opensha.commons.data.siteData.impl.USGSBayAreaBasinDepth;
 import org.opensha.commons.data.siteData.impl.WaldAllenGlobalVs30;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
@@ -40,6 +41,7 @@ import com.google.common.base.Preconditions;
 public class CyberShakeSiteBuilder {
 	
 	private static WillsMap2015 wills2015;
+	private static ThompsonVs30_2020 thompson2020;
 	private static WaldAllenGlobalVs30 wald2008;
 	
 	private Vs30_Source vs30Source;
@@ -52,6 +54,7 @@ public class CyberShakeSiteBuilder {
 	public static enum Vs30_Source {
 		Wills2015("Wills 2015"),
 		WaldAllen2008("Wald & Allen 2008"),
+		Thompson2020("Thompson 2020"),
 		Simulation("Simulation Value");
 		
 		private String name;
@@ -68,6 +71,24 @@ public class CyberShakeSiteBuilder {
 					Double val = wills2015.getValue(siteLoc);
 					if (!wills2015.isValueValid(val)) {
 						System.out.println("Wills 2015 Vs30 is "+val+" for run "+run.getRunID()+" at "
+								+siteLoc.getLatitude()+", "+siteLoc.getLongitude()+". Defaulting to Wald Allen 2008");
+						val = WaldAllen2008.getVs30(run, siteLoc);
+						if (!wald2008.isValueValid(val)) {
+							System.out.println("No value for Wills or Wald, reverting to default of 760");
+							val = 760d;
+						}
+					}
+					return val;
+				} catch (IOException e) {
+					throw ExceptionUtils.asRuntimeException(e);
+				}
+			} else if (this == Thompson2020) {
+				try {
+					if (thompson2020 == null)
+						thompson2020 = new ThompsonVs30_2020();
+					Double val = thompson2020.getValue(siteLoc);
+					if (!thompson2020.isValueValid(val)) {
+						System.out.println("Thompson 2020 Vs30 is "+val+" for run "+run.getRunID()+" at "
 								+siteLoc.getLatitude()+", "+siteLoc.getLongitude()+". Defaulting to Wald Allen 2008");
 						val = WaldAllen2008.getVs30(run, siteLoc);
 						if (!wald2008.isValueValid(val)) {
@@ -240,6 +261,42 @@ public class CyberShakeSiteBuilder {
 		if (mapBasinProvs == null)
 			mapBasinProvs = getMapBasinProviders(velModelID);
 		return mapBasinProvs;
+	}
+	
+	public synchronized OrderedSiteDataProviderList getMapProviders() throws IOException {
+		if (mapBasinProvs == null)
+			mapBasinProvs = getMapBasinProviders(velModelID);
+		OrderedSiteDataProviderList provs = new OrderedSiteDataProviderList(mapBasinProvs.getList());
+		switch (this.vs30Source) {
+		case Wills2015:
+			if (wills2015 == null)
+				wills2015 = new WillsMap2015();
+			provs.add(0, wills2015);
+			if (wald2008 == null)
+				// fallback
+				wald2008 = new WaldAllenGlobalVs30();
+			provs.add(1, wald2008);
+			break;
+		case WaldAllen2008:
+			if (wald2008 == null)
+				// fallback
+				wald2008 = new WaldAllenGlobalVs30();
+			provs.add(0, wald2008);
+			break;
+		case Thompson2020:
+			if (thompson2020 == null)
+				thompson2020 = new ThompsonVs30_2020();
+			provs.add(0, thompson2020);
+			if (wald2008 == null)
+				// fallback
+				wald2008 = new WaldAllenGlobalVs30();
+			provs.add(1, wald2008);
+			break;
+
+		default:
+			throw new IllegalStateException("Can't get map Vs30 providers for "+this.vs30Source);
+		}
+		return provs;
 	}
 	
 	public static OrderedSiteDataProviderList getMapBasinProviders(int velModelID) {

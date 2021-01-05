@@ -43,17 +43,17 @@ public class SiteFlatFileGen {
 	public static void main(String[] args) throws IOException {
 		File baseDir = new File("/home/kevin/CyberShake/pge_flat_files");
 		
-//		int datasetID = 81; // CCA 3D
-//		String datasetLabel = "17_3_cca_3d";
-//		SiteData<Double> z10fetch = new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0);
-//		SiteData<Double> z25fetch = new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5);
+		int datasetID = 81; // CCA 3D
+		String datasetLabel = "17_3_cca_3d";
+		SiteData<Double> z10fetch = new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_1_0);
+		SiteData<Double> z25fetch = new CVM_CCAi6BasinDepth(SiteData.TYPE_DEPTH_TO_2_5);
 		
-		int datasetID = 80; // CCA 1D
-		String datasetLabel = "17_3_cca_1d";
-		SiteData<Double> z10fetch = new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_1_0,
-				SiteData.TYPE_FLAG_INFERRED, 0.0d, "CCA 1-D model", "CCA-1D");
-		SiteData<Double> z25fetch = new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_2_5,
-				SiteData.TYPE_FLAG_INFERRED, 5.5001, "CCA 1-D model", "CCA-1D");
+//		int datasetID = 80; // CCA 1D
+//		String datasetLabel = "17_3_cca_1d";
+//		SiteData<Double> z10fetch = new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_1_0,
+//				SiteData.TYPE_FLAG_INFERRED, 0.0d, "CCA 1-D model", "CCA-1D");
+//		SiteData<Double> z25fetch = new ConstantValueDataProvider<Double>(SiteData.TYPE_DEPTH_TO_2_5,
+//				SiteData.TYPE_FLAG_INFERRED, 5.5001, "CCA 1-D model", "CCA-1D");
 		
 		File outputDir = new File(baseDir, datasetLabel);
 		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());

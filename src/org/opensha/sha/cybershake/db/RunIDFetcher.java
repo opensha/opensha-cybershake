@@ -33,6 +33,7 @@ public class RunIDFetcher {
 	private String ppHost;
 	private Status status;
 	private Integer studyID;
+	private List<String> nonNullRunFields;
 	
 	// external fields
 	private boolean hasCurves;
@@ -168,6 +169,20 @@ public class RunIDFetcher {
 		return hasAmplitudes(this.imTypeID);
 	}
 	
+	public RunIDFetcher hasMeshVsitop() {
+		if (nonNullRunFields == null)
+			nonNullRunFields = new ArrayList<>();
+		nonNullRunFields.add("Mesh_Vsitop");
+		return this;
+	}
+	
+	public RunIDFetcher hasModelVs30() {
+		if (nonNullRunFields == null)
+			nonNullRunFields = new ArrayList<>();
+		nonNullRunFields.add("Model_Vs30");
+		return this;
+	}
+	
 	public RunIDFetcher hasAmplitudes(Integer imTypeID) {
 		this.hasAmps = true;
 		this.imTypeID = imTypeID;
@@ -267,6 +282,9 @@ public class RunIDFetcher {
 			wheres.add("R.Status='"+status.getName()+"'");
 		if (studyID != null)
 			wheres.add("R.Study_ID="+studyID);
+		if (nonNullRunFields != null)
+			for (String field : nonNullRunFields)
+				wheres.add("R."+field+" IS NOT NULL");
 		if (hasCurves) {
 			if (hazardDatasetIDs != null && hazardDatasetIDs.length > 0)
 				if (hazardDatasetIDs.length == 1)
@@ -314,15 +332,16 @@ public class RunIDFetcher {
 //		
 //		db.destroy();
 		
-		for (CyberShakeStudy study : CyberShakeStudy.values()) {
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+//		for (CyberShakeStudy study : CyberShakeStudy.values()) {
 			System.out.println(study.getName());
 			RunIDFetcher fetch = study.runFetcher();
 			System.out.println(fetch.buildSelectSQL());
 			System.out.println(fetch.fetch().size()+" runs");
 			System.out.println();
-		}
+//		}
 		
-		for (CyberShakeStudy study : CyberShakeStudy.values())
+//		for (CyberShakeStudy study : CyberShakeStudy.values())
 			study.getDB().destroy();
 	}
 

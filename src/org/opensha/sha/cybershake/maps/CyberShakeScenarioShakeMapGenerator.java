@@ -13,6 +13,7 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.MissingOptionException;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
 import org.opensha.commons.data.siteData.SiteDataValue;
@@ -26,6 +27,9 @@ import org.opensha.commons.geo.Location;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
 import org.opensha.commons.param.Parameter;
+import org.opensha.commons.param.ParameterList;
+import org.opensha.commons.param.impl.DoubleParameter;
+import org.opensha.commons.param.impl.StringParameter;
 import org.opensha.commons.util.ClassUtils;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.FileUtils;
@@ -69,6 +73,9 @@ public class CyberShakeScenarioShakeMapGenerator {
 	
 	private static final double SPACING_DEFAULT = 0.01;
 	
+	private static final Vs30_Source VS_SOURCE_DEFAULT = Vs30_Source.Wills2015;
+	private Vs30_Source vsSource = VS_SOURCE_DEFAULT;
+	
 	private PeakAmplitudesFromDB amps2db;
 	private SiteInfo2DB sites2db;
 	
@@ -76,6 +83,10 @@ public class CyberShakeScenarioShakeMapGenerator {
 	
 	private Double cbMin = null;
 	private Double cbMax = null;
+	
+	private boolean noPlot;
+	
+	private List<Site> gmpeSites;
 	
 	public CyberShakeScenarioShakeMapGenerator(CommandLine cmd) {
 		study = CyberShakeStudy.valueOf(cmd.getOptionValue("study"));
@@ -92,13 +103,28 @@ public class CyberShakeScenarioShakeMapGenerator {
 			periods = new double[] { Double.parseDouble(periodStr) };
 		}
 		
+		noPlot = cmd.hasOption("no-plot");
+		
 		if (cmd.hasOption("colorbar-min"))
 			cbMin = Double.parseDouble(cmd.getOptionValue("colorbar-min"));
 		if (cmd.hasOption("colorbar-max"))
 			cbMax = Double.parseDouble(cmd.getOptionValue("colorbar-max"));
 		
-		if (cmd.hasOption("gmpe"))
+		if (cmd.hasOption("gmpe")) {
 			gmpe = AttenRelRef.valueOf(cmd.getOptionValue("gmpe")).instance(null);
+			if (cmd.hasOption("gmpe-sites")) {
+				File sitesFile = new File(cmd.getOptionValue("gmpe-sites"));
+				System.out.println("Loading GMPE site data from: "+sitesFile.getAbsolutePath());
+				Preconditions.checkState(sitesFile.exists(), "File doesn't exist: "+sitesFile.getAbsolutePath());
+				try {
+					loadGMPESites(sitesFile);
+				} catch (IOException e) {
+					throw ExceptionUtils.asRuntimeException(e);
+				}
+			}
+			if (cmd.hasOption("vs30-source"))
+				vsSource = Vs30_Source.valueOf(cmd.getOptionValue("vs30-source"));
+		}
 		
 		outputDir = new File(cmd.getOptionValue("output-dir"));
 		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
@@ -171,6 +197,9 @@ public class CyberShakeScenarioShakeMapGenerator {
 			
 			if (gmpe != null)
 				ArbDiscrGeoDataSet.writeXYZFile(gmpeXYZs[p], new File(outputDir, prefix+"_gmpe_amps.txt"));
+			
+			if (noPlot)
+				continue;
 			
 			double maxZ = csXYZs[p] == null ? 0d : csXYZs[p].getMaxZ();
 			if (gmpe != null)
@@ -282,6 +311,60 @@ public class CyberShakeScenarioShakeMapGenerator {
 		return xyz;
 	}
 	
+	private void loadGMPESites(File sitesFile) throws IOException {
+		CSVFile<String> csv = CSVFile.readFile(sitesFile, true);
+		ParameterList siteParams = gmpe.getSiteParams();
+		Preconditions.checkState(csv.getNumCols() == 2+siteParams.size(),
+				"Unexpected number of site parameters in GMPE sites CSV file. Was it created for a different GMPE?");
+		for (int i=0; i<siteParams.size(); i++) {
+			String expected = siteParams.getByIndex(i).getName();
+			int col = i+2;
+			String name = csv.get(0, col);
+			Preconditions.checkState(expected.equals(name), "Expected site parameter "+expected+" at column "+col+", got "+name);
+		}
+		
+		gmpeSites = new ArrayList<>();
+		for (int row=1; row<csv.getNumRows(); row++) {
+			Location loc = new Location(csv.getDouble(row, 0), csv.getDouble(row, 1));
+			Site site = new Site(loc);
+			for (int i=0; i<siteParams.size(); i++) {
+				Parameter<?> param = (Parameter<?>)siteParams.getByIndex(i).clone();
+				String valStr = csv.get(row, i+2);
+				if (param instanceof DoubleParameter)
+					((DoubleParameter)param).setValue(Double.parseDouble(valStr));
+				else if (param instanceof StringParameter)
+					((StringParameter)param).setValue(valStr);
+				else
+					throw new IllegalStateException("Parameter "+param.getName()+" can't be set from string value");
+				site.addParameter(param);
+			}
+			gmpeSites.add(site);
+		}
+	}
+	
+	private void writeGMPESites(File sitesFile) throws IOException {
+		Site site0 = gmpeSites.get(0);
+		CSVFile<String> csv = new CSVFile<>(true);
+		
+		List<String> header = new ArrayList<>();
+		header.add("Latitude");
+		header.add("Longitude");
+		for (Parameter<?> param : site0)
+			header.add(param.getName());
+		csv.addLine(header);
+		
+		for (Site site : gmpeSites) {
+			List<String> line = new ArrayList<>();
+			line.add(site.getLocation().getLatitude()+"");
+			line.add(site.getLocation().getLongitude()+"");
+			for (Parameter<?> param : site)
+				line.add(param.getValue().toString());
+			csv.addLine(line);
+		}
+		
+		csv.writeToFile(sitesFile);
+	}
+	
 	private GeoDataSet[] calcGMPE() throws IOException {
 		System.out.println("Calculating GMPE");
 		
@@ -296,28 +379,43 @@ public class CyberShakeScenarioShakeMapGenerator {
 		
 		gmpe.setEqkRupture(rup);
 		
-		CyberShakeSiteBuilder siteBuild = new CyberShakeSiteBuilder(Vs30_Source.Wills2015, study.getVelocityModelID());
-		OrderedSiteDataProviderList provs = siteBuild.getMapBasinProviders();
-		provs.add(0, new WillsMap2015());
-		
-		// fetch site data
-		System.out.println("Fetching GMPE site data...");
-		ArrayList<SiteDataValueList<?>> datas = provs.getAllAvailableData(region.getNodeList());
-		System.out.println("DONE Fetching GMPE site data...");
-		
-		SiteTranslator trans = new SiteTranslator();
+		if (gmpeSites == null) {
+			System.out.println("Loading GMPE site data with Vs30_Source="+vsSource);
+			CyberShakeSiteBuilder siteBuild = new CyberShakeSiteBuilder(vsSource, study.getVelocityModelID());
+			OrderedSiteDataProviderList provs = siteBuild.getMapProviders();
+			
+			// fetch site data
+			System.out.println("Fetching GMPE site data...");
+			ArrayList<SiteDataValueList<?>> datas = provs.getAllAvailableData(region.getNodeList());
+			System.out.println("DONE Fetching GMPE site data...");
+			
+			SiteTranslator trans = new SiteTranslator();
+			
+			gmpeSites = new ArrayList<>();
+			for (int i=0; i<region.getNodeCount(); i++) {
+				Location loc = region.getLocation(i);
+				Site site = new Site(loc);
+				for (Parameter<?> param : gmpe.getSiteParams()) {
+					param = (Parameter<?>)param.clone();
+					List<SiteDataValue<?>> siteData = new ArrayList<>();
+					for (SiteDataValueList<?> data : datas)
+						siteData.add(data.getValue(i));
+					trans.setParameterValue(param, siteData);
+					site.addParameter(param);
+				}
+				gmpeSites.add(site);
+			}
+			
+			File sitesFile = new File(outputDir, "cs_gmpe_sites_"+study.name()+"_"+(float)spacing+".csv");
+			System.out.println("Writing GMPE site data to "+sitesFile);
+			writeGMPESites(sitesFile);
+		} else {
+			Preconditions.checkState(gmpeSites.size() == region.getNodeCount(),
+					"Loaded GMPE sites are unexpected size. different region or spacing?");
+		}
 		
 		for (int i=0; i<region.getNodeCount(); i++) {
-			Location loc = region.getLocation(i);
-			Site site = new Site(loc);
-			for (Parameter<?> param : gmpe.getSiteParams()) {
-				List<SiteDataValue<?>> siteData = new ArrayList<>();
-				for (SiteDataValueList<?> data : datas)
-					siteData.add(data.getValue(i));
-				trans.setParameterValue(param, siteData);
-				site.addParameter(param);
-			}
-			gmpe.setSite(site);
+			gmpe.setSite(gmpeSites.get(i));
 			for (int p=0; p<periods.length; p++) {
 				if (periods[p] > 0) {
 					gmpe.setIntensityMeasure(SA_Param.NAME);
@@ -341,6 +439,13 @@ public class CyberShakeScenarioShakeMapGenerator {
 		for (CyberShakeStudy study : CyberShakeStudy.values())
 			if (!study.name().toLowerCase().contains("rsqsim"))
 				names.add(study.name());
+		return Joiner.on(", ").join(names);
+	}
+	
+	private static String getVsSourceList() {
+		List<String> names = new ArrayList<>();
+		for (Vs30_Source source : Vs30_Source.values())
+			names.add(source.name());
 		return Joiner.on(", ").join(names);
 	}
 	
@@ -370,7 +475,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 		rupOp.setRequired(true);
 		ops.addOption(rupOp);
 		
-		Option rvOp = new Option("rv", "rupture-var-id", true, "Rupture Variation ID. If omitted, log-mean value across all RVs is plotted");
+		Option rvOp = new Option("rv", "rupture-var-id", true, "Optional Rupture Variation ID. If omitted, log-mean value across all RVs is plotted");
 		rvOp.setRequired(false);
 		ops.addOption(rvOp);
 		
@@ -382,21 +487,34 @@ public class CyberShakeScenarioShakeMapGenerator {
 		gmpeOp.setRequired(false);
 		ops.addOption(gmpeOp);
 		
+		Option vsOp = new Option("vs", "vs30-source", true, "Optional Vs30 Source. One of: "+getVsSourceList()+". Default: "+VS_SOURCE_DEFAULT.name());
+		vsOp.setRequired(false);
+		ops.addOption(vsOp);
+		
 		Option outputDirOp = new Option("o", "output-dir", true, "Output directory");
 		outputDirOp.setRequired(true);
 		ops.addOption(outputDirOp);
 		
-		Option spacingOp = new Option("sp", "spacing", true, "Grid spacing in decimal degrees. Default: "+(float)SPACING_DEFAULT);
+		Option spacingOp = new Option("sp", "spacing", true, "Optional grid spacing in decimal degrees. Default: "+(float)SPACING_DEFAULT);
 		spacingOp.setRequired(false);
 		ops.addOption(spacingOp);
 
-		Option cbMinOp = new Option("cbmin", "colorbar-min", true, "Colorbar min value");
+		Option cbMinOp = new Option("cbmin", "colorbar-min", true, "Optional plot colorbar min value");
 		cbMinOp.setRequired(false);
 		ops.addOption(cbMinOp);
 		
-		Option cbMaxOp = new Option("cbmax", "colorbar-max", true, "Colorbar max value");
+		Option cbMaxOp = new Option("cbmax", "colorbar-max", true, "Optional plot colorbar max value");
 		cbMaxOp.setRequired(false);
 		ops.addOption(cbMaxOp);
+		
+		Option gmpeSitesOp = new Option("gs", "gmpe-sites", true,
+				"Optional path to GMPE sites CSV file (to avoid hitting the site data server over and over again)");
+		gmpeSitesOp.setRequired(false);
+		ops.addOption(gmpeSitesOp);
+		
+		Option noPlotOp = new Option("np", "no-plot", false, "Skip plotting and only write out data files");
+		noPlotOp.setRequired(false);
+		ops.addOption(noPlotOp);
 		
 		Option customIMsOp = new Option("if", "intensity-file", true,
 				"Use the supplied custom intensity file(s) instead of the CyberShake database. Multiple comma separated files must be supplied "
@@ -416,11 +534,17 @@ public class CyberShakeScenarioShakeMapGenerator {
 			System.out.println("HARDCODED");
 //			String argz = "--study STUDY_15_4 --period 0,-1,3 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "
 //					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
-			String argz = "--study STUDY_15_4 --period -1 --colorbar-min 1 --colorbar-max 7 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "
-					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
+			String argz = "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --study STUDY_15_4 --period 0,-1,3 --source-id 69 --rupture-id 6"
+					+ "--rupture-var-id 14 --output-dir /tmp/cs_shakemap";
+//			String argz = "--study STUDY_15_4 --period -1 --colorbar-min 1 --colorbar-max 7 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "
+//					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
 //			String argz = "--study STUDY_15_12 --period 0.2 --source-id 69 --rupture-id 6 --output-dir /tmp "
 //					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --spacing 0.005";
 //			argz += " --intensity-file /tmp/cs_shakemap_src_69_rup_6_all_rvs_0.2s_cs_amps.txt";
+//			String argz = "--study STUDY_15_12 --period 0.2 --source-id 69 --rupture-id 6 --output-dir /tmp "
+//					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --spacing 0.01 --vs30-source Thompson2020"
+//							+ " --gmpe-sites /tmp/cs_gmpe_sites_STUDY_15_12_0.01.csv";
+//			String argz = "--help";
 			args = argz.split(" ");
 		}
 		try {
@@ -447,14 +571,13 @@ public class CyberShakeScenarioShakeMapGenerator {
 				
 				plotter.study.getDB().destroy();
 			} catch (MissingOptionException e) {
-				// TODO Auto-generated catch block
-				Options helpOps = new Options();
-				helpOps.addOption(new Option("h", "help", false, "Display this message"));
-				CommandLine cmd = parser.parse( helpOps, args);
-				
-				if (cmd.hasOption("help")) {
-					HazardCurvePlotter.printHelp(options, appName);
-				}
+//				Options helpOps = new Options();
+//				helpOps.addOption(new Option("h", "help", false, "Display this message"));
+//				CommandLine cmd = parser.parse( helpOps, args);
+//				
+//				if (cmd.hasOption("help")) {
+//					HazardCurvePlotter.printHelp(options, appName);
+//				}
 				System.err.println(e.getMessage());
 				HazardCurvePlotter.printUsage(options, appName);
 //			e.printStackTrace();

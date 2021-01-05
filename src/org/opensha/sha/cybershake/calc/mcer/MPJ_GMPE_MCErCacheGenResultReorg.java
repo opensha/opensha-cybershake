@@ -58,6 +58,8 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 //		String prefix = "2017_07_27-ucerf3_downsampled_ngaw2_binary_0.02_";
 		String prefix = "2018_10_03-ucerf3_downsampled_ngaw2_binary_curves_0.01_";
 		String dataFileName = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD100_mcer.bin";
+		String probFileName = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD100_prob.bin";
+		String detFileName = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD100_det.bin";
 		String pgaPrefix = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD50_pga";
 		Component saComponent = Component.RotD100;
 		String saFilePrefix = "NGAWest_2014_NoIdr_MeanUCERF3_downsampled_RotD100_sa_";
@@ -120,6 +122,42 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 				for (double period : plotPeriods)
 					plotSpectra(period, mcerMap, outputDir, identifier+", MCER",
 							mcerPlotPrefix, spacing, region, replot);
+			
+			// now MCER prob
+			File probFile = new File(dir, probFileName);
+			Preconditions.checkState(probFile.exists(), "Data file doesn't exist: %s", probFile.getAbsolutePath());
+			
+			System.out.println("Loading "+dirName);
+			reader = new BinaryHazardCurveReader(probFile.getAbsolutePath());
+			Map<Location, ArbitrarilyDiscretizedFunc> probMap = reader.getCurveMap();
+			System.out.println("Loaded "+probMap.size());
+			for (Location loc : probMap.keySet()) {
+				ArbitrarilyDiscretizedFunc prob = probMap.get(loc);
+				Preconditions.checkNotNull(prob);
+				for (Point2D pt : prob)
+					Preconditions.checkState(Doubles.isFinite(pt.getY()));
+			}
+			System.out.println("All prob values validated\n");
+			File probOutFile = new File(outputDir, identifier+"_"+SpectraType.MCER_PROB.getFileName(spacing));
+			Files.copy(probFile, probOutFile);
+			
+			// now MCER det
+			File detFile = new File(dir, detFileName);
+			Preconditions.checkState(detFile.exists(), "Data file doesn't exist: %s", detFile.getAbsolutePath());
+			
+			System.out.println("Loading "+dirName);
+			reader = new BinaryHazardCurveReader(detFile.getAbsolutePath());
+			Map<Location, ArbitrarilyDiscretizedFunc> detMap = reader.getCurveMap();
+			System.out.println("Loaded "+detMap.size());
+			for (Location loc : detMap.keySet()) {
+				ArbitrarilyDiscretizedFunc det = detMap.get(loc);
+				Preconditions.checkNotNull(det);
+				for (Point2D pt : det)
+					Preconditions.checkState(Doubles.isFinite(pt.getY()));
+			}
+			System.out.println("All det values validated\n");
+			File detOutFile = new File(outputDir, identifier+"_"+SpectraType.MCER_DET.getFileName(spacing));
+			Files.copy(detFile, detOutFile);
 			
 			// now PGA M
 			File pgaFile = new File(dir, pgaPrefix+"_g.bin");
@@ -285,7 +323,7 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 			and do the exact same for BSE-2E and BSE-1E
 		 */
 		System.out.println("Creating D_default");
-		SpectraType[] typesForD_default = {SpectraType.MCER, SpectraType.BSE_2E, SpectraType.BSE_1E, SpectraType.SLE };
+		SpectraType[] typesForD_default = {SpectraType.MCER, SpectraType.MCER_PROB, SpectraType.MCER_DET, SpectraType.BSE_2E, SpectraType.BSE_1E, SpectraType.SLE };
 		String mcerPlotPrefix = null, bse2ePlotPrefix = null, bse1ePlotPrefix = null, slePlotPrefix = null;
 		for (SpectraType type : typesForD_default) {
 			File dIn = new File(outputDir, "classD_"+type.getFileName(spacing));
@@ -340,13 +378,15 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 					bse1ePlotPrefix = plotPrefix;
 				else if (type == SpectraType.SLE)
 					slePlotPrefix = plotPrefix;
+				else
+					continue;
 				for (double period : plotPeriods)
 					plotSpectra(period, dDeafultMap, outputDir, "classD (default), "+type, plotPrefix, spacing, region, replot);
 			}
 		}
 		
 		// now the same but for PGA
-		SpectraType[] pgaTypes = { SpectraType.MCER, SpectraType.BSE_2E, SpectraType.BSE_1E, SpectraType.SLE };
+		SpectraType[] pgaTypes = { SpectraType.MCER, SpectraType.MCER_PROB, SpectraType.MCER_DET, SpectraType.BSE_2E, SpectraType.BSE_1E, SpectraType.SLE };
 		String pgaPlotPrefix = null, bse2ePGAPlotPrefix = null, bse1ePGAPlotPrefix = null, slePGAPlotPrefix = null;
 		for (SpectraType type : pgaTypes) {
 			String fileName = DesignParameter.PGAM.getFileName(spacing, type, SpectraSource.COMBINED);
@@ -377,6 +417,8 @@ public class MPJ_GMPE_MCErCacheGenResultReorg {
 						bse1ePGAPlotPrefix = plotPrefix;
 					else if (type == SpectraType.SLE)
 						slePGAPlotPrefix = plotPrefix;
+					else
+						continue;
 					plotPGA(dDefaultPGAData, outputDir, title, plotPrefix, spacing, region, replot);
 				}
 			}

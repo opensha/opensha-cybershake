@@ -35,17 +35,21 @@ public class SiteGMPEParamsWriter {
 	public static void main(String[] args) throws IOException, SQLException {
 		File baseDir = new File("/home/kevin/CyberShake/site_flat_files");
 
-		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
 		
 		File outputDir = new File(baseDir, study.getDirName());
 		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
 		
-		String[] siteNames = {
-				"LADT", "PAS", "CCP", "STNI", "STG", "SBSM", "WNGC"
-		};
+		List<CybershakeRun> runs = null;
+		
+//		String[] siteNames = {
+//				"LADT", "PAS", "CCP", "STNI", "STG", "SBSM", "WNGC"
+//		};
+//		runs = study.runFetcher().forSiteNames(siteNames).fetch();
+		
+		runs = study.runFetcher().fetch();
 		
 		WillsMap2015 wills = new WillsMap2015();
-		List<CybershakeRun> runs = study.runFetcher().forSiteNames(siteNames).fetch();
 		
 		AbstractERF erf = study.buildNewERF();
 		

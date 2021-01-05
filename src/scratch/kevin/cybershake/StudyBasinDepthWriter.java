@@ -10,6 +10,7 @@ import org.opensha.commons.data.Site;
 import org.opensha.commons.geo.Location;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeSite;
@@ -20,7 +21,7 @@ import org.opensha.sha.imr.param.SiteParams.DepthTo2pt5kmPerSecParam;
 public class StudyBasinDepthWriter {
 
 	public static void main(String[] args) throws IOException {
-		CyberShakeStudy study = CyberShakeStudy.STUDY_17_3_3D;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
 		
 		File outputFile = new File("/tmp/"+study.getDirName()+"_basin_depth.csv");
 		
@@ -39,12 +40,13 @@ public class StudyBasinDepthWriter {
 		
 		List<Site> sites = builder.buildSites(runs, csSites);
 		CSVFile<String> csv = new CSVFile<>(true);
-		csv.addLine("Site Short Name", "Latitude", "Longitude", "Z1.0 [m]", "Z2.5 [km]");
+		csv.addLine("Site ID", "Site Short Name", "Latitude", "Longitude", "Z1.0 [m]", "Z2.5 [km]");
 		for (Site site : sites) {
 			double z10 = site.getParameter(Double.class, DepthTo1pt0kmPerSecParam.NAME).getValue();
 			double z25 = site.getParameter(Double.class, DepthTo2pt5kmPerSecParam.NAME).getValue();
 			Location loc = site.getLocation();
-			csv.addLine(site.getName(), (float)loc.getLatitude()+"", (float)loc.getLongitude()+"", (float)z10+"", (float)z25+"");
+			int id = ((CyberShakeSiteRun)site).getCS_Site().id;
+			csv.addLine(id+"", site.getName(), (float)loc.getLatitude()+"", (float)loc.getLongitude()+"", (float)z10+"", (float)z25+"");
 		}
 		System.out.println("Writing "+outputFile.getAbsolutePath());
 		csv.writeToFile(outputFile);

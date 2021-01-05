@@ -144,6 +144,8 @@ public class UGMS_WebToolCalc {
 	
 	private enum CodeVersion {
 		MCER,
+		MCER_PROB,
+		MCER_DET,
 		BSE_N,
 		BSE_E,
 		LATBSDC
@@ -234,6 +236,12 @@ public class UGMS_WebToolCalc {
 				switch (type) {
 				case MCER:
 					fileName = "pga_m_"+SPACING_REPLACE_STR+".bin";
+					break;
+				case MCER_PROB:
+					fileName = "pga_m_prob_"+SPACING_REPLACE_STR+".bin";
+					break;
+				case MCER_DET:
+					fileName = "pga_m_det_"+SPACING_REPLACE_STR+".bin";
 					break;
 				case BSE_2N:
 					fileName = "pga_m_"+SPACING_REPLACE_STR+".bin";
@@ -790,7 +798,10 @@ public class UGMS_WebToolCalc {
 		if (spectrum.size() == 1) {
 			return spectrum.get(0);
 		} else {
-			Element interpEl = type == SpectraType.MCER || type == SpectraType.BSE_1E ? xmlRoot.addElement("GMPE_Interpolation") : null;
+			Element interpEl = null;
+			if (type == SpectraType.MCER || type == SpectraType.MCER_PROB
+					|| type == SpectraType.MCER_DET || type == SpectraType.BSE_1E)
+				interpEl = xmlRoot.addElement("GMPE_Interpolation");
 			return interpolateSpectraWithVs30(vs30Vals, spectrum, userVs30, interpEl);
 		}
 	}
@@ -849,7 +860,7 @@ public class UGMS_WebToolCalc {
 	
 	private DiscretizedFunc calcCombined(SpectraType type) {
 		if (type == SpectraType.MCER || type == SpectraType.BSE_2N || type == SpectraType.BSE_2E || type == SpectraType.BSE_1E
-				|| type == SpectraType.SLE) {
+				|| type == SpectraType.SLE || type == SpectraType.MCER_PROB || type == SpectraType.MCER_DET || type == SpectraType.MCER_DET_LOWER) {
 			// weight average CS and GMPE
 			return MCERDataProductsCalc.calcFinalMCER(getCalcSpectrum(type, SpectraSource.CYBERSHAKE),
 					getCalcSpectrum(type, SpectraSource.GMPE));
@@ -1124,6 +1135,36 @@ public class UGMS_WebToolCalc {
 			getCalcDesignParam(DesignParameter.TS, SpectraType.MCER, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.T0, SpectraType.MCER, SpectraSource.COMBINED);
 			getCalcDesignParam(DesignParameter.PGAM, SpectraType.MCER, SpectraSource.COMBINED);
+			break;
+
+		case MCER_PROB:
+			plot("mcer_prob_sa_final", psv, params,
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER_PROB, Color.BLACK, PlotLineType.SOLID, 4f));
+			plot("mcer_prob_sa_ingredients", psv, params,
+					new SpectrumPlotElem(SpectraSource.GMPE, SpectraType.MCER_PROB, Color.BLUE, PlotLineType.SOLID, 2f),
+					new SpectrumPlotElem(SpectraSource.CYBERSHAKE, SpectraType.MCER_PROB, Color.RED, PlotLineType.DASHED, 2f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER_PROB, Color.BLACK, PlotLineType.SOLID, 4f));
+			writeCSV("mcer_prob_sa", getCalcSpectrum(SpectraType.MCER_PROB, SpectraSource.GMPE),
+					getCalcSpectrum(SpectraType.MCER_PROB, SpectraSource.CYBERSHAKE),
+					getCalcSpectrum(SpectraType.MCER_PROB, SpectraSource.COMBINED));
+			
+			// enumerating them here puts them in the XML file
+			getCalcDesignParam(DesignParameter.TL, null, null);
+			break;
+
+		case MCER_DET:
+			plot("mcer_det_sa_final", psv, params,
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER_DET, Color.BLACK, PlotLineType.SOLID, 4f));
+			plot("mcer_det_sa_ingredients", psv, params,
+					new SpectrumPlotElem(SpectraSource.GMPE, SpectraType.MCER_DET, Color.BLUE, PlotLineType.SOLID, 2f),
+					new SpectrumPlotElem(SpectraSource.CYBERSHAKE, SpectraType.MCER_DET, Color.RED, PlotLineType.DASHED, 2f),
+					new SpectrumPlotElem(SpectraSource.COMBINED, SpectraType.MCER_DET, Color.BLACK, PlotLineType.SOLID, 4f));
+			writeCSV("mcer_det_sa", getCalcSpectrum(SpectraType.MCER_DET, SpectraSource.GMPE),
+					getCalcSpectrum(SpectraType.MCER_DET, SpectraSource.CYBERSHAKE),
+					getCalcSpectrum(SpectraType.MCER_DET, SpectraSource.COMBINED));
+			
+			// enumerating them here puts them in the XML file
+			getCalcDesignParam(DesignParameter.TL, null, null);
 			break;
 
 		case BSE_N:
@@ -1556,7 +1597,10 @@ public class UGMS_WebToolCalc {
 //			String argStr = "--longitude -117.5888 --latitude 33.2976";
 //			String argStr = "--longitude -118.369 --latitude 34.043";
 //			String argStr = "--longitude -118.25713 --latitude 34.05204";
-			String argStr = "--longitude -118.231510 --latitude 34.052847";
+//			String argStr = "--longitude -118.231510 --latitude 34.052847";
+//			String argStr = "--longitude -118.23120 --latitude 34.0600"; // verification site
+//			String argStr = "--longitude -118.23 --latitude 34.0600"; // verification site snapped to grid
+			String argStr = "--longitude -118.53 --latitude 34.17"; // CB's Tarzana site
 //			Location-1: 34.052847, -118.231510
 //			Location-2:  34.053704, -118.234069
 			
@@ -1569,16 +1613,16 @@ public class UGMS_WebToolCalc {
 			argStr += " --vel-model-id 5";
 			argStr += " --z10-file "+new File(siteDataDir, "CVM4i26_depth_1.0.bin");
 			argStr += " --z25-file "+new File(siteDataDir, "CVM4i26_depth_2.5.bin");
-//			argStr += " --vs30 987";
-//			argStr += " --class C";
+//			argStr += " --vs30 260";
+			argStr += " --class D";
 //			argStr += " --class D_default";
 			argStr += " --gmpe-erf UCERF3";
 //			argStr += " --wills-file /data/kevin/opensha/wills2015.flt";
 			argStr += " --wills-file "+new File(siteDataDir, "wills_2015_vs30.flt");
 			argStr += " --wills-header "+new File(siteDataDir, "wills_2015_vs30.hdr");
 			
-//			argStr += " --output-dir /tmp/ugms_web_tool/mcer";
-//			argStr += " --code-version MCER";
+			argStr += " --output-dir /tmp/ugms_web_tool_compare";
+			argStr += " --code-version MCER_PROB";
 			
 //			argStr += " --output-dir /tmp/ugms_web_tool/bse_n";
 //			argStr += " --code-version BSE_N";
@@ -1586,8 +1630,8 @@ public class UGMS_WebToolCalc {
 //			argStr += " --output-dir /tmp/ugms_web_tool/bse_e";
 //			argStr += " --code-version BSE_E";
 			
-			argStr += " --output-dir /tmp/ugms_web_tool/latbsdc";
-			argStr += " --code-version LATBSDC";
+//			argStr += " --output-dir /tmp/ugms_web_tool/latbsdc";
+//			argStr += " --code-version LATBSDC";
 			
 			args = Splitter.on(" ").splitToList(argStr).toArray(new String[0]);
 		}

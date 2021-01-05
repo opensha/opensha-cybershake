@@ -221,7 +221,7 @@ public enum CyberShakeStudy {
 		@Override
 		public RunIDFetcher runFetcher() {
 			return new RunIDFetcher(this.getDB()).noTestSites().unique(true)
-					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED).hasMeshVsitop();
 		}
 	},
 	STUDY_18_9_RSQSIM_2740(cal(2018, 9), new int[] { 85, 86}, "RSQSim 2740",

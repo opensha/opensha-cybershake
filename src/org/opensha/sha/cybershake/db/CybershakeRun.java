@@ -20,10 +20,13 @@
 package org.opensha.sha.cybershake.db;
 
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.HashSet;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
 
@@ -269,31 +272,67 @@ public class CybershakeRun {
 		Timestamp statusTime = parseTS(rs, prefix+"Status_Time");
 		double maxFreq = rs.getDouble(prefix+"Max_Frequency");
 		double lowFreqCutoff = rs.getDouble(prefix+"Low_Frequency_Cutoff");
-		Double modelVs30 = rs.getDouble(prefix+"Model_Vs30");
-		if (rs.wasNull())
-			modelVs30 = null;
-		Double meshVsitop = rs.getDouble(prefix+"Mesh_Vsitop");
-		if (rs.wasNull())
-			meshVsitop = null;
-		Integer meshVsitopID = rs.getInt(prefix+"Mesh_Vsitop_ID");
-		if (rs.wasNull())
-			meshVsitopID = null;
-		Double minVs = rs.getDouble(prefix+"Minimum_Vs");
-		if (rs.wasNull())
-			minVs = null;
-//		Double meshVsSurface = null;
-//		Double minVs = null;
-		String vs30Source = rs.getString(prefix+"Vs30_Source");
-		Double z10 = rs.getDouble(prefix+"Z1_0");
-		if (rs.wasNull())
-			z10 = null;
-		Double z25 = rs.getDouble(prefix+"Z2_5");
-		if (rs.wasNull())
-			z25 = null;
+		
+		// we have changed the following fields a few times
+		// 
+		// use metadata to figure out which columns this database has and skip if missing. this will keep things working
+		// with older sqlite files
+		ResultSetMetaData rsmd = rs.getMetaData();
+		HashSet<String> colLabels = new HashSet<>();
+		for (int i=0; i<rsmd.getColumnCount(); i++) {
+			String colLabel = rsmd.getColumnLabel(i+1);
+			int dotIndex = colLabel.lastIndexOf('.');
+			if (dotIndex >=0 )
+				colLabel = colLabel.substring(dotIndex+1);
+			colLabels.add(colLabel);
+		}
+		
+		Double modelVs30 = getDoubleNullFallback(rs, colLabels, prefix+"Model_Vs30");
+		Double meshVsitop = getDoubleNullFallback(rs, colLabels, prefix+"Mesh_Vsitop");
+		Integer meshVsitopID = getIntNullFallback(rs, colLabels, prefix+"Mesh_Vsitop_ID");
+		Double minVs = getDoubleNullFallback(rs, colLabels, prefix+"Minimum_Vs");
+		Double z10 = getDoubleNullFallback(rs, colLabels, prefix+"Z1_0");
+		Double z25 = getDoubleNullFallback(rs, colLabels, prefix+"Z2_5");
+		String vs30Source = hasField(colLabels, prefix+"Vs30_Source") ? rs.getString(prefix+"Vs30_Source") : null;
 		
 		return new CybershakeRun(runID, siteID, erfID, sgtVarID, rupVarScenID, velModelID,
 				sgtTime, ppTime, sgtHost, ppHost, status, statusTime, maxFreq, lowFreqCutoff,
 				modelVs30, meshVsitop, meshVsitopID, minVs, vs30Source, z10, z25);
+	}
+	
+	private static final HashSet<String> warned_labels = new HashSet<>();
+	private static Double getDoubleNullFallback(ResultSet rs, HashSet<String> colLabels, String colLabel) throws SQLException {
+		if (!hasField(colLabels, colLabel))
+			return null;
+		double ret = rs.getDouble(colLabel);
+		if (rs.wasNull())
+			return null;
+		return ret;
+	}
+	private static Integer getIntNullFallback(ResultSet rs, HashSet<String> colLabels, String colLabel) throws SQLException {
+		if (!hasField(colLabels, colLabel))
+			return null;
+		int ret = rs.getInt(colLabel);
+		if (rs.wasNull())
+			return null;
+		return ret;
+	}
+	private static boolean hasField(HashSet<String> colLabels, String colLabel) {
+		int dotIndex = colLabel.lastIndexOf('.');
+		if (dotIndex >=0 )
+			colLabel = colLabel.substring(dotIndex+1);
+		if (!colLabels.contains(colLabel)) {
+			synchronized (warned_labels) {
+				if (!warned_labels.contains(colLabel)) {
+					System.err.println("WARNING: Runs table is missing column '"+colLabel+"'. This is likely due to a "
+							+ "schema change (using new code with an old DB, or old code with a new DB. Skipping field.");
+					System.err.println("\tAvailable columns: "+colLabels.stream().collect(Collectors.joining(",")));
+					warned_labels.add(colLabel);
+				}
+			}
+			return false;
+		}
+		return true;
 	}
 
 }

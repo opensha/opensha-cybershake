@@ -504,15 +504,17 @@ public class DisaggregationPlotter {
 	}
 
 	public static void main(String args[]) throws DocumentException, InvocationTargetException {
-		String[] newArgs = {"-R", "5760", "-p", "3,5,10", "-pr", "0.002,4.0e-4", "-o", "/tmp", "-t", "png",
-				"-ef", "/home/kevin/workspace/opensha-cybershake/src/org/opensha/sha/cybershake/conf/MeanUCERF.xml",
-				"--force-vs30", "760"};
-//		String[] newArgs = {"-R", "3970", "-p", "5", "--component", CyberShakeComponent.RotD100.getShortName(), "-pr", "4.0e-4",
-//				"-o", "/tmp", "-t", "png", "-ef", "/home/kevin/workspace/opensha-cybershake/src/org/opensha/sha/cybershake/conf/MeanUCERF.xml"};
-////		String[] newArgs = {"--help"};
-//		String[] newArgs = {"-R", "792", "-p", "3", "-pr", "4.0e-4", "-t", "pdf", "-o", "/tmp", "--skip-site-params"};
-//		Cybershake_OpenSHA_DBApplication.HOST_NAME = Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME;
-		args = newArgs;
+		if (args.length == 1 && args[0].equals("--hardcoded")) {
+			String[] newArgs = {"-R", "5760", "-p", "3,5,10", "-pr", "0.002,4.0e-4", "-o", "/tmp", "-t", "png",
+					"-ef", "/home/kevin/workspace/opensha-cybershake/src/org/opensha/sha/cybershake/conf/MeanUCERF.xml",
+					"--force-vs30", "760"};
+			//	String[] newArgs = {"-R", "3970", "-p", "5", "--component", CyberShakeComponent.RotD100.getShortName(), "-pr", "4.0e-4",
+			//			"-o", "/tmp", "-t", "png", "-ef", "/home/kevin/workspace/opensha-cybershake/src/org/opensha/sha/cybershake/conf/MeanUCERF.xml"};
+			////	String[] newArgs = {"--help"};
+			//	String[] newArgs = {"-R", "792", "-p", "3", "-pr", "4.0e-4", "-t", "pdf", "-o", "/tmp", "--skip-site-params"};
+			//	Cybershake_OpenSHA_DBApplication.HOST_NAME = Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME;
+			args = newArgs;
+		}
 		
 		try {
 			Options options = createOptions();

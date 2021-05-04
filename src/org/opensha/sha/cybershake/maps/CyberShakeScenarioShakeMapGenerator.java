@@ -1,11 +1,14 @@
 package org.opensha.sha.cybershake.maps;
 
+import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -13,6 +16,7 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.MissingOptionException;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
@@ -21,9 +25,12 @@ import org.opensha.commons.data.siteData.SiteDataValueList;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.data.xyz.ArbDiscrGeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSet;
+import org.opensha.commons.data.xyz.GeoDataSetMath;
 import org.opensha.commons.data.xyz.GriddedGeoDataSet;
+import org.opensha.commons.exceptions.GMT_MapException;
 import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
+import org.opensha.commons.mapping.gmt.GMT_Map;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
 import org.opensha.commons.param.Parameter;
@@ -56,6 +63,11 @@ import org.opensha.sha.util.SiteTranslator;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
+
+import Jama.Matrix;
+import scratch.UCERF3.analysis.FaultBasedMapGen;
+import scratch.kevin.spatialVar.SpatialVarCalc;
 
 public class CyberShakeScenarioShakeMapGenerator {
 	
@@ -87,6 +99,13 @@ public class CyberShakeScenarioShakeMapGenerator {
 	private boolean noPlot;
 	
 	private List<Site> gmpeSites;
+	
+	private static final double SP_CORR_SIGMA_DEFAULT = 0.6;
+	private int numRandomFields = 0;
+	private double spatialCorrSigma = SP_CORR_SIGMA_DEFAULT;
+	private Random spatialCorrRand = new Random();
+	private File spatialCorrCache;
+	private boolean spatialCorrDebug = false;
 	
 	public CyberShakeScenarioShakeMapGenerator(CommandLine cmd) {
 		study = CyberShakeStudy.valueOf(cmd.getOptionValue("study"));
@@ -160,9 +179,23 @@ public class CyberShakeScenarioShakeMapGenerator {
 			runs = study.runFetcher().fetch();
 			System.out.println("Have runs for "+runs.size()+" sites");
 		}
+		
+		if (cmd.hasOption("spatial-corr-fields")) {
+			numRandomFields = Integer.parseInt(cmd.getOptionValue("spatial-corr-fields"));
+			Preconditions.checkState(numRandomFields >= 0);
+			if (cmd.hasOption("spatial-corr-sigma"))
+				spatialCorrSigma = Double.parseDouble("spatial-corr-sigma");
+			if (cmd.hasOption("spatial-corr-rand"))
+				spatialCorrRand = new Random(Long.parseLong(cmd.getOptionValue("spatial-corr-rand")));
+			if (cmd.hasOption("spatial-corr-cache")) {
+				spatialCorrCache = new File(cmd.getOptionValue("spatial-corr-cache"));
+				Preconditions.checkState(spatialCorrCache.exists() || spatialCorrCache.mkdir());
+			}
+			spatialCorrDebug = cmd.hasOption("spatial-corr-debug");
+		}
 	}
 	
-	public void plot() throws SQLException, IOException, ClassNotFoundException {
+	public void plot() throws SQLException, IOException, ClassNotFoundException, GMT_MapException {
 		GeoDataSet[] csXYZs = customIntensities != null ? customIntensities : calcCyberShake();
 		
 		GeoDataSet[] gmpeXYZs = gmpe == null ? null : calcGMPE();
@@ -178,6 +211,10 @@ public class CyberShakeScenarioShakeMapGenerator {
 //		CPT cpt = CPT.loadFromStream(HardCodedInterpDiffMapCreator.class.getResourceAsStream(
 //				"/org/opensha/sha/cybershake/conf/cpt/cptFile_hazard_input.cpt"));
 		CPT cpt = GMT_CPT_Files.MAX_SPECTRUM.instance();
+		cpt.setNanColor(Color.GRAY);
+		
+		SpatialVarCalc spCorrCalc = null;
+		Matrix[] S = null;
 		
 		for (int p=0; p<periods.length; p++) {
 			String prefix = "cs_shakemap_src_"+sourceID+"_rup_"+rupID;
@@ -204,6 +241,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 			double maxZ = csXYZs[p] == null ? 0d : csXYZs[p].getMaxZ();
 			if (gmpe != null)
 				maxZ = Math.max(maxZ, gmpeXYZs[p].getMaxZ());
+			if (numRandomFields > 0)
+				maxZ *= 1.5;
 			
 			cpt = cpt.rescale(0d, maxZ);
 			
@@ -217,13 +256,14 @@ public class CyberShakeScenarioShakeMapGenerator {
 			else if (periods[p] == -1d)
 				title += ", PGV (cm/s)";
 			
+			boolean interp = customIntensities != null || ims[p] != null;
 			InterpDiffMapType[] myTypes;
-			if (customIntensities == null && ims[p] == null) {
+			if (interp) {
+				myTypes = typesToPlot;
+			} else {
 				// just GMPE
 				myTypes = new InterpDiffMapType[] { InterpDiffMapType.BASEMAP };
 				Preconditions.checkState(gmpe != null, "Can't plot period "+periods[p]+" without a GMPE!");
-			} else {
-				myTypes = typesToPlot;
 			}
 			
 			InterpDiffMap map = new InterpDiffMap(study.getRegion(), gmpe == null ? null : gmpeXYZs[p], spacing, cpt, csXYZs[p],
@@ -235,6 +275,11 @@ public class CyberShakeScenarioShakeMapGenerator {
 			map.setXyzFileName("base_map.xyz");
 			map.setCustomScaleMin(cbMin == null ? 0d : cbMin);
 			map.setCustomScaleMax(cbMax == null ? maxZ : cbMax);
+			
+			if (numRandomFields > 0) {
+				map.getInterpSettings().setSaveInterpSurface(true);
+				map.getInterpSettings().setInterpSpacing(spacing);
+			}
 			
 			String metadata = title;
 			
@@ -249,7 +294,189 @@ public class CyberShakeScenarioShakeMapGenerator {
 					addr += "/";
 				FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
 			}
+			
+			if (numRandomFields > 0) {
+				System.out.println("Will compute "+numRandomFields+" spatially correlated random fields.");
+				
+				if (periods[p] == 0d)
+					System.err.println("Warning: PGA is not explicitly specified in the Loth & Baker (2013) tables, "
+							+ "correlations for a period of 0.01s will be used.");
+				Preconditions.checkState(periods[p] >= 0d, "PGV is not supported by Loth & Baker (2013), cannot do spatial correlation.");
+				
+				GeoDataSet interpXYZ;
+				if (interp) {
+					String interpAddr = addr+"map_data_interpolated.txt";
+					System.out.println("Downloading interpolated map from: "+interpAddr);
+					
+					// download interpolated data
+					File interpFile = new File(outputDir, prefix+"_interp.txt");
+					FileUtils.downloadURL(interpAddr, interpFile);
+					
+					System.out.println("Loading interpolated data from "+interpFile.getAbsolutePath());
+					GriddedGeoDataSet interpDiff = GriddedGeoDataSet.loadXYZFile(interpFile, false);
+					System.out.println("Loaded "+interpDiff.size()+" interpolated points");
+					if (gmpeXYZs[p] == null) {
+						// it's just interpolated data, not interpolated differences
+						interpXYZ = interpDiff;
+					} else {
+						interpXYZ = gmpeXYZs[p].copy();
+						System.out.println("Interpolating differences on top of base map");
+						for (int i=0; i<interpXYZ.size(); i++) {
+							Location loc = interpXYZ.getLocation(i);
+							double diff = interpDiff.bilinearInterpolation(loc);
+							if (!Double.isFinite(diff))
+								diff = interpDiff.get(loc);
+							interpXYZ.set(i, interpXYZ.get(i)+diff);
+						}
+					}
+				} else {
+					System.out.println("No CyberShake (or custom intensities) for P="+(float)+periods[p]
+							+", adding random fields to basemap instead");
+					interpXYZ = gmpeXYZs[p];
+				}
+				GeoDataSet filtered = new ArbDiscrGeoDataSet(interpXYZ.isLatitudeX());
+				for (int i=0; i<interpXYZ.size(); i++) {
+					Location loc = interpXYZ.getLocation(i);
+					if (study.getRegion().contains(loc))
+						filtered.set(loc, interpXYZ.get(i));
+				}
+				System.out.println("Keeping "+filtered.size()+"/"+interpXYZ.size()+" values inside Study region");
+				interpXYZ = filtered;
+				
+				if (spCorrCalc == null) {
+					if (spatialCorrCache != null && SpatialVarCalc.isCached(spatialCorrCache, interpXYZ.size(), periods)) {
+						Stopwatch watch = Stopwatch.createStarted();
+						spCorrCalc = SpatialVarCalc.loadCache(spatialCorrCache, periods, interpXYZ.size());
+						watch.stop();
+						double secs = watch.elapsed(TimeUnit.MILLISECONDS)/1000d;
+						System.out.println("Took "+(float)secs+" s to load spatial correlation cache");
+					} else {
+						System.out.println("Initializing spatial correlation calculator for "+interpXYZ.size()+" sites. "
+								+ "This can take a long time for high resolution maps, speed things up by setting "
+								+ "a coarse grid spacing via --spacing <spacing>");
+						List<Site> sites = new ArrayList<>();
+						for (int i=0; i<interpXYZ.size(); i++)
+							sites.add(new Site(interpXYZ.getLocation(i)));
+						Stopwatch watch = Stopwatch.createStarted();
+						spCorrCalc = new SpatialVarCalc(periods, sites);
+						watch.stop();
+						double secs = watch.elapsed(TimeUnit.MILLISECONDS)/1000d;
+						System.out.println("Took "+(float)secs+" to initialize spatial correlation matrices");
+						if (spatialCorrCache != null ) {
+							watch = Stopwatch.createStarted();
+							spCorrCalc.writeCache(spatialCorrCache);
+							watch.stop();
+							secs = watch.elapsed(TimeUnit.MILLISECONDS)/1000d;
+							System.out.println("Took "+(float)secs+" to write spatial correlation cache");
+						}
+					}
+					
+					System.out.println("Computing "+numRandomFields+" random fields");
+					Stopwatch watch = Stopwatch.createStarted();
+					S = spCorrCalc.computeRandWithinEventResiduals(spatialCorrRand, spatialCorrSigma, numRandomFields);
+					watch.stop();
+					double secs = watch.elapsed(TimeUnit.MILLISECONDS)/1000d;
+					System.out.println("Took "+(float)secs+" s to compute random fields");
+				} else {
+					Preconditions.checkState(interpXYZ.size() == spCorrCalc.getNumSites(),
+							"Number of sites for P=%s s is different than expected. Previously we had %s sites, now we "
+							+ "have %s. This can happen if you're mixing periods with and without CyberShake data, try "
+							+ "running separate calculations for those periods.",
+							(float)periods[p], spCorrCalc.getNumSites(), interpXYZ.size());
+				}
+				
+				GeoDataSet avgData = null;
+				for (int n=0; n<numRandomFields; n++) {
+					System.out.println("Creating field "+n);
+					for (int i=0; i<interpXYZ.size(); i++)
+						if (interpXYZ.get(i) < 0d)
+							interpXYZ.set(i, 0d);
+					GeoDataSet randShakeMap = spCorrCalc.calcRandomShakeMap(interpXYZ, S[n], p);
+					File randShakeMapFile = new File(outputDir, prefix+"_rand"+n+".txt");
+					System.out.println("Writing random field to "+randShakeMapFile.getAbsolutePath());
+					ArbDiscrGeoDataSet.writeXYZFile(randShakeMap, randShakeMapFile);
+					
+					if (spatialCorrDebug) {
+						if (avgData == null) {
+							avgData = randShakeMap.copy();
+							avgData.log();
+						} else {
+							GeoDataSet lnMap = randShakeMap.copy();
+							lnMap.log();
+							avgData = GeoDataSetMath.add(avgData, lnMap);
+							Preconditions.checkNotNull(avgData);
+						}
+					}
+					
+//					GMT_Map randMap = new GMT_Map(study.getRegion(), randShakeMap, spacing, cpt);
+//					randMap.setUseGMTSmoothing(false);
+//					randMap.setCustomScaleMin((double)cpt.getMinValue());
+//					randMap.setCustomScaleMax((double)cpt.getMaxValue());
+//					randMap.setCustomLabel((float)periods[p]+"s Random ShakeMap "+n);
+//					randMap.setBlackBackground(false);
+//					randMap.setDpi(300);
+//					System.out.println("Plotting field "+n);
+//					FaultBasedMapGen.plotMap(outputDir, prefix+"_rand"+n, false, randMap);
+					
+					map.setGriddedData(randShakeMap);
+					map.setScatter(null);
+					map.setCustomLabel(title+", Random "+n);
+					
+					InterpDiffMapType[] randTypes = { InterpDiffMapType.BASEMAP };
+					map.setMapTypes(randTypes);
+					
+					System.out.println("Making map...");
+					String addr2 = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
+					
+					System.out.println("Done, downloading");
+					
+					File pngFile = new File(outputDir, prefix+"_rand"+n+".png");
+					if (!addr2.endsWith("/"))
+						addr2 += "/";
+					FileUtils.downloadURL(addr2+InterpDiffMapType.BASEMAP.getPrefix()+".150.png", pngFile);
+					
+					if (spatialCorrDebug && p == 0) {
+						File csvFile = new File(outputDir, "sp_corr_S_"+n+".csv");
+						System.out.println("Writing S matrix to "+csvFile.getAbsolutePath());
+						SpatialVarCalc.writeMatrixCSV(csvFile, S[n]);
+					}
+				}
+				
+				if (spatialCorrDebug) {
+					System.out.println("Writing average spatial correlation map...");
+					avgData.scale(1d/(double)numRandomFields);
+					avgData.exp();
+					File randShakeMapFile = new File(outputDir, prefix+"_rand_mean.txt");
+					System.out.println("Writing mean random field to "+randShakeMapFile.getAbsolutePath());
+					ArbDiscrGeoDataSet.writeXYZFile(avgData, randShakeMapFile);
+					
+					map.setGriddedData(avgData);
+					map.setScatter(null);
+					map.setCustomLabel(title+", Random Mean");
+					
+					InterpDiffMapType[] randTypes = { InterpDiffMapType.BASEMAP };
+					map.setMapTypes(randTypes);
+					
+					System.out.println("Making map...");
+					String addr2 = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
+					
+					System.out.println("Done, downloading");
+					
+					File pngFile = new File(outputDir, prefix+"_rand_mean.png");
+					if (!addr2.endsWith("/"))
+						addr2 += "/";
+					FileUtils.downloadURL(addr2+InterpDiffMapType.BASEMAP.getPrefix()+".150.png", pngFile);
+					
+					StandardDeviation stdDev = new StandardDeviation();
+					for (int n=0; n<numRandomFields; n++)
+						for (int i=0; i<spCorrCalc.getNumSites(); i++)
+							stdDev.increment(S[n].get(p, i));
+					System.out.println("Standard devaition for period "+(float)periods[p]+": "+stdDev.getResult());
+				}
+			}
 		}
+		
+		
 	}
 	
 	private GeoDataSet[] calcCyberShake() {
@@ -522,6 +749,33 @@ public class CyberShakeScenarioShakeMapGenerator {
 		customIMsOp.setRequired(false);
 		ops.addOption(customIMsOp);
 		
+		Option spatCorrOp = new Option("scf", "spatial-corr-fields", true,
+				"If supplied, the given number of spatially-correlated random fields will be computed. A default sigma of "
+						+(float)+SP_CORR_SIGMA_DEFAULT+" is assumed, override with --spatial-corr-sigma <value>.");
+		spatCorrOp.setRequired(false);
+		ops.addOption(spatCorrOp);
+		
+		Option spatCorrSigmaOp = new Option("scs", "spatial-corr-sigma", true,
+				"Sigma for spatially correlated random fields. Default: "+(float)+SP_CORR_SIGMA_DEFAULT+".");
+		spatCorrSigmaOp.setRequired(false);
+		ops.addOption(spatCorrSigmaOp);
+		
+		Option spatCorrRandOp = new Option("scr", "spatial-corr-rand", true,
+				"Random seed for spatially correlated random fields, otherwise unique each time.");
+		spatCorrRandOp.setRequired(false);
+		ops.addOption(spatCorrRandOp);
+		
+		Option spatCorrDebugOp = new Option("scd", "spatial-corr-debug", false,
+				"Enables spatial correlation debugging to output mean and other info.");
+		spatCorrDebugOp.setRequired(false);
+		ops.addOption(spatCorrDebugOp);
+		
+		// this option isn't really useful, takes longer to write/read cache than create it
+//		Option spatCorrCacheOp = new Option("scc", "spatial-corr-cache", true,
+//				"Cache directory for spatial correlation matrices");
+//		spatCorrCacheOp.setRequired(false);
+//		ops.addOption(spatCorrCacheOp);
+		
 		Option helpOp = new Option("?", "help", false, "Show this message");
 		helpOp.setRequired(false);
 		ops.addOption(helpOp);
@@ -532,10 +786,10 @@ public class CyberShakeScenarioShakeMapGenerator {
 	public static void main(String[] args) {
 		if (args.length == 1 && args[0].equals("--hardcoded")) {
 			System.out.println("HARDCODED");
-//			String argz = "--study STUDY_15_4 --period 0,-1,3 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "
-//					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
-			String argz = "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --study STUDY_15_4 --period 0,-1,3 --source-id 69 --rupture-id 6"
-					+ "--rupture-var-id 14 --output-dir /tmp/cs_shakemap";
+			String argz = "--study STUDY_15_4 --period 2,3,5,10 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "
+					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --spatial-corr-fields 20 --spacing 0.02 --spatial-corr-debug";
+//			String argz = "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --study STUDY_15_4 --period 0,-1,3 --source-id 69 --rupture-id 6 "
+//					+ "--rupture-var-id 14 --output-dir /tmp/cs_shakemap";
 //			String argz = "--study STUDY_15_4 --period -1 --colorbar-min 1 --colorbar-max 7 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "
 //					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
 //			String argz = "--study STUDY_15_12 --period 0.2 --source-id 69 --rupture-id 6 --output-dir /tmp "
@@ -557,6 +811,9 @@ public class CyberShakeScenarioShakeMapGenerator {
 			if (args.length == 0) {
 				HazardCurvePlotter.printUsage(options, appName);
 			}
+			
+			if (args.length == 1 && (args[0].endsWith("-help") || args[0].endsWith("-?")))
+				HazardCurvePlotter.printHelp(options, appName);
 			
 			try {
 				CommandLine cmd = parser.parse( options, args);

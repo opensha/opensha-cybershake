@@ -18,6 +18,7 @@ import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
 import org.opensha.commons.data.siteData.impl.ThompsonVs30_2018;
 import org.opensha.commons.data.siteData.impl.ThompsonVs30_2020;
+import org.opensha.commons.data.siteData.impl.WaldAllenGlobalVs30;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.data.xyz.GeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSetMath;
@@ -53,44 +54,47 @@ public class Vs30ModelCompare {
 		File mainOutputDir = new File("/home/kevin/git/misc-research/vs30_model_compare");
 		Preconditions.checkState(mainOutputDir.exists() || mainOutputDir.mkdir());
 		
-		FaultBasedMapGen.LOCAL_MAPGEN = true;
+		FaultBasedMapGen.LOCAL_MAPGEN = false;
 		boolean generateKML = false;
 		
 		Region zoomRegion = new CaliforniaRegions.CYBERSHAKE_MAP_REGION();
-		
-		File outputDir = new File(mainOutputDir, "thompson_2018_vs_wills_2015");
-//		File outputDir = new File(mainOutputDir, "thompson_2020_vs_wills_2015");
-		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
-		File resourcesDir = new File(outputDir, "resources");
-		Preconditions.checkState(resourcesDir.exists() || resourcesDir.mkdir());
 		
 		String title = "Vs30";
 		double dataMin = 150;
 		double dataMax = 900;
 		double maxDiff = 150d;
 		
-		SiteData<Double> prov1 = new ThompsonVs30_2018();
-//		SiteData<Double> prov1 = new ThompsonVs30_2020(
-//				"/tmp/thompson_vs30/Wills15_hybk_3c_2020v2.flt");
+//		SiteData<Double> prov1 = new ThompsonVs30_2018();
+////		SiteData<Double> prov1 = new ThompsonVs30_2020(
+////				"/tmp/thompson_vs30/Wills15_hybk_3c_2020v2.flt");
+//		String name1 = prov1.getName();
+//		String prefix1 = "thompson_2018";
+		SiteData<Double> prov1 = new WaldAllenGlobalVs30();
 		String name1 = prov1.getName();
-		String prefix1 = "thompson_2018";
+		String prefix1 = "wald_allen";
 		
 		SiteData<Double> prov2 = new WillsMap2015();
 		String name2 = prov2.getName();
 		String prefix2 = "wills_2015";
 		
+		File outputDir = new File(mainOutputDir, prefix1+"_vs_"+prefix2);
+		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
+		File resourcesDir = new File(outputDir, "resources");
+		Preconditions.checkState(resourcesDir.exists() || resourcesDir.mkdir());
+		
 		double fullDiscr = 0.01;
 //		double zoomDiscr = dataProvs.get(0).getResolution();
 		double zoomDiscr = 0.001;
 		
-		Region fullReg = prov1.getApplicableRegion();
+		Region fullReg = prov2.getApplicableRegion();
 		GriddedRegion fullGridReg = new GriddedRegion(fullReg, fullDiscr, null);
 		GriddedRegion zoomGridReg = new GriddedRegion(zoomRegion, zoomDiscr, null);
 		
-		System.out.println("Fetching datas");
+		System.out.println("Fetching datas for "+fullGridReg.getNodeCount()+" locations");
 		GriddedGeoDataSet fullData1 = getGeo(fullGridReg, prov1.getValues(fullGridReg.getNodeList()));
 		GriddedGeoDataSet fullData2 = getGeo(fullGridReg, prov2.getValues(fullGridReg.getNodeList()));
 		GeoDataSet fullDiff = GeoDataSetMath.subtract(fullData1, fullData2);
+		System.out.println("Fetching datas for "+zoomGridReg.getNodeCount()+" locations");
 		GriddedGeoDataSet zoomData1 = getGeo(zoomGridReg, prov1.getValues(zoomGridReg.getNodeList()));
 		GriddedGeoDataSet zoomData2 = getGeo(zoomGridReg, prov2.getValues(zoomGridReg.getNodeList()));
 		GeoDataSet zoomDiff = GeoDataSetMath.subtract(zoomData1, zoomData2);

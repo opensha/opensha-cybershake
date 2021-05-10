@@ -2,6 +2,7 @@ package org.opensha.sha.cybershake.maps;
 
 import java.awt.Color;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.text.ParseException;
@@ -107,6 +108,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 	private File spatialCorrCache;
 	private boolean spatialCorrDebug = false;
 	
+	private boolean downloadInterpolated = false;
+	
 	public CyberShakeScenarioShakeMapGenerator(CommandLine cmd) {
 		study = CyberShakeStudy.valueOf(cmd.getOptionValue("study"));
 		sourceID = Integer.parseInt(cmd.getOptionValue("source-id"));
@@ -193,6 +196,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 			}
 			spatialCorrDebug = cmd.hasOption("spatial-corr-debug");
 		}
+		
+		downloadInterpolated = cmd.hasOption("downloadInterpolated");
 	}
 	
 	public void plot() throws SQLException, IOException, ClassNotFoundException, GMT_MapException {
@@ -305,30 +310,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 				
 				GeoDataSet interpXYZ;
 				if (interp) {
-					String interpAddr = addr+"map_data_interpolated.txt";
-					System.out.println("Downloading interpolated map from: "+interpAddr);
-					
-					// download interpolated data
-					File interpFile = new File(outputDir, prefix+"_interp.txt");
-					FileUtils.downloadURL(interpAddr, interpFile);
-					
-					System.out.println("Loading interpolated data from "+interpFile.getAbsolutePath());
-					GriddedGeoDataSet interpDiff = GriddedGeoDataSet.loadXYZFile(interpFile, false);
-					System.out.println("Loaded "+interpDiff.size()+" interpolated points");
-					if (gmpeXYZs[p] == null) {
-						// it's just interpolated data, not interpolated differences
-						interpXYZ = interpDiff;
-					} else {
-						interpXYZ = gmpeXYZs[p].copy();
-						System.out.println("Interpolating differences on top of base map");
-						for (int i=0; i<interpXYZ.size(); i++) {
-							Location loc = interpXYZ.getLocation(i);
-							double diff = interpDiff.bilinearInterpolation(loc);
-							if (!Double.isFinite(diff))
-								diff = interpDiff.get(loc);
-							interpXYZ.set(i, interpXYZ.get(i)+diff);
-						}
-					}
+					interpXYZ = downloadInterpolated(gmpeXYZs == null ? null : gmpeXYZs[p], prefix, addr);
 				} else {
 					System.out.println("No CyberShake (or custom intensities) for P="+(float)+periods[p]
 							+", adding random fields to basemap instead");
@@ -473,10 +455,44 @@ public class CyberShakeScenarioShakeMapGenerator {
 							stdDev.increment(S[n].get(p, i));
 					System.out.println("Standard devaition for period "+(float)periods[p]+": "+stdDev.getResult());
 				}
+			} else if (downloadInterpolated && interp) {
+				downloadInterpolated(gmpeXYZs == null ? null : gmpeXYZs[p], prefix, addr);
 			}
 		}
 		
 		
+	}
+
+	private GeoDataSet downloadInterpolated(GeoDataSet gmpeXYZ, String prefix, String addr)
+			throws IOException, FileNotFoundException {
+		GeoDataSet interpXYZ;
+		String interpAddr = addr+"map_data_interpolated.txt";
+		System.out.println("Downloading interpolated map data from: "+interpAddr);
+		
+		// download interpolated data
+		File interpFile = new File(outputDir, prefix+"_interp.txt");
+		FileUtils.downloadURL(interpAddr, interpFile);
+		
+		System.out.println("Loading interpolated data from "+interpFile.getAbsolutePath());
+		GriddedGeoDataSet interpDiff = GriddedGeoDataSet.loadXYZFile(interpFile, false);
+		System.out.println("Loaded "+interpDiff.size()+" interpolated points");
+		if (gmpeXYZ == null) {
+			// it's just interpolated data, not interpolated differences
+			interpXYZ = interpDiff;
+		} else {
+			interpXYZ = gmpeXYZ.copy();
+			System.out.println("Interpolating differences on top of base map");
+			for (int i=0; i<interpXYZ.size(); i++) {
+				Location loc = interpXYZ.getLocation(i);
+				double diff = interpDiff.bilinearInterpolation(loc);
+				if (!Double.isFinite(diff))
+					diff = interpDiff.get(loc);
+				interpXYZ.set(i, interpXYZ.get(i)+diff);
+			}
+			System.out.println("Writing final interpolated differences map to "+interpFile.getAbsolutePath());
+			ArbDiscrGeoDataSet.writeXYZFile(interpXYZ, interpFile);
+		}
+		return interpXYZ;
 	}
 	
 	private GeoDataSet[] calcCyberShake() {
@@ -775,6 +791,11 @@ public class CyberShakeScenarioShakeMapGenerator {
 //				"Cache directory for spatial correlation matrices");
 //		spatCorrCacheOp.setRequired(false);
 //		ops.addOption(spatCorrCacheOp);
+		
+		Option downloadInterpolated = new Option("dli", "download-interpolated", false,
+				"Flag to download interpolated map data (will save to *_interp.txt)");
+		downloadInterpolated.setRequired(false);
+		ops.addOption(downloadInterpolated);
 		
 		Option helpOp = new Option("?", "help", false, "Show this message");
 		helpOp.setRequired(false);

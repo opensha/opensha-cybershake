@@ -1,17 +1,51 @@
 /*
- * opensha-cybershake dependencies
+ * opensha-dev dependencies
  */
 
-apply from: '../opensha-commons/build-common.gradle'
+apply plugin: 'java-library'
+
+sourceCompatibility = JavaVersion.VERSION_11
+targetCompatibility = JavaVersion.VERSION_11
+compileJava.options.encoding = "UTF-8"
+
+repositories {
+    jcenter()
+}
+
+configurations {
+    apiResolvable {
+        description 'resolvable view of the api classpath'
+        canBeResolved=true
+
+        extendsFrom api
+    }
+}
+
+task fatJar(type: Jar, dependsOn: ':opensha-dev:fatJar') {
+    baseName = project.name + '-all'
+    // include all 'api' dependencies
+    from {
+        configurations.apiResolvable.collect { it.isDirectory() ? it : zipTree(it).matching {
+            exclude { it.path.contains('META-INF') }
+        }}
+    }
+    // include compiled source from this project
+    from sourceSets.main.allJava
+    // include upstream project fat jar
+    from zipTree(file('../opensha-dev/build/libs/opensha-dev-all.jar'))
+
+    duplicatesStrategy = 'exclude'
+    with jar
+}
 
 dependencies {
-    compileAndResource 'org.xerial:sqlite-jdbc:3.28.0'
 
-    /* no remote repo */
-    compileAndResource files('lib/mysql-connector-java-5.1.16-bin.jar')
+    api 'org.xerial:sqlite-jdbc:3.28.0'
     
-    compileOnly project(path: ':opensha-dev', configuration: 'compileOnly')
-    compileAndResource project(path: ':opensha-dev')
+    /* no remote repo */
+    api files('lib/mysql-connector-java-5.1.16-bin.jar')
 
-    testCompile 'junit:junit:4.12'
+    implementation project(path: ':opensha-dev')
+
+    testImplementation 'junit:junit:4.12'
 }

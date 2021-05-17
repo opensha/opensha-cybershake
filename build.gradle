@@ -2,16 +2,22 @@
  * opensha-cybershake dependencies
  */
 
-apply from: '../opensha-commons/build-common.gradle'
+apply plugin: 'java-library'
+
+ext {
+    parentProject = 'opensha-dev'
+}
+
+apply from: '../opensha/build-common.gradle'
 
 dependencies {
-    compileAndResource 'org.xerial:sqlite-jdbc:3.28.0'
 
-    /* no remote repo */
-    compileAndResource files('lib/mysql-connector-java-5.1.16-bin.jar')
+    api 'org.xerial:sqlite-jdbc:3.28.0'
     
-    compileOnly project(path: ':opensha-dev', configuration: 'compileOnly')
-    compileAndResource project(path: ':opensha-dev')
+    /* no remote repo */
+    api files('lib/mysql-connector-java-5.1.16-bin.jar')
 
-    testCompile 'junit:junit:4.12'
+    implementation project(path: ':opensha-dev')
+
+    testImplementation 'junit:junit:4.12'
 }

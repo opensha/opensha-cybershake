@@ -17,6 +17,7 @@ dependencies {
     /* no remote repo */
     api files('lib/mysql-connector-java-5.1.16-bin.jar')
 
+    implementation project(path: ':opensha')
     implementation project(path: ':opensha-dev')
 
     testImplementation 'junit:junit:4.12'

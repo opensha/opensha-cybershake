@@ -18,7 +18,9 @@ dependencies {
     api files('lib/mysql-connector-java-5.1.16-bin.jar')
 
     implementation project(path: ':opensha')
+    implementation project(path: ':opensha', configuration: 'implResolvable')
     implementation project(path: ':opensha-dev')
+    implementation project(path: ':opensha-dev', configuration: 'implResolvable')
 
     testImplementation 'junit:junit:4.12'
 }

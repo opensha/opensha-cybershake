@@ -23,6 +23,7 @@ jobs:
     - name: Checkout dev repo
       uses: actions/checkout@v2
       with:
+        repository: opensha/opensha-dev
         path: 'opensha-dev'
     - name: Checkout cybershake repo
       uses: actions/checkout@v2

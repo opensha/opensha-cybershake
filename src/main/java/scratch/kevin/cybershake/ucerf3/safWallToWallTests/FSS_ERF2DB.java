@@ -6,6 +6,8 @@ import java.util.concurrent.ConcurrentMap;
 import org.opensha.commons.geo.Location;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.ERF2DB;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemRupSet;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemSolution;
 import org.opensha.sha.earthquake.param.IncludeBackgroundOption;
 import org.opensha.sha.earthquake.param.IncludeBackgroundParam;
 import org.opensha.sha.earthquake.param.ProbabilityModelOptions;
@@ -18,8 +20,6 @@ import org.opensha.sha.faultSurface.StirlingGriddedSurface;
 
 import com.google.common.collect.Maps;
 
-import scratch.UCERF3.FaultSystemRupSet;
-import scratch.UCERF3.FaultSystemSolution;
 import scratch.UCERF3.erf.FaultSystemSolutionERF;
 
 public class FSS_ERF2DB extends ERF2DB {

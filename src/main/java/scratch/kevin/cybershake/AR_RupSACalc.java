@@ -18,6 +18,7 @@ import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.EqkRupture;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemSolution;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.MeanUCERF2.MeanUCERF2;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
@@ -43,7 +44,7 @@ public class AR_RupSACalc {
 		for (int i=0; i<ucerf2.getNumSources(); i++)
 			numRups += ucerf2.getNumRuptures(i);
 		System.out.println("Ruptures: "+numRups);
-		InversionFaultSystemSolution u2Sol = UCERF2_ComparisonSolutionFetcher.getUCERF2Solution(FaultModels.FM2_1);
+		FaultSystemSolution u2Sol = UCERF2_ComparisonSolutionFetcher.getUCERF2Solution(FaultModels.FM2_1);
 		int numInvRups = 0;
 		for (int r=0; r<u2Sol.getRupSet().getNumRuptures(); r++)
 			if (u2Sol.getRateForRup(r)>0d)

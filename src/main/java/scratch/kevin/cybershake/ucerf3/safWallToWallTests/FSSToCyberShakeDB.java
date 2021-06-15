@@ -17,11 +17,11 @@ import org.opensha.sha.cybershake.db.ERF2DB;
 import org.opensha.sha.earthquake.ERF;
 import org.opensha.sha.earthquake.ProbEqkRupture;
 import org.opensha.sha.earthquake.ProbEqkSource;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemSolution;
 import org.opensha.sha.faultSurface.RuptureSurface;
 
 import com.google.common.collect.Lists;
 
-import scratch.UCERF3.FaultSystemSolution;
 import scratch.UCERF3.utils.FaultSystemIO;
 
 public class FSSToCyberShakeDB {

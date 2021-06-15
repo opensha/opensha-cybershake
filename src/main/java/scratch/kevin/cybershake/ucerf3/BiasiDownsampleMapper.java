@@ -9,13 +9,13 @@ import java.util.List;
 import org.dom4j.DocumentException;
 import org.opensha.commons.data.function.HistogramFunction;
 import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemRupSet;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemSolution;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import scratch.UCERF3.FaultSystemRupSet;
-import scratch.UCERF3.FaultSystemSolution;
 import scratch.UCERF3.utils.FaultSystemIO;
 
 public class BiasiDownsampleMapper {
@@ -131,7 +131,7 @@ public class BiasiDownsampleMapper {
 		System.out.println(hist);
 		System.out.println(numNoMatch+"/"+origRupSet.getNumRuptures()+" have NO MATCH");
 		System.out.println(numNoParentsMatch+"/"+origRupSet.getNumRuptures()+" have no parent section match");
-		FaultSystemIO.writeSol(new FaultSystemSolution(downsampledRupSet, downsampledRates), outputFile);
+		new FaultSystemSolution(downsampledRupSet, downsampledRates).getArchive().write(outputFile);
 	}
 	
 	private static void printRup(List<Integer> rup) {

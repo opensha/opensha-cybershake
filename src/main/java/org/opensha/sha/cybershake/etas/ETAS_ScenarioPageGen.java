@@ -1146,7 +1146,52 @@ public class ETAS_ScenarioPageGen {
 		gp.saveAsPNG(pngFile.getAbsolutePath());
 		File pdfFile = new File(resourcesDir, prefix+".pdf");
 		gp.saveAsPDF(pdfFile.getAbsolutePath());
+		curveToCSV(tiCurve, tdCurve).writeToFile(new File(resourcesDir, prefix+"_long_term.csv"));
+		curveToCSV(uniformCurve, etasCurve).writeToFile(new File(resourcesDir, prefix+"_etas.csv"));
 		return pngFile;
+	}
+	
+	static CSVFile<String> curveToCSV(DiscretizedFunc... funcs) {
+		Preconditions.checkState(funcs.length > 0);
+		int size = funcs[0].size();
+		if (funcs.length > 1) {
+			for (int i=1; i<funcs.length; i++) {
+				Preconditions.checkState(funcs[i].size() == size);
+				Preconditions.checkState(funcs[i].getX(0) == funcs[0].getX(0));
+				Preconditions.checkState(funcs[i].getX(size-1) == funcs[0].getX(size-1));
+			}
+		}
+		
+		CSVFile<String> csv = new CSVFile<>(true);
+		List<String> header = new ArrayList<>();
+		header.add("X");
+		for (DiscretizedFunc func : funcs)
+			header.add(func.getName() == null ? "Curve "+header.size() : func.getName());
+		csv.addLine(header);
+		
+		for (int i=0; i<size; i++) {
+			List<String> line = new ArrayList<>();
+			line.add(funcs[0].getX(i)+"");
+			for (DiscretizedFunc func : funcs)
+				line.add(func.getY(i)+"");
+			csv.addLine(line);
+		}
+		return csv;
+	}
+	
+	static DiscretizedFunc[] curvesFromCSV(CSVFile<String> csv) {
+		DiscretizedFunc[] ret = new DiscretizedFunc[csv.getNumCols()-1];
+		for (int i=0; i<ret.length; i++)
+			ret[i] = new ArbitrarilyDiscretizedFunc(csv.get(0, i+1));
+		
+		for (int row=1; row<csv.getNumRows(); row++) {
+			double x = csv.getDouble(row, 0);
+			int col = 1;
+			for (DiscretizedFunc func : ret)
+				func.set(x, csv.getDouble(row, col++));
+		}
+		
+		return ret;
 	}
 	
 	private class CSCurveCallable implements Callable<DiscretizedFunc> {
@@ -1940,8 +1985,10 @@ public class ETAS_ScenarioPageGen {
 		
 		AttenRelRef gmpeRef = AttenRelRef.ASK_2014;
 		
+//		boolean replotETAS = false;
+//		boolean skipETAS = true;
 		boolean replotETAS = false;
-		boolean skipETAS = true;
+		boolean skipETAS = false;
 		boolean replotMaps = false;
 		
 		String[] highlightSiteNames = { "SBSM", "MRSD", "STNI", "PDU" };

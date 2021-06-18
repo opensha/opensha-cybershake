@@ -89,6 +89,15 @@ public class ETAS_CombinedHazardGainPlot {
 		}
 		
 		List<XYTextAnnotation> anns = ETAS_HazardChangePlot.buildPlotAnnotations(false, funcs, chars, yRange);
+		for (XYTextAnnotation ann : anns) {
+			String text = ann.getText();
+			text = text.replace(" hr", " hour");
+			text = text.replace(" d", " day");
+			text = text.replace(" wk", " week");
+			text = text.replace(" mo", " month");
+			text = text.replace(" yr", " year");
+			ann.setText(text);
+		}
 		
 		PlotSpec spec = new PlotSpec(funcs, chars, " ", "Forecast Timespan (years)", "M≥"+minMag+" Probability Gain");
 		spec.setPlotAnnotations(anns);

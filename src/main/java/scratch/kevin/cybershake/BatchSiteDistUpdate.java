@@ -1,5 +1,7 @@
 package scratch.kevin.cybershake;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -30,13 +32,19 @@ import com.google.common.collect.Lists;
 public class BatchSiteDistUpdate {
 
 	public static void main(String[] args) throws IOException {
+//		DBAccess db = Cybershake_OpenSHA_DBApplication.getAuthenticatedDBAccess(
+//				true, true, Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
 		DBAccess db = Cybershake_OpenSHA_DBApplication.getAuthenticatedDBAccess(
-				true, true, Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
+				true, true, Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME);
 		
-//		int erfID = 36;
-//		AbstractERF erf = MeanUCERF2_ToDB.createUCERF2_200mERF(true);
-		int erfID = 41;
-		AbstractERF erf = MeanUCERF2_ToDB.createUCERF2_200mERF(false);
+		FileWriter outFW = null;
+		if (db.isReadOnly())
+			outFW = new FileWriter(new File("/tmp/cs_update.sql"));
+		
+		int erfID = 36;
+		AbstractERF erf = MeanUCERF2_ToDB.createUCERF2_200mERF(true);
+//		int erfID = 41;
+//		AbstractERF erf = MeanUCERF2_ToDB.createUCERF2_200mERF(false);
 		erf.updateForecast();
 		
 		CybershakeSiteInfo2DB sites2db = new CybershakeSiteInfo2DB(db);
@@ -104,12 +112,16 @@ public class BatchSiteDistUpdate {
 				String sql = "UPDATE CyberShake_Site_Ruptures SET Site_Rupture_Dist="+task.minDist+" WHERE CS_Site_ID="+site.id
 					+" AND ERF_ID="+erfID+" AND Source_ID="+task.sourceID+" AND Rupture_ID="+task.rupID;
 				
-				try {
-					db.insertUpdateOrDeleteData(sql);
-				} catch (SQLException e) {
-					System.out.println("Error on statement: "+sql);
-					e.printStackTrace();
-					break siteLoop;
+				if (outFW == null) {
+					try {
+						db.insertUpdateOrDeleteData(sql);
+					} catch (SQLException e) {
+						System.out.println("Error on statement: "+sql);
+						e.printStackTrace();
+						break siteLoop;
+					}
+				} else {
+					outFW.write(sql+";\n");
 				}
 			}
 			
@@ -117,6 +129,8 @@ public class BatchSiteDistUpdate {
 		}
 		
 		db.destroy();
+		if (outFW != null)
+			outFW.close();
 		
 		System.exit(0);
 	}

@@ -16,16 +16,16 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import scratch.UCERF3.utils.FaultSystemIO;
+import scratch.UCERF3.utils.U3FaultSystemIO;
 
 public class BiasiDownsampleMapper {
 	
 	public static void main(String[] args) throws IOException, DocumentException {
 		File dir = new File("/home/kevin/OpenSHA/UCERF3/biasi_downsample_tests");
-		FaultSystemSolution origSol = FaultSystemIO.loadSol(new File(dir,
+		FaultSystemSolution origSol = U3FaultSystemIO.loadSol(new File(dir,
 				"FM3_1_ZENGBB_Shaw09Mod_DsrTap_CharConst_M5Rate7.9_MMaxOff7.6_NoFix_SpatSeisU3_mean_sol.zip"));
 		
-		FaultSystemRupSet downsampledRupSet = FaultSystemIO.loadRupSet(new File(dir,
+		FaultSystemRupSet downsampledRupSet = U3FaultSystemIO.loadRupSet(new File(dir,
 				"FM3_1_ZENGBB_Shaw09Mod_DsrTap_CharConst_M5Rate7.9_MMaxOff7.6_NoFix_SpatSeisU3_VarFilteredRupsDistilledBoth_mean_sol.zip"));
 		File outputFile = new File(dir, "FM3_1_ZENGBB_Shaw09Mod_DsrTap_CharConst_M5Rate7.9_MMaxOff7.6_NoFix_SpatSeisU3_VarFilteredRupsDistilledBothMapped_mean_sol.zip");
 //		FaultSystemRupSet downsampledRupSet = FaultSystemIO.loadRupSet(new File(dir,

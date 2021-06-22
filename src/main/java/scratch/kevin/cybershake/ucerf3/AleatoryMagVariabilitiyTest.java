@@ -48,7 +48,7 @@ import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 import org.opensha.sha.util.SiteTranslator;
 
 import scratch.UCERF3.erf.FaultSystemSolutionERF;
-import scratch.UCERF3.utils.FaultSystemIO;
+import scratch.UCERF3.utils.U3FaultSystemIO;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -159,7 +159,7 @@ public class AleatoryMagVariabilitiyTest {
 		}
 		
 		// now do UCERF3 GMPE tests
-		FaultSystemSolution inputSol = FaultSystemIO.loadSol(
+		FaultSystemSolution inputSol = U3FaultSystemIO.loadSol(
 				new File("/home/kevin/workspace/OpenSHA/dev/scratch/UCERF3/data/scratch/InversionSolutions/"
 						+ "2013_05_10-ucerf3p3-production-10runs_COMPOUND_SOL_FM3_1_MEAN_BRANCH_AVG_SOL.zip"));
 		NGAWest_2014_Averaged_AttenRel gmpe = new NGAWest_2014_Averaged_AttenRel(null, false);

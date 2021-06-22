@@ -22,7 +22,7 @@ import com.google.common.collect.Maps;
 
 import scratch.UCERF3.enumTreeBranches.FaultModels;
 import scratch.UCERF3.erf.mean.RuptureCombiner;
-import scratch.UCERF3.utils.FaultSystemIO;
+import scratch.UCERF3.utils.U3FaultSystemIO;
 
 public class SubsetSolutionGenerator {
 
@@ -31,7 +31,7 @@ public class SubsetSolutionGenerator {
 			+ "2013_05_10-ucerf3p3-production-10runs_COMPOUND_SOL_FM3_1_MEAN_BRANCH_AVG_SOL.zip");
 		File outputDir = new File("/home/kevin/CyberShake/ucerf3/saf_wall_to_wall_tests");
 		
-		FaultSystemSolution sol = FaultSystemIO.loadSol(solFile);
+		FaultSystemSolution sol = U3FaultSystemIO.loadSol(solFile);
 		FaultSystemRupSet rupSet = sol.getRupSet();
 		
 		HashSet<Integer> parents = new HashSet(FaultModels.FM3_1.getNamedFaultsMapAlt().get("San Andreas"));

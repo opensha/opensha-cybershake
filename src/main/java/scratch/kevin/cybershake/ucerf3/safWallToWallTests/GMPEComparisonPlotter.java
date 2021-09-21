@@ -28,6 +28,8 @@ import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.earthquake.EqkRupture;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemRupSet;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemSolution;
 import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.gui.infoTools.IMT_Info;
@@ -41,14 +43,12 @@ import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import scratch.UCERF3.FaultSystemRupSet;
-import scratch.UCERF3.FaultSystemSolution;
-import scratch.UCERF3.utils.FaultSystemIO;
+import scratch.UCERF3.utils.U3FaultSystemIO;
 
 public class GMPEComparisonPlotter {
 
 	public static void main(String[] args) throws IOException, DocumentException {
-		FaultSystemSolution sol = FaultSystemIO.loadSol(
+		FaultSystemSolution sol = U3FaultSystemIO.loadSol(
 				new File("/home/kevin/CyberShake/ucerf3/saf_wall_to_wall_tests/saf_subset_sol.zip"));
 		FaultSystemRupSet rupSet = sol.getRupSet();
 		

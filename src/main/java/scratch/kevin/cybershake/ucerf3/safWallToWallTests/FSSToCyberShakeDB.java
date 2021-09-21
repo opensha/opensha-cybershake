@@ -17,19 +17,19 @@ import org.opensha.sha.cybershake.db.ERF2DB;
 import org.opensha.sha.earthquake.ERF;
 import org.opensha.sha.earthquake.ProbEqkRupture;
 import org.opensha.sha.earthquake.ProbEqkSource;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemSolution;
 import org.opensha.sha.faultSurface.RuptureSurface;
 
 import com.google.common.collect.Lists;
 
-import scratch.UCERF3.FaultSystemSolution;
-import scratch.UCERF3.utils.FaultSystemIO;
+import scratch.UCERF3.utils.U3FaultSystemIO;
 
 public class FSSToCyberShakeDB {
 
 	public static void main(String[] args) {
 		DBAccess db = null;
 		try {
-			FaultSystemSolution fss = FaultSystemIO.loadSol(
+			FaultSystemSolution fss = U3FaultSystemIO.loadSol(
 					new File("/home/kevin/CyberShake/ucerf3/saf_wall_to_wall_tests/saf_subset_sol.zip"));
 			
 			String erfName = "UCERF3 SAF Downsampling Test ERF, 200m";

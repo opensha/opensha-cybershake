@@ -46,10 +46,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import scratch.UCERF3.FaultSystemRupSet;
-import scratch.UCERF3.FaultSystemSolution;
+import scratch.UCERF3.U3FaultSystemRupSet;
+import scratch.UCERF3.U3FaultSystemSolution;
 import scratch.UCERF3.erf.FaultSystemSolutionERF;
-import scratch.UCERF3.utils.FaultSystemIO;
+import scratch.UCERF3.utils.U3FaultSystemIO;
 
 public class CSDownsampledSolCreator {
 	

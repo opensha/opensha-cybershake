@@ -9,23 +9,23 @@ import java.util.List;
 import org.dom4j.DocumentException;
 import org.opensha.commons.data.function.HistogramFunction;
 import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemRupSet;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemSolution;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import scratch.UCERF3.FaultSystemRupSet;
-import scratch.UCERF3.FaultSystemSolution;
-import scratch.UCERF3.utils.FaultSystemIO;
+import scratch.UCERF3.utils.U3FaultSystemIO;
 
 public class BiasiDownsampleMapper {
 	
 	public static void main(String[] args) throws IOException, DocumentException {
 		File dir = new File("/home/kevin/OpenSHA/UCERF3/biasi_downsample_tests");
-		FaultSystemSolution origSol = FaultSystemIO.loadSol(new File(dir,
+		FaultSystemSolution origSol = U3FaultSystemIO.loadSol(new File(dir,
 				"FM3_1_ZENGBB_Shaw09Mod_DsrTap_CharConst_M5Rate7.9_MMaxOff7.6_NoFix_SpatSeisU3_mean_sol.zip"));
 		
-		FaultSystemRupSet downsampledRupSet = FaultSystemIO.loadRupSet(new File(dir,
+		FaultSystemRupSet downsampledRupSet = U3FaultSystemIO.loadRupSet(new File(dir,
 				"FM3_1_ZENGBB_Shaw09Mod_DsrTap_CharConst_M5Rate7.9_MMaxOff7.6_NoFix_SpatSeisU3_VarFilteredRupsDistilledBoth_mean_sol.zip"));
 		File outputFile = new File(dir, "FM3_1_ZENGBB_Shaw09Mod_DsrTap_CharConst_M5Rate7.9_MMaxOff7.6_NoFix_SpatSeisU3_VarFilteredRupsDistilledBothMapped_mean_sol.zip");
 //		FaultSystemRupSet downsampledRupSet = FaultSystemIO.loadRupSet(new File(dir,
@@ -131,7 +131,7 @@ public class BiasiDownsampleMapper {
 		System.out.println(hist);
 		System.out.println(numNoMatch+"/"+origRupSet.getNumRuptures()+" have NO MATCH");
 		System.out.println(numNoParentsMatch+"/"+origRupSet.getNumRuptures()+" have no parent section match");
-		FaultSystemIO.writeSol(new FaultSystemSolution(downsampledRupSet, downsampledRates), outputFile);
+		new FaultSystemSolution(downsampledRupSet, downsampledRates).getArchive().write(outputFile);
 	}
 	
 	private static void printRup(List<Integer> rup) {

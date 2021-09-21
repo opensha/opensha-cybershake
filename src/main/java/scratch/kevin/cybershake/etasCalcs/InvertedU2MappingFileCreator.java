@@ -14,14 +14,14 @@ import org.opensha.sha.faultSurface.FaultSection;
 import scratch.UCERF3.inversion.CommandLineInversionRunner;
 import scratch.UCERF3.inversion.InversionFaultSystemRupSet;
 import scratch.UCERF3.inversion.InversionFaultSystemRupSetFactory;
-import scratch.UCERF3.logicTree.LogicTreeBranch;
+import scratch.UCERF3.logicTree.U3LogicTreeBranch;
 import scratch.UCERF3.utils.UCERF3_DataUtils;
 import scratch.UCERF3.utils.FindEquivUCERF2_Ruptures.FindEquivUCERF2_FM2pt1_Ruptures;
 
 public class InvertedU2MappingFileCreator {
 
 	public static void main(String[] args) throws IOException {
-		LogicTreeBranch branch = LogicTreeBranch.fromFileName(
+		U3LogicTreeBranch branch = U3LogicTreeBranch.fromFileName(
 				"FM2_1_UC2ALL_AveU2_DsrUni_CharConst_M5Rate7.9_MMaxOff7.6_NoFix_SpatSeisU2");
 		InversionFaultSystemRupSet origRupSet = InversionFaultSystemRupSetFactory.forBranch(branch);
 		InversionFaultSystemRupSet rupSet = CommandLineInversionRunner.getUCERF2RupsOnly(origRupSet);

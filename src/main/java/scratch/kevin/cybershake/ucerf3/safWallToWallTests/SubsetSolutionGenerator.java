@@ -11,6 +11,8 @@ import org.opensha.commons.data.region.CaliforniaRegions;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.Region;
 import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemRupSet;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemSolution;
 import org.opensha.sha.faultSurface.CompoundSurface;
 import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.faultSurface.RuptureSurface;
@@ -18,11 +20,9 @@ import org.opensha.sha.faultSurface.RuptureSurface;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import scratch.UCERF3.FaultSystemRupSet;
-import scratch.UCERF3.FaultSystemSolution;
 import scratch.UCERF3.enumTreeBranches.FaultModels;
 import scratch.UCERF3.erf.mean.RuptureCombiner;
-import scratch.UCERF3.utils.FaultSystemIO;
+import scratch.UCERF3.utils.U3FaultSystemIO;
 
 public class SubsetSolutionGenerator {
 
@@ -31,7 +31,7 @@ public class SubsetSolutionGenerator {
 			+ "2013_05_10-ucerf3p3-production-10runs_COMPOUND_SOL_FM3_1_MEAN_BRANCH_AVG_SOL.zip");
 		File outputDir = new File("/home/kevin/CyberShake/ucerf3/saf_wall_to_wall_tests");
 		
-		FaultSystemSolution sol = FaultSystemIO.loadSol(solFile);
+		FaultSystemSolution sol = U3FaultSystemIO.loadSol(solFile);
 		FaultSystemRupSet rupSet = sol.getRupSet();
 		
 		HashSet<Integer> parents = new HashSet(FaultModels.FM3_1.getNamedFaultsMapAlt().get("San Andreas"));
@@ -111,7 +111,7 @@ public class SubsetSolutionGenerator {
 			}
 		}
 		
-		FaultSystemIO.writeSol(subsetSol, new File(outputDir, "saf_subset_sol.zip"));
+		subsetSol.getArchive().write(new File(outputDir, "saf_subset_sol.zip"));
 		
 		System.out.println("Longest All SAF: "+longestSAF);
 		System.out.println("Longest So Cal SAF: "+longestSAF_soCal);

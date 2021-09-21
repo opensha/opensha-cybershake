@@ -13,10 +13,10 @@ import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
 import org.opensha.sha.earthquake.ERF;
 import org.opensha.sha.earthquake.ProbEqkRupture;
 import org.opensha.sha.earthquake.ProbEqkSource;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemSolution;
 import org.opensha.sha.faultSurface.FaultSection;
 
-import scratch.UCERF3.FaultSystemRupSet;
-import scratch.UCERF3.FaultSystemSolution;
+import scratch.UCERF3.U3FaultSystemRupSet;
 import scratch.UCERF3.enumTreeBranches.DeformationModels;
 import scratch.UCERF3.enumTreeBranches.FaultModels;
 import scratch.UCERF3.enumTreeBranches.InversionModels;
@@ -27,7 +27,7 @@ import scratch.UCERF3.inversion.InversionFaultSystemRupSet;
 import scratch.UCERF3.inversion.InversionFaultSystemRupSetFactory;
 import scratch.UCERF3.inversion.InversionFaultSystemSolution;
 import scratch.UCERF3.inversion.laughTest.UCERF3PlausibilityConfig;
-import scratch.UCERF3.utils.FaultSystemIO;
+import scratch.UCERF3.utils.U3FaultSystemIO;
 import scratch.UCERF3.utils.UCERF3_DataUtils;
 import scratch.UCERF3.utils.FindEquivUCERF2_Ruptures.FindEquivUCERF2_FM2pt1_Ruptures;
 import scratch.UCERF3.utils.FindEquivUCERF2_Ruptures.FindEquivUCERF2_FM3_Ruptures;
@@ -111,13 +111,13 @@ public class MappedU2SolCreator {
 //		FaultSystemSolution sol = new FaultSystemSolution(rupSet, rates);
 		
 		// now load in UCERF3 mean sol just for grid sources
-		FaultSystemSolution u3Sol = FaultSystemIO.loadSol(new File("/home/kevin/workspace/OpenSHA/dev/scratch/"
+		FaultSystemSolution u3Sol = U3FaultSystemIO.loadSol(new File("/home/kevin/workspace/OpenSHA/dev/scratch/"
 				+ "UCERF3/data/scratch/InversionSolutions/"
 				+ "2013_05_10-ucerf3p3-production-10runs_COMPOUND_SOL_FM3_1_MEAN_BRANCH_AVG_SOL.zip"));
 		
 		sol.setGridSourceProvider(u3Sol.getGridSourceProvider());
 		
-		FaultSystemIO.writeSol(sol, new File(outputDir, "ucerf2_mapped_sol.zip"));
+		U3FaultSystemIO.writeSol(sol, new File(outputDir, "ucerf2_mapped_sol.zip"));
 	}
 
 }

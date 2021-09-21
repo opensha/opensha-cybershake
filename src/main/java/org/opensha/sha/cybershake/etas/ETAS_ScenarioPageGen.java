@@ -76,6 +76,7 @@ import org.opensha.sha.cybershake.maps.HardCodedInterpDiffMapCreator;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.ProbEqkRupture;
 import org.opensha.sha.earthquake.ProbEqkSource;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemRupSet;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.UCERF2;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.MeanUCERF2.MeanUCERF2;
 import org.opensha.sha.faultSurface.FaultSection;
@@ -92,7 +93,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.primitives.Doubles;
 
-import scratch.UCERF3.FaultSystemRupSet;
 import scratch.UCERF3.analysis.FaultBasedMapGen;
 import scratch.UCERF3.erf.ETAS.ETAS_CatalogIO;
 import scratch.UCERF3.erf.ETAS.ETAS_EqkRupture;
@@ -1112,12 +1112,14 @@ public class ETAS_ScenarioPageGen {
 		
 		PlotSpec spec = new PlotSpec(funcs, chars, title,
 				imt.getDisplayName(), timeSpan+" Probability of Exceedance");
-		spec.setLegendVisible(true);
+		spec.setLegendVisible(false);
+		spec.setLegendInset(true);
 		
 		PlotPreferences plotPrefs = PlotPreferences.getDefault();
 		plotPrefs.setTickLabelFontSize(18);
 		plotPrefs.setAxisLabelFontSize(20);
 		plotPrefs.setPlotLabelFontSize(21);
+		plotPrefs.setLegendFontSize(20);
 		plotPrefs.setBackgroundColor(Color.WHITE);
 		
 		HeadlessGraphPanel gp = new HeadlessGraphPanel(plotPrefs);
@@ -1146,9 +1148,21 @@ public class ETAS_ScenarioPageGen {
 		gp.saveAsPNG(pngFile.getAbsolutePath());
 		File pdfFile = new File(resourcesDir, prefix+".pdf");
 		gp.saveAsPDF(pdfFile.getAbsolutePath());
+		
+		spec.setTitle(" ");
+		gp.drawGraphPanel(spec, true, true, curveXRange, curveYRange);
+		gp.getChartPanel().setSize(800, 600);
+		
+		File ret = pngFile;
+		
+		pngFile = new File(resourcesDir, prefix+"_pub.png");
+		gp.saveAsPNG(pngFile.getAbsolutePath());
+		pdfFile = new File(resourcesDir, prefix+"_pub.pdf");
+		gp.saveAsPDF(pdfFile.getAbsolutePath());
+    
 		curveToCSV(tiCurve, tdCurve).writeToFile(new File(resourcesDir, prefix+"_long_term.csv"));
 		curveToCSV(uniformCurve, etasCurve).writeToFile(new File(resourcesDir, prefix+"_etas.csv"));
-		return pngFile;
+		return ret;
 	}
 	
 	static CSVFile<String> curveToCSV(DiscretizedFunc... funcs) {
@@ -1326,7 +1340,7 @@ public class ETAS_ScenarioPageGen {
 				resourcesDir, imtPrefix+"_etas_uni_td", replotMaps);
 		plotDiffGainMaps(etas, td, labelAdd+", ETAS - TD, "+imtLabel, labelAdd+", ETAS/TD, "+imtLabel,
 				resourcesDir, imtPrefix+"_etas_td", replotMaps);
-		plotDiffGainMaps(etas, etasUniform, labelAdd+", ETAS - Uni, "+imtLabel, labelAdd+", ETAS/Uni, "+imtLabel,
+		plotDiffGainMaps(etas, etasUniform, labelAdd+", Directivity Diff., "+imtLabel, labelAdd+", Directivity Ratio, "+imtLabel,
 				resourcesDir, imtPrefix+"_etas_uni", replotMaps);
 		
 		TableBuilder table = MarkdownUtils.tableBuilder();
@@ -1420,7 +1434,7 @@ public class ETAS_ScenarioPageGen {
 		double maxDiff = Math.max(Math.abs(diffXYZ.getMinZ()), Math.abs(diffXYZ.getMaxZ()));
 		if (maxDiff == 0d)
 			return false;
-		CPT gainCPT = getDivergentCPT(-2, 2);
+		CPT gainCPT = gainLabel.contains("Directivity") ? getDivergentCPT(-1, 1) : getDivergentCPT(-2, 2);
 		CPT diffCPT = getDivergentCPT(-maxDiff, maxDiff);
 		
 		if (!plotMap(gainXYZ, gainLabel, gainCPT, resourcesDir, prefix+"_gain", replotMaps))
@@ -1521,6 +1535,7 @@ public class ETAS_ScenarioPageGen {
 		
 		String parentName = sects.get(0).getParentSectionName();
 		String parentPrefix = parentName.replaceAll("\\W+", "_");
+		parentName = parentName.replaceAll("rev", "").trim();
 		
 		HashSet<Integer> rupIDs = new HashSet<>(rupSet.getRupturesForParentSection(parentSectionID));
 		
@@ -1640,6 +1655,7 @@ public class ETAS_ScenarioPageGen {
 			plotPrefs.setTickLabelFontSize(18);
 			plotPrefs.setAxisLabelFontSize(20);
 			plotPrefs.setPlotLabelFontSize(21);
+			plotPrefs.setLegendFontSize(20);
 			plotPrefs.setBackgroundColor(Color.WHITE);
 			
 			HeadlessGraphPanel gp = new HeadlessGraphPanel(plotPrefs);
@@ -1733,9 +1749,11 @@ public class ETAS_ScenarioPageGen {
 			((XYPlot)plot.getSubplots().get(1)).setWeight(10);
 			((XYPlot)plot.getSubplots().get(1)).setDatasetRenderingOrder(DatasetRenderingOrder.REVERSE);
 			gp.getChartPanel().setSize(800, 1000);
-			
+
 			pngFile = new File(resourcesDir, prefix+"_hypos_combined.png");
 			gp.saveAsPNG(pngFile.getAbsolutePath());
+			pdfFile = new File(resourcesDir, prefix+"_hypos_combined.pdf");
+			gp.saveAsPDF(pdfFile.getAbsolutePath());
 			
 			ret[t] = pngFile;
 		}

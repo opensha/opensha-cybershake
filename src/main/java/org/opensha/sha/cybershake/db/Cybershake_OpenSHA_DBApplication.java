@@ -22,20 +22,29 @@ package org.opensha.sha.cybershake.db;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
+import org.dom4j.Document;
+import org.dom4j.DocumentException;
+import org.dom4j.Element;
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationUtils;
 import org.opensha.commons.gui.UserAuthDialog;
+import org.opensha.commons.param.AbstractParameter;
+import org.opensha.commons.param.Parameter;
+import org.opensha.commons.param.ParameterList;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.FileUtils;
+import org.opensha.commons.util.XMLUtils;
+import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.earthquake.ERF;
 import org.opensha.sha.simulators.RSQSimEvent;
 import org.opensha.sha.simulators.srf.SRF_PointData;
@@ -477,43 +486,62 @@ public class Cybershake_OpenSHA_DBApplication {
 		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
 		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance(localBaseDir);
 		// regular RSQSim ERF
-//		double minMag = 6.5;
-//		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
-//		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
-//				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
-//		String erfName = "RSQSim "+catalog.getName()+" M"+(float)minMag;
-//		erfName += ", 775kyr";
-//		String erfDescription = "RSQSim ERF for catalog "+catalog.getName()+", M"+(float)minMag;
+		double minMag = 6.5;
+		double dt = 0.05;
+		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
+		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
+				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
+		String erfName = "RSQSim "+catalog.getName()+" M"+(float)minMag;
+		erfName += ", 715kyr, dt="+(float)dt;
+		Document doc;
+		try {
+			doc = XMLUtils.loadDocument(new File(catalog.getCatalogDir(), "erf_params_"+(float)dt+"s.xml"));
+		} catch (MalformedURLException | DocumentException e) {
+			throw ExceptionUtils.asRuntimeException(e);
+		}
+		Element paramsElement = doc.getRootElement().element("ERF").element(AbstractParameter.XML_GROUP_METADATA_NAME);
+		ParameterList.setParamsInListFromXML(erf.getAdjustableParameterList(), paramsElement);
+		String erfDescription = "RSQSim ERF for catalog "+catalog.getName()+", M"+(float)minMag;
+		System.out.println("ERF Name: "+erfName);
+		System.out.println("ERF Description: "+erfDescription);
+		System.out.println("Parameters:");
+		for (Parameter<?> param : erf.getAdjustableParameterList())
+			System.out.println("\t"+param.getName()+": "+param.getValue());
+//		System.exit(0);
 		
 		// rotated rupture variability ERF
-		File csRotDir = new File(catalog.getCatalogDir(), "cybershake_rotation_inputs");
-		Map<Scenario, RSQSimRotatedRupVariabilityConfig> rotConfigs = RSQSimRotatedRuptureFakeERF.loadRotationConfigs(catalog, csRotDir, true);
-		RSQSimRotatedRuptureFakeERF erf = new RSQSimRotatedRuptureFakeERF(catalog, rotConfigs);
-		System.out.println("ERF has "+erf.getNumSources()+" sources");
-		int numRotSites = -1;
-		int numSoruceAz = -1;
-		int numSiteToSoruceAz = -1;
-		int numDist = -1;
-		int numEvents = 0;
-		int numScenarios = rotConfigs.size();
-		int numRots = 0;
-		for (RSQSimRotatedRupVariabilityConfig config : rotConfigs.values()) {
-			numRotSites = config.getValues(Site.class, Quantity.SITE).size();
-			numSiteToSoruceAz = config.getValues(Float.class, Quantity.SITE_TO_SOURTH_AZIMUTH).size();
-			numSoruceAz = config.getValues(Float.class, Quantity.SOURCE_AZIMUTH).size();
-			numDist = config.getValues(Float.class, Quantity.DISTANCE).size();
-			numEvents = Integer.max(numEvents, config.getValues(Integer.class, Quantity.EVENT_ID).size());
-			numRots += config.getRotations().size();
-		}
-		int rotsPerSite = numRots/numRotSites;
-		String erfName = "RSQSim Rot/Var Study, "+catalog.getName()+", "+rotsPerSite+" rots/site";
-		if (erfName.length() > 50)
-			erfName = erfName.substring(0, 50);
-		String erfDescription = "RSQSim Rot/Var fake ERF for catalog "+catalog.getName()+"; "+numScenarios+" scenarios, "
-				+numSoruceAz+" sourceAz, "+numSiteToSoruceAz+" siteSourceAz, "+numDist+" dists, max "+numEvents+" events";
+//		File csRotDir = new File(catalog.getCatalogDir(), "cybershake_rotation_inputs");
+//		Map<Scenario, RSQSimRotatedRupVariabilityConfig> rotConfigs = RSQSimRotatedRuptureFakeERF.loadRotationConfigs(catalog, csRotDir, true);
+//		RSQSimRotatedRuptureFakeERF erf = new RSQSimRotatedRuptureFakeERF(catalog, rotConfigs);
+//		System.out.println("ERF has "+erf.getNumSources()+" sources");
+//		int numRotSites = -1;
+//		int numSoruceAz = -1;
+//		int numSiteToSoruceAz = -1;
+//		int numDist = -1;
+//		int numEvents = 0;
+//		int numScenarios = rotConfigs.size();
+//		int numRots = 0;
+//		for (RSQSimRotatedRupVariabilityConfig config : rotConfigs.values()) {
+//			numRotSites = config.getValues(Site.class, Quantity.SITE).size();
+//			numSiteToSoruceAz = config.getValues(Float.class, Quantity.SITE_TO_SOURTH_AZIMUTH).size();
+//			numSoruceAz = config.getValues(Float.class, Quantity.SOURCE_AZIMUTH).size();
+//			numDist = config.getValues(Float.class, Quantity.DISTANCE).size();
+//			numEvents = Integer.max(numEvents, config.getValues(Integer.class, Quantity.EVENT_ID).size());
+//			numRots += config.getRotations().size();
+//		}
+//		int rotsPerSite = numRots/numRotSites;
+//		String erfName = "RSQSim Rot/Var Study, "+catalog.getName()+", "+rotsPerSite+" rots/site";
+//		if (erfName.length() > 50)
+//			erfName = erfName.substring(0, 50);
+//		String erfDescription = "RSQSim Rot/Var fake ERF for catalog "+catalog.getName()+"; "+numScenarios+" scenarios, "
+//				+numSoruceAz+" sourceAz, "+numSiteToSoruceAz+" siteSourceAz, "+numDist+" dists, max "+numEvents+" events";
 		
-		if (erfDescription.length() > 150)
+		Preconditions.checkState(erfName.length() <= 50,
+				"ERF name too long. Is %s chars, max is 50. Name: %s", erfName.length(), erfName);
+		if (erfDescription.length() > 150) {
+			System.err.println("WARNING: truncating description to 150 chars");
 			erfDescription = erfDescription.substring(0, 150);
+		}
 		
 		erf.updateForecast();
 		// *** END RSQSim ***
@@ -590,20 +618,20 @@ public class Cybershake_OpenSHA_DBApplication {
 //		sites.add(sites2db.getSiteFromDB("s778"));
 //		sites.add(sites2db.getSiteFromDB("STNI"));
 		
-//		sites.add(sites2db.getSiteFromDB("TEST"));
+		sites.add(sites2db.getSiteFromDB("TEST"));
 		
 		// RSQSim sites
 		// Vs500 sites:
-		sites.add(sites2db.getSiteFromDB("USC"));
-		sites.add(sites2db.getSiteFromDB("SBSM"));
-		sites.add(sites2db.getSiteFromDB("WNGC"));
-		sites.add(sites2db.getSiteFromDB("STNI"));
-		sites.add(sites2db.getSiteFromDB("SMCA"));
-		sites.add(sites2db.getSiteFromDB("OSI"));
-		sites.add(sites2db.getSiteFromDB("PDE"));
-		sites.add(sites2db.getSiteFromDB("WSS"));
-		sites.add(sites2db.getSiteFromDB("LAF"));
-		sites.add(sites2db.getSiteFromDB("s022"));
+//		sites.add(sites2db.getSiteFromDB("USC"));
+//		sites.add(sites2db.getSiteFromDB("SBSM"));
+//		sites.add(sites2db.getSiteFromDB("WNGC"));
+//		sites.add(sites2db.getSiteFromDB("STNI"));
+//		sites.add(sites2db.getSiteFromDB("SMCA"));
+//		sites.add(sites2db.getSiteFromDB("OSI"));
+//		sites.add(sites2db.getSiteFromDB("PDE"));
+//		sites.add(sites2db.getSiteFromDB("WSS"));
+//		sites.add(sites2db.getSiteFromDB("LAF"));
+//		sites.add(sites2db.getSiteFromDB("s022"));
 		// Other sites:
 //		sites.add(sites2db.getSiteFromDB("PAS"));
 //		sites.add(sites2db.getSiteFromDB("LAPD"));
@@ -622,6 +650,11 @@ public class Cybershake_OpenSHA_DBApplication {
 //		sites.add(sites2db.getSiteFromDB(1000));
 //		sites.add(sites2db.getSiteFromDB(1001));
 //		sites.add(sites2db.getSiteFromDB("s2839"));
+		// site from a previous study
+		for (CybershakeRun run : CyberShakeStudy.STUDY_15_4.runFetcher().fetch())
+			sites.add(sites2db.getSiteFromDB(run.getSiteID()));
+		System.out.println("Inserting ERF for "+sites.size()+" sites");
+//		System.exit(0);
 		if (!sites.isEmpty())
 			// false here is forceAdd which will attempt to re-add all ruptures. use checkAdd (expose it here) if needed
 			app.insertNewERFForSites(sites, erfDB, erfName, erfDescription, false);

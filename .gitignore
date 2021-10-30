@@ -11,3 +11,4 @@ Scratch*.java
 gmt.history
 build.date
 build.githash
+build.gitbranch

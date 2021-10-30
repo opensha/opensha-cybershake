@@ -17,9 +17,9 @@ import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DefaultXY_DataSet;
 import org.opensha.commons.data.function.DiscretizedFunc;
-import org.opensha.commons.data.function.UncertainArbDiscDataset;
 import org.opensha.commons.data.function.XY_DataSet;
 import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
+import org.opensha.commons.data.uncertainty.UncertainArbDiscFunc;
 import org.opensha.commons.exceptions.IMRException;
 import org.opensha.commons.exceptions.ParameterException;
 import org.opensha.commons.geo.Location;
@@ -659,7 +659,7 @@ public class HazardDecompositionPlotter {
 			if (xRange == null)
 				xRange = new Range(func.getMinX(), func.getMaxX());
 			
-			UncertainArbDiscDataset rangeFunc = new UncertainArbDiscDataset(func, funcAfter, func);
+			UncertainArbDiscFunc rangeFunc = new UncertainArbDiscFunc(func, funcAfter, func);
 			rangeFunc.setName(func.getName());
 			
 			funcs.add(rangeFunc);

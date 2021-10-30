@@ -11,7 +11,8 @@ import org.apache.commons.math3.stat.StatUtils;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.function.EvenlyDiscretizedFunc;
-import org.opensha.commons.data.function.UncertainArbDiscDataset;
+import org.opensha.commons.data.uncertainty.UncertainArbDiscFunc;
+import org.opensha.commons.data.uncertainty.UncertainBoundedDiscretizedFunc;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.gui.plot.GraphWindow;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
@@ -137,9 +138,9 @@ public class CutoffPlotter {
 				maxFunc.set(x, saValsArray[saValsArray.length-1]);
 			}
 			
-			UncertainArbDiscDataset minMaxBounds = new UncertainArbDiscDataset(medianFunc, minFunc, maxFunc);
-			UncertainArbDiscDataset percent95Bounds = new UncertainArbDiscDataset(medianFunc, lower95Func, upper95Func);
-			UncertainArbDiscDataset percent68Bounds = new UncertainArbDiscDataset(medianFunc, lower68Func, upper68Func);
+			UncertainArbDiscFunc minMaxBounds = new UncertainArbDiscFunc(medianFunc, minFunc, maxFunc);
+			UncertainArbDiscFunc percent95Bounds = new UncertainArbDiscFunc(medianFunc, lower95Func, upper95Func);
+			UncertainArbDiscFunc percent68Bounds = new UncertainArbDiscFunc(medianFunc, lower68Func, upper68Func);
 			
 			List<DiscretizedFunc> funcs = Lists.newArrayList();
 			List<PlotCurveCharacterstics> chars = Lists.newArrayList();
@@ -158,8 +159,8 @@ public class CutoffPlotter {
 			
 			double yMax = 0;
 			for (DiscretizedFunc func : funcs) {
-				if (func instanceof UncertainArbDiscDataset)
-					yMax = Math.max(yMax, ((UncertainArbDiscDataset)func).getUpperMaxY());
+				if (func instanceof UncertainBoundedDiscretizedFunc)
+					yMax = Math.max(yMax, ((UncertainBoundedDiscretizedFunc)func).getUpperMaxY());
 				else
 					yMax = Math.max(yMax, func.getMaxY());
 			}

@@ -14,6 +14,7 @@ public class HazardDataset2DB {
 	private DBAccess db;
 	
 	public HazardDataset2DB(DBAccess db) {
+		Preconditions.checkNotNull(db, "Passed in DBAccess is null!");
 		this.db = db;
 	}
 	

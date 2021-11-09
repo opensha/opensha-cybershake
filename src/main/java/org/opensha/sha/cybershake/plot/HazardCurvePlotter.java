@@ -126,6 +126,7 @@ public class HazardCurvePlotter {
 	private int plotHeight = PLOT_HEIGHT_DEFAULT;
 	
 	private DBAccess db;
+	private DBAccess writeDB;
 //	private int erfID;
 //	private int rupVarScenarioID;
 //	private int sgtVarID;
@@ -626,73 +627,77 @@ public class HazardCurvePlotter {
 			
 			if ((!forceRecalc || curveID < 0) && !noAdd) {
 				// now add it
-				DBAccess writeDB = null;
 				
-				if (db.isSQLite()) {
-					writeDB = db;
-				} else if (user.equals("") && pass.equals("")) {
-					// get credentials to add
-					if (cmd.hasOption("pf")) {
-						String pf = cmd.getOptionValue("pf");
-						try {
-							String user_pass[] = CyberShakeDBManagementApp.loadPassFile(pf);
-							user = user_pass[0];
-							pass = user_pass[1];
-						} catch (FileNotFoundException e) {
-							throw new IllegalStateException("Password file not found!", e);
-						} catch (IOException e) {
-							throw new IllegalStateException("Password file IO error!", e);
-						} catch (Exception e) {
-							throw new IllegalStateException("Unknown password file IO error!", e);
-						}
-						if (user.equals("") || pass.equals("")) {
-							System.out.println("Bad password file!");
-							throw new IllegalStateException("Unknown password file error, both are blank!");
-						}
+				if (writeDB == null) {
+					if (db.isSQLite()) {
+						writeDB = db;
 					} else {
-						try {
-							UserAuthDialog auth = new UserAuthDialog(null, true);
-							auth.setVisible(true);
-							if (auth.isCanceled()) {
-								noAdd = true;
-								System.out.println("Will still plot without inserting");
-							} else {
-								user = auth.getUsername();
-								pass = new String(auth.getPassword());
-							}
-						} catch (HeadlessException e) {
-							System.out.println("It looks like you can't display windows, using less secure command line password input.");
-							BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-							
-							boolean hasUser = false;
-							while (true) {
+						if (user.equals("") && pass.equals("")) {
+							// get credentials to add
+							if (cmd.hasOption("pf")) {
+								String pf = cmd.getOptionValue("pf");
 								try {
-									if (hasUser)
-										System.out.print("Database Password: ");
-									else
-										System.out.print("Database Username: ");
-									String line = in.readLine().trim();
-									if (line.length() > 0) {
-										if (hasUser) {
-											pass = line;
-											break;
-										} else {
-											user = line;
-											hasUser = true;
+									String user_pass[] = CyberShakeDBManagementApp.loadPassFile(pf);
+									user = user_pass[0];
+									pass = user_pass[1];
+								} catch (FileNotFoundException e) {
+									throw new IllegalStateException("Password file not found!", e);
+								} catch (IOException e) {
+									throw new IllegalStateException("Password file IO error!", e);
+								} catch (Exception e) {
+									throw new IllegalStateException("Unknown password file IO error!", e);
+								}
+								if (user.equals("") || pass.equals("")) {
+									System.out.println("Bad password file!");
+									throw new IllegalStateException("Unknown password file error, both are blank!");
+								}
+							} else {
+								try {
+									UserAuthDialog auth = new UserAuthDialog(null, true);
+									auth.setVisible(true);
+									if (auth.isCanceled()) {
+										noAdd = true;
+										System.out.println("Will still plot without inserting");
+									} else {
+										user = auth.getUsername();
+										pass = new String(auth.getPassword());
+									}
+								} catch (HeadlessException e) {
+									System.out.println("It looks like you can't display windows, using less secure command line password input.");
+									BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+									
+									boolean hasUser = false;
+									while (true) {
+										try {
+											if (hasUser)
+												System.out.print("Database Password: ");
+											else
+												System.out.print("Database Username: ");
+											String line = in.readLine().trim();
+											if (line.length() > 0) {
+												if (hasUser) {
+													pass = line;
+													break;
+												} else {
+													user = line;
+													hasUser = true;
+												}
+											}
+										} catch (IOException e1) {
+											throw ExceptionUtils.asRuntimeException(e1);
 										}
 									}
-								} catch (IOException e1) {
-									throw ExceptionUtils.asRuntimeException(e1);
 								}
 							}
 						}
-					}
-					try {
-						writeDB = new DBAccess(Cybershake_OpenSHA_DBApplication.HOST_NAME,Cybershake_OpenSHA_DBApplication.DATABASE_NAME, user, pass);
-					} catch (IOException e) {
-						throw new IllegalStateException("Error creating DB write object", e);
+						try {
+							writeDB = new DBAccess(Cybershake_OpenSHA_DBApplication.HOST_NAME,Cybershake_OpenSHA_DBApplication.DATABASE_NAME, user, pass);
+						} catch (IOException e) {
+							throw new IllegalStateException("Error creating DB write object", e);
+						}
 					}
 				}
+				
 				HazardCurve2DB curve2db_write = new HazardCurve2DB(writeDB);
 				System.out.println("Inserting curve into database...");
 				if (curveID >= 0) {
@@ -1592,8 +1597,11 @@ public class HazardCurvePlotter {
 //			String newArgs = "--site s4456 --run-id 7052 --period 3,5,10,2 --output-dir "+outputDir.getAbsolutePath()
 //			+" --component RotD50 --type pdf,png,txt --benchmark-test-recalc";
 //			newArgs += " --erf-file "+confDir+"MeanUCERF.xml --atten-rel-file "+confDir+"ask2014.xml";
-			String newArgs = "--site TEST --run-id 7059 --period 3,5,10,2 --output-dir "+outputDir.getAbsolutePath()
-				+" --component RotD50 --type pdf,png,txt";
+//			String newArgs = "--site TEST --run-id 7059 --period 3,5,10,2 --output-dir "+outputDir.getAbsolutePath()
+//				+" --component RotD50 --type pdf,png,txt";
+			String newArgs = "--site TEST   --run-id 7214 --period 3,4,5,7.5,10 "
+					+ "--output-dir /tmp/cs_curves   --type pdf,png   --force-add "
+					+ "--cmp RotD50";
 			args = newArgs.split(" ");
 		}
 		Stopwatch watch = Stopwatch.createStarted();

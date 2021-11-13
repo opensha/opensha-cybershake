@@ -29,7 +29,6 @@ import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.gui.plot.PlotSymbol;
 import org.opensha.commons.gui.plot.jfreechart.xyzPlot.XYZPlotSpec;
-import org.opensha.commons.gui.plot.jfreechart.xyzPlot.XYZPlotWindow;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
 import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.ExceptionUtils;
@@ -739,9 +738,10 @@ public class TaperedHypocenterRupVarProbModifier implements
 		XYZPlotSpec xyzSpec = new XYZPlotSpec(xyz, cpt,
 				"Hypocenter PDF", "Fraction along Strike", "Fraction Down Dip", "Probability");
 		
-		XYZPlotWindow xyzGW = new XYZPlotWindow(xyzSpec);
-		xyzGW.getXYZPanel().saveAsPNG(new File(outputDir, "hypocenter_pdf_theoretical.png").getAbsolutePath());
-		xyzGW.setDefaultCloseOperation(XYZPlotWindow.EXIT_ON_CLOSE);
+		GraphWindow xyzGW = new GraphWindow(xyzSpec);
+		xyzGW.setVisible(true);
+		xyzGW.saveAsPNG(new File(outputDir, "hypocenter_pdf_theoretical.png").getAbsolutePath());
+		xyzGW.setDefaultCloseOperation(GraphWindow.EXIT_ON_CLOSE);
 		
 		// now lets plot an actual RV
 //		ERF erf = MeanUCERF2_ToDB.createUCERF2_200mERF();

@@ -28,7 +28,7 @@ import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotPreferences;
 import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.gui.plot.PlotSymbol;
-import org.opensha.commons.gui.plot.jfreechart.xyzPlot.XYZGraphPanel;
+import org.opensha.commons.gui.plot.PlotUtils;
 import org.opensha.commons.gui.plot.jfreechart.xyzPlot.XYZPlotSpec;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
 import org.opensha.commons.param.Parameter;
@@ -514,13 +514,12 @@ public class Study3Dvs1DCompare {
 			xyzSpec.setXYElems(funcs);
 			xyzSpec.setXYChars(chars);
 			
-			XYZGraphPanel xyzGP = new XYZGraphPanel(plotPrefs);
-			xyzGP.drawPlot(xyzSpec, false, false, new Range(minX-0.5*gridSpacingX, maxX+0.5*gridSpacingX),
+			gp.drawGraphPanel(xyzSpec, false, false, new Range(minX-0.5*gridSpacingX, maxX+0.5*gridSpacingX),
 					new Range(minY-0.5*gridSpacingY, maxY+0.5*gridSpacingY));
 			// write plot
-			xyzGP.getChartPanel().setSize(800, 800);
+			gp.getChartPanel().setSize(800, 800);
 			ret[p][1] = new File(resourcesDir, prefix+"_"+optionalDigitDF.format(periods[p])+"s_hist2D.png");
-			xyzGP.saveAsPNG(ret[p][1].getAbsolutePath());
+			gp.saveAsPNG(ret[p][1].getAbsolutePath());
 		}
 		
 		return ret;
@@ -617,12 +616,12 @@ public class Study3Dvs1DCompare {
 				periodStr = (float)periods[p]+"s";
 			String title = periodStr+" 3-D Gains";
 			XYZPlotSpec xyzSpec = new XYZPlotSpec(xyzs[p], gainCPT, title, "Log10 Distance Rup", "Magnitude", "Log10(3-D Gain)");
-			XYZGraphPanel xyzGP = new XYZGraphPanel(plotPrefs);
-			xyzGP.drawPlot(xyzSpec, false, false, new Range(Math.log10(distThreshold), Math.log10(maxDist)), new Range(minMag, maxMag));
-			xyzGP.getChartPanel().getChart().setBackgroundPaint(Color.WHITE);
-			xyzGP.getChartPanel().setSize(700, 550);
+			HeadlessGraphPanel gp = new HeadlessGraphPanel(plotPrefs);
+			gp.drawGraphPanel(xyzSpec, false, false, new Range(Math.log10(distThreshold), Math.log10(maxDist)), new Range(minMag, maxMag));
+			gp.getChartPanel().getChart().setBackgroundPaint(Color.WHITE);
+			gp.getChartPanel().setSize(700, 550);
 			plotFiles[p] = new File(resourcesDir, prefix+"_"+periodStr+".png");
-			xyzGP.saveAsPNG(plotFiles[p].getAbsolutePath());
+			gp.saveAsPNG(plotFiles[p].getAbsolutePath());
 		}
 		
 		return plotFiles;

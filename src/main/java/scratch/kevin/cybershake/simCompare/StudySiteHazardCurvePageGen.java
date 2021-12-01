@@ -378,6 +378,10 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		File bbpDir = new File("/data/kevin/bbp/parallel/2020_09_03-rundir4983_stitched-all-m6.5-skipYears65000-noHF-vmLA_BASIN_500-cs500Sites");
 		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
 		
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k;
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2020_09_03-rundir4983_stitched-all-m6.5-skipYears65000-noHF-vmLA_BASIN_500-cs500Sites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
+		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 //		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
 		CyberShakeStudy[] compStudies = {  };
@@ -395,10 +399,10 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		boolean includeAleatoryStrip = true;
 		
-//		String[] siteNames = { "USC" };
+		String[] siteNames = { "USC" };
 //		String[] siteNames = { "SBSM", "LAF", "s022", "STNI", "WNGC", "PDE" };
-		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
-				"LAF", "s022", "STNI", "WNGC", "PDE" };
+//		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
+//				"LAF", "s022", "STNI", "WNGC", "PDE" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
 //		String[] siteNames = { "LAPD", "SBSM", "PAS", "WNGC" };

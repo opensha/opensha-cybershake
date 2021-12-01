@@ -43,15 +43,19 @@ public class RunAmpCompare {
 //		int runID1 = 6707;
 //		int runID2 = 7036;
 		
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+////		int runID1 = 6707;
+////		int runID2 = 7036;
+////		int runID1 = 5622;
+////		int runID2 = 5855;
+////		int runID1 = 5612;
+////		int runID2 = 5847;
+//		int runID1 = 7052;
+//		int runID2 = 7055;
+		
 		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
-//		int runID1 = 6707;
-//		int runID2 = 7036;
-//		int runID1 = 5622;
-//		int runID2 = 5855;
-//		int runID1 = 5612;
-//		int runID2 = 5847;
 		int runID1 = 7052;
-		int runID2 = 7055;
+		int runID2 = 7218;
 		
 		File outputDir = new File("/home/kevin/CyberShake/rotation_debug");
 		

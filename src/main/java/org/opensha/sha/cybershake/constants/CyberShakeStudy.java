@@ -448,6 +448,26 @@ public enum CyberShakeStudy {
 				catalog = RSQSimCatalog.Catalogs.BRUCE_4983_STITCHED.instance();
 			return catalog;
 		}
+	},
+	STUDY_21_12_RSQSIM_4983_SKIP65k(cal(2020, 5), 98, "RSQSim 4983 Production",
+			"study_21_12_rsqsim_4983_skip65k", "RSQSim production with catalog 4983 (stitched, 4x, 715yr)", 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return getRSQSimERF("rundir4983_stitched");
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forERF(61).hasAmplitudes().unique(false);
+		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_4983_STITCHED.instance();
+			return catalog;
+		}
 	};
 	
 	public RSQSimCatalog getRSQSimCatalog() {

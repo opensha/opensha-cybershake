@@ -60,6 +60,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	private CybershakeIM[] sa_rd100_ims;
 	private String name;
 	private CSRupture[][] csRups;
+	private CybershakeIM pgvIM;
 	
 	private Map<IMT, CybershakeIM[]> durComponents;
 	
@@ -70,6 +71,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	private LoadingCache<Site, CybershakeRun> runsCache;
 	private LoadingCache<Site, List<CSRupture>> siteRupsCache;
 	private LoadingCache<CacheKey, DiscretizedFunc[]> rd50Cache;
+	private LoadingCache<CacheKey, double[]> pgvCache;
 	private LoadingCache<CacheKey, DiscretizedFunc[][]> rd100Cache;
 	private LoadingCache<CacheKey, DiscretizedFunc[]> rdRatioCache;
 	private LoadingCache<CacheKey, Map<DurationTimeInterval, double[]>> durationCache;
@@ -160,6 +162,8 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 				CybershakeIM xIM = CybershakeIM.getDuration(CyberShakeComponent.X, interval);
 				CybershakeIM yIM = CybershakeIM.getDuration(CyberShakeComponent.Y, interval);
 				durComponents.put(imt, new CybershakeIM[] { xIM, yIM });
+			} else if (imt.getParamName().equals(PGV_Param.NAME)){
+				pgvIM = CybershakeIM.PGV;
 			} else {
 				throw new IllegalStateException(imt+" is not yet supported here");
 			}
@@ -181,14 +185,21 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 		if (hasDurations())
 			durationCache = CacheBuilder.newBuilder().maximumSize(cacheSize).build(new DurationLoader());
 		
+		if (hasPGV())
+			pgvCache = CacheBuilder.newBuilder().maximumSize(cacheSize).build(new PGVLoader());
+		
 		runsCache = CacheBuilder.newBuilder().build(runCacheLoader);
 		
 		csRups = new CSRupture[erf.getNumSources()][];
 		
 		final CybershakeIM refIM;
 		if (ims[0] == null) {
-			Preconditions.checkNotNull(durComponents);
-			refIM = durComponents.values().iterator().next()[0];
+			if (pgvIM != null) {
+				refIM = pgvIM;
+			} else {
+				Preconditions.checkNotNull(durComponents);
+				refIM = durComponents.values().iterator().next()[0];
+			}
 		} else {
 			refIM = ims[0];
 		}
@@ -309,9 +320,15 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 			throw ExceptionUtils.asRuntimeException(e1);
 		}
 		double[] periods = new double[ims.length];
-		for (int i=0; i<periods.length; i++)
-			periods[i] = ims[i].getVal();
+		for (int i=0; i<periods.length; i++) {
+			if (ims[i] == null)
+				periods[i] = -1;
+			else
+				periods[i] = ims[i].getVal();
+		}
 		for (int i=0; i<ims.length; i++) {
+			if (periods[i] < 0)
+				continue;
 			try {
 				double[][][] amps = amps2db.getAllIM_Values(runID, ims[i]);
 				double[] myAmps = amps[rup.getSourceID()][rup.getRupID()];
@@ -365,6 +382,28 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 				ret.put(interval, geoMeans);
 			}
 			return ret;
+		}
+		
+	}
+	
+	private class PGVLoader extends CacheLoader<CacheKey, double[]> {
+
+		@Override
+		public double[] load(CacheKey key) throws Exception {
+			CSRupture rup = key.rup;
+			Site site = key.site;
+			Preconditions.checkNotNull(rup);
+			int runID;
+			try {
+				runID = runsCache.get(site).getRunID();
+			} catch (ExecutionException e1) {
+				throw ExceptionUtils.asRuntimeException(e1);
+			}
+			
+			double[][][] amps = amps2db.getAllIM_Values(runID, pgvIM);
+			double[] myAmps = amps[rup.getSourceID()][rup.getRupID()];
+			Preconditions.checkNotNull(myAmps);
+			return myAmps;
 		}
 		
 	}
@@ -441,7 +480,11 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 
 	@Override
 	public double getPGV(Site site, CSRupture rupture, int index) throws IOException {
-		throw new UnsupportedOperationException("not yet implemented");
+		try {
+			return pgvCache.get(new CacheKey(rupture, site))[index];
+		} catch (ExecutionException e) {
+			throw ExceptionUtils.asRuntimeException(e);
+		}
 	}
 
 	@Override
@@ -493,7 +536,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 
 	@Override
 	public boolean hasPGV() {
-		return false;
+		return pgvIM != null;
 	}
 
 	@Override

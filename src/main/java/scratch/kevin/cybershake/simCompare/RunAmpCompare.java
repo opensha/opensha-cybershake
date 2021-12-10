@@ -1,6 +1,7 @@
 package scratch.kevin.cybershake.simCompare;
 
 import java.awt.Color;
+import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
@@ -12,12 +13,15 @@ import org.jfree.chart.plot.DatasetRenderingOrder;
 import org.jfree.data.Range;
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.function.DefaultXY_DataSet;
+import org.opensha.commons.data.function.EvenlyDiscretizedFunc;
 import org.opensha.commons.data.function.XY_DataSet;
 import org.opensha.commons.gui.plot.GraphWindow;
 import org.opensha.commons.gui.plot.HeadlessGraphPanel;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
+import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.gui.plot.PlotSymbol;
+import org.opensha.commons.gui.plot.PlotUtils;
 import org.opensha.commons.util.DataUtils.MinMaxAveTracker;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
@@ -53,19 +57,31 @@ public class RunAmpCompare {
 //		int runID1 = 7052;
 //		int runID2 = 7055;
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
-		int runID1 = 7052;
-		int runID2 = 7218;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+//		int runID1 = 7052;
+//		int runID2 = 7218;
 		
-		File outputDir = new File("/home/kevin/CyberShake/rotation_debug");
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+		int runID1 = 3837; // 0.5hz
+		int runID2 = 3842; // 1hz
+		
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
+//		int runID1 = 7237; // 0.5hz
+//		int runID2 = 7236; // 1hz
+		
+//		File outputDir = new File("/home/kevin/CyberShake/rotation_debug");
+		File outputDir = new File("/tmp/cs_old_1hz");
 		
 //		CybershakeIM[] ims = {
 //				CybershakeIM.getSA(CyberShakeComponent.RotD100, 3d),
 //		};
 		CybershakeIM[] ims = {
-				CybershakeIM.getSA(CyberShakeComponent.RotD50, 3d),
-				CybershakeIM.getSA(CyberShakeComponent.RotD50, 5d),
-				CybershakeIM.getSA(CyberShakeComponent.RotD50, 10d)
+//				CybershakeIM.getSA(CyberShakeComponent.RotD50, 3d),
+//				CybershakeIM.getSA(CyberShakeComponent.RotD50, 5d),
+//				CybershakeIM.getSA(CyberShakeComponent.RotD50, 10d)
+				CybershakeIM.getSA(CyberShakeComponent.GEOM_MEAN, 3d),
+				CybershakeIM.getSA(CyberShakeComponent.GEOM_MEAN, 5d),
+				CybershakeIM.getSA(CyberShakeComponent.GEOM_MEAN, 10d)
 		};
 		
 		CSVFile<String> csv = new CSVFile<>(true);
@@ -107,8 +123,9 @@ public class RunAmpCompare {
 			
 			Preconditions.checkState(amps1.length == amps2.length,
 					"Source lenghts inconsistent, %s != %s", amps1.length, amps2.length);
-			
+
 			DefaultXY_DataSet scatter = new DefaultXY_DataSet();
+			DefaultXY_DataSet scatterDiff = new DefaultXY_DataSet();
 			
 			double maxAbsDiff = 0d;
 			String maxAbsStr = null;
@@ -154,11 +171,13 @@ public class RunAmpCompare {
 						double v2 = amps2[sourceID][rupID][rvID];
 						v1 /= HazardCurveComputation.CONVERSION_TO_G;
 						v2 /= HazardCurveComputation.CONVERSION_TO_G;
-						scatter.set(v1, v2);
+						scatter.set(Math.log(v1), Math.log(v2));
 						
 						double diff = v2 - v1;
 						double absDiff = Math.abs(diff);
 						double logDiff = Math.log(v2) - Math.log(v1);
+						
+						scatterDiff.set(Math.log(v1), logDiff);
 						double absLogDiff = Math.abs(logDiff);
 						double ratio = v2/v1;
 						linearDiffs.add(v2 - v1);
@@ -210,34 +229,84 @@ public class RunAmpCompare {
 			System.out.println("\t"+ratioTrack);
 			System.out.println("\tLargest: "+maxRatioStr);
 			
+//			List<XY_DataSet> funcs = new ArrayList<>();
+//			List<PlotCurveCharacterstics> chars = new ArrayList<>();
+//			
+//			funcs.add(scatter);
+//			chars.add(new PlotCurveCharacterstics(PlotSymbol.CROSS, 2f, Color.BLACK));
+//			PlotSpec spec = new PlotSpec(funcs, chars, "Run ID Comparison, "+(float)im.getVal()+"s "+im.getComponent(),
+//					"Run "+runID1, "Run "+runID2);
+//			HeadlessGraphPanel gp = new HeadlessGraphPanel();
+//			gp.setTickLabelFontSize(18);
+//			gp.setAxisLabelFontSize(24);
+//			gp.setPlotLabelFontSize(24);
+//			gp.setLegendFontSize(28);
+//			gp.setBackgroundColor(Color.WHITE);
+//			gp.setRenderingOrder(DatasetRenderingOrder.REVERSE);
+//			
+//			double minVal = Math.min(scatter.getMinX(), scatter.getMinY());
+//			double maxVal = Math.min(scatter.getMaxX(), scatter.getMaxY());
+//			minVal = Math.pow(10, Math.floor(Math.log10(minVal)));
+//			maxVal = Math.pow(10, Math.ceil(Math.log10(maxVal)));
+//			
+//			Range range = new Range(minVal, maxVal);
+//			
+//			gp.drawGraphPanel(spec, true, true, range, range);
+//			
+//			File file = new File(outputDir, prefix+"_scatter_"+(float)im.getVal()+"s_"+im.getComponent().getShortName());
+//			gp.getChartPanel().setSize(800, 600);
+//			gp.saveAsPNG(file.getAbsolutePath()+".png");
+//			gp.saveAsPDF(file.getAbsolutePath()+".pdf");
+			
+			String myPrefix = prefix+"_scatter_"+(float)im.getVal()+"s_"+im.getComponent().getShortName();
+			
+			String imtName = im.getVal()+"s "+im.getMeasure().getShortName();
+			
 			List<XY_DataSet> funcs = new ArrayList<>();
 			List<PlotCurveCharacterstics> chars = new ArrayList<>();
 			
+			Color ptColor = new Color(0, 0, 0, 40);
+			Color avgColor = new Color(0, 255, 0, 127);
+			
 			funcs.add(scatter);
-			chars.add(new PlotCurveCharacterstics(PlotSymbol.CROSS, 2f, Color.BLACK));
-			PlotSpec spec = new PlotSpec(funcs, chars, "Run ID Comparison, "+(float)im.getVal()+"s "+im.getComponent(),
-					"Run "+runID1, "Run "+runID2);
-			HeadlessGraphPanel gp = new HeadlessGraphPanel();
-			gp.setTickLabelFontSize(18);
-			gp.setAxisLabelFontSize(24);
-			gp.setPlotLabelFontSize(24);
-			gp.setLegendFontSize(28);
-			gp.setBackgroundColor(Color.WHITE);
-			gp.setRenderingOrder(DatasetRenderingOrder.REVERSE);
+			chars.add(new PlotCurveCharacterstics(PlotSymbol.CROSS, 3f, ptColor));
 			
-			double minVal = Math.min(scatter.getMinX(), scatter.getMinY());
-			double maxVal = Math.min(scatter.getMaxX(), scatter.getMaxY());
-			minVal = Math.pow(10, Math.floor(Math.log10(minVal)));
-			maxVal = Math.pow(10, Math.ceil(Math.log10(maxVal)));
+			double min = Math.floor(Math.min(scatter.getMinX(), scatter.getMinY()));
+			double max = Math.ceil(Math.max(scatter.getMaxX(), scatter.getMaxY()));
+			Range range = new Range(min, max);
 			
-			Range range = new Range(minVal, maxVal);
+			DefaultXY_DataSet line = new DefaultXY_DataSet();
+			line.set(min, min);
+			line.set(max, max);
 			
-			gp.drawGraphPanel(spec, true, true, range, range);
+			funcs.add(line);
+			chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 2f, Color.GRAY));
 			
-			File file = new File(outputDir, prefix+"_scatter_"+(float)im.getVal()+"s_"+im.getComponent().getShortName());
-			gp.getChartPanel().setSize(800, 600);
-			gp.saveAsPNG(file.getAbsolutePath()+".png");
-			gp.saveAsPDF(file.getAbsolutePath()+".pdf");
+			String title = runID1+" vs "+runID2+", "+siteName;
+			
+			PlotSpec spec = new PlotSpec(funcs, chars, title, "Ln "+runID1+" "+imtName, "Ln "+runID2+" "+imtName);
+			
+			HeadlessGraphPanel gp = PlotUtils.initHeadless();
+			
+			gp.drawGraphPanel(spec, false, false, range, range);
+			
+			PlotUtils.writePlots(outputDir, myPrefix+"_compare", gp, 1000, -1, true, false, false);
+			
+			funcs = new ArrayList<>();
+			chars = new ArrayList<>();
+			
+			funcs.add(scatterDiff);
+			chars.add(new PlotCurveCharacterstics(PlotSymbol.CROSS, 3f, ptColor));
+			
+			funcs.add(binnedAvg(scatterDiff, 10));
+			chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 3f, avgColor));
+			
+			String diffLabel = "Ln "+imtName+" Diff ("+runID2+" - "+runID1+")";
+			spec = new PlotSpec(funcs, chars, title, "Ln "+runID1+" "+imtName, diffLabel);
+			
+			gp.drawGraphPanel(spec, false, false, range, null);
+			
+			PlotUtils.writePlots(outputDir, myPrefix+"_compare_diff", gp, 1000, 1000, true, false, false);
 			
 			List<String> statsCol = new ArrayList<>();
 			statsCols.add(statsCol);
@@ -308,6 +377,22 @@ public class RunAmpCompare {
 		csv.writeToFile(new File(outputDir, prefix+"_stats.csv"));
 		
 		db.destroy();
+	}
+	
+	private static EvenlyDiscretizedFunc binnedAvg(DefaultXY_DataSet scatter, int num) {
+		EvenlyDiscretizedFunc discr = new EvenlyDiscretizedFunc(scatter.getMinX(), scatter.getMaxX(), num);
+		
+		int[] counts = new int[num];
+		for (Point2D pt : scatter) {
+			int bin = discr.getClosestXIndex(pt.getX());
+			counts[bin]++;
+			discr.add(bin, pt.getY());
+		}
+		
+		for (int i=0; i<num; i++)
+			discr.set(i, discr.getY(i)/(double)counts[i]);
+		
+		return discr;
 	}
 
 }

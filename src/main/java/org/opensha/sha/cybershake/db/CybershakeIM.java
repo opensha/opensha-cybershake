@@ -75,6 +75,8 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 		saIDsMap.put(CyberShakeComponent.RotD100, 10d, 136);
 	}
 	
+	public static final CybershakeIM PGV = new CybershakeIM(185, IMType.SA, -1, "cm per sec", CyberShakeComponent.RotD50);
+	
 	public static CybershakeIM getSA(CyberShakeComponent comp, double period) {
 		Integer id = saIDsMap.get(comp, period);
 		Preconditions.checkNotNull(id, "ID not yet hardcoded for comp=%s, period=%s", comp, period);
@@ -137,6 +139,7 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 	
 	public enum IMType implements DBField {
 		SA("spectral acceleration", "SA"),
+		PGV("PGV", "PGV"),
 		VEL_DUR_5_95("velocity significant duration, 5% to 95%", "VelDur5-95"),
 		VEL_DUR_5_75("velocity significant duration, 5% to 75%", "VelDur5-75"),
 		ACCEL_DUR_5_95("acceleration significant duration, 5% to 95%", "Dur5-95"),

@@ -374,13 +374,13 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2020_05_05-rundir4983_stitched-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
 //		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_20_5_RSQSIM_4983_SKIP65k;
-		File bbpDir = new File("/data/kevin/bbp/parallel/2020_09_03-rundir4983_stitched-all-m6.5-skipYears65000-noHF-vmLA_BASIN_500-cs500Sites");
-		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
-		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_20_5_RSQSIM_4983_SKIP65k;
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2020_09_03-rundir4983_stitched-all-m6.5-skipYears65000-noHF-vmLA_BASIN_500-cs500Sites");
 //		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
+		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
+		File bbpDir = new File("/data/kevin/bbp/parallel/2020_09_03-rundir4983_stitched-all-m6.5-skipYears65000-noHF-vmLA_BASIN_500-cs500Sites");
+		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 //		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
@@ -399,7 +399,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		boolean includeAleatoryStrip = true;
 		
-		String[] siteNames = { "USC" };
+//		String[] siteNames = { "USC" };
 //		String[] siteNames = { "SBSM", "LAF", "s022", "STNI", "WNGC", "PDE" };
 //		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
 //				"LAF", "s022", "STNI", "WNGC", "PDE" };
@@ -408,7 +408,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		String[] siteNames = { "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "s119", "s279", "s480" };
 //		String[] siteNames = { "LAPD" };
-//		String[] siteNames = { "SBSM" };
+		String[] siteNames = { "SMCA" };
 		
 		if (args.length > 0) {
 			System.out.println("assuming command line arguments are site names");
@@ -423,7 +423,8 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
-		IMT[] imts = IMT.forPeriods(new double[] { 3, 5, 7.5, 10 });
+//		IMT[] imts = IMT.forPeriods(new double[] { 3, 5, 7.5, 10 });
+		IMT[] imts = { IMT.PGV, IMT.SA3P0, IMT.SA5P0, IMT.SA7P5, IMT.SA10P0 };
 		IMT[] csvIMTs = { IMT.SA3P0 };
 		
 		File studyDir = new File(mainOutputDir, study.getDirName());

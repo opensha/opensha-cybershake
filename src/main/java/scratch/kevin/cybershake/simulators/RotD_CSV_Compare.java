@@ -33,16 +33,20 @@ import scratch.kevin.bbp.BBP_Site;
 public class RotD_CSV_Compare {
 
 	public static void main(String[] args) throws IOException {
-		File origFile = new File("/home/kevin/markdown/cybershake-analysis/study_20_5_rsqsim_4983_skip65k/"
-				+ "site_hazard_USC_ASK2014_Vs30Simulation.bak/resources/USC_rd50s.csv.gz");
-		File newFile = new File("/data/kevin/markdown/cybershake-analysis/study_21_12_rsqsim_4983_skip65k/"
+//		File origFile = new File("/home/kevin/markdown/cybershake-analysis/study_20_5_rsqsim_4983_skip65k/"
+//				+ "site_hazard_USC_ASK2014_Vs30Simulation.bak/resources/USC_rd50s.csv.gz");
+		File origFile = new File("/data/kevin/markdown/cybershake-analysis/study_21_12_rsqsim_4983_skip65k_1hz/"
+				+ "site_hazard_USCPREV_ASK2014_Vs30Simulation/resources/USC_rd50s.csv.gz");
+		File newFile = new File("/data/kevin/markdown/cybershake-analysis/study_21_12_rsqsim_4983_skip65k_1hz/"
 				+ "site_hazard_USC_ASK2014_Vs30Simulation/resources/USC_rd50s.csv.gz");
 		
 		File outputDir = new File("/tmp");
 		
-		String prefix = "erf_58_61_USC";
-		String origName = "ERF58";
-		String newName = "ERF61";
+//		String prefix = "erf_58_62_USC";
+//		String origName = "ERF58";
+		String prefix = "erf_62prev_62_USC";
+		String origName = "ERF62_prev";
+		String newName = "ERF62";
 		String siteName = "USC";
 		String imtName = "3s RD50";
 		

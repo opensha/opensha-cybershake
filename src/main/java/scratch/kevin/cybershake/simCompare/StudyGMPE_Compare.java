@@ -369,7 +369,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_20_5_RSQSIM_4983);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-		studies.add(CyberShakeStudy.STUDY_20_5_RSQSIM_4983_SKIP65k);
+//		studies.add(CyberShakeStudy.STUDY_20_5_RSQSIM_4983_SKIP65k);
+//		vs30s.add(Vs30_Source.Simulation);
+		
+		studies.add(CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz);
 		vs30s.add(Vs30_Source.Simulation);
 		
 		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014; // this one will include highlight sites
@@ -378,8 +381,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 		
-		IMT[] imts = { IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
-		double[] rotDPeriods = { 3, 5, 7.5, 10 };
+		IMT[] imts = { IMT.PGV, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
+		double[] rotDPeriods = { 3, 5, 10 };
 		double minMag = 6;
 		
 //		AttenRelRef primaryGMPE = AttenRelRef.AFSHARI_STEWART_2016; // this one will include highlight sites

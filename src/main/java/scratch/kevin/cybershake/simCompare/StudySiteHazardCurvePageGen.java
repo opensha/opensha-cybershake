@@ -401,14 +401,15 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 //		String[] siteNames = { "USC" };
 //		String[] siteNames = { "SBSM", "LAF", "s022", "STNI", "WNGC", "PDE" };
-//		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
-//				"LAF", "s022", "STNI", "WNGC", "PDE" };
+		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
+				"LAF", "s022", "STNI", "WNGC", "PDE" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "USC", "STNI", "LAPD", "SBSM", "PAS", "WNGC", "s119", "s279", "s480" };
 //		String[] siteNames = { "LAPD", "SBSM", "PAS", "WNGC" };
 //		String[] siteNames = { "s119", "s279", "s480" };
 //		String[] siteNames = { "LAPD" };
-		String[] siteNames = { "SMCA" };
+//		String[] siteNames = { "SMCA" };
+//		String[] siteNames = { "PAS" };
 		
 		if (args.length > 0) {
 			System.out.println("assuming command line arguments are site names");
@@ -417,14 +418,14 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		boolean sourceFractional = true;
 		
-		boolean replotCurves = true;
+		boolean replotCurves = false;
 		boolean replotDisaggs = false;
 		
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 //		IMT[] imts = IMT.forPeriods(new double[] { 3, 5, 7.5, 10 });
-		IMT[] imts = { IMT.PGV, IMT.SA3P0, IMT.SA5P0, IMT.SA7P5, IMT.SA10P0 };
+		IMT[] imts = { IMT.PGV, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 		IMT[] csvIMTs = { IMT.SA3P0 };
 		
 		File studyDir = new File(mainOutputDir, study.getDirName());

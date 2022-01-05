@@ -159,11 +159,11 @@ public class ETAS_CombinedHazardGainPlot {
 				DiscretizedFunc uniformCurve = curves[0];
 				DiscretizedFunc etasCurve = curves[1];
 				
-				uniformCurve.setName(name+", Uniform CHD");
+				uniformCurve.setName(name+", Uniform ACHD");
 				funcs.add(uniformCurve);
 				chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 2f, color));
 				
-				etasCurve.setName("  "+name+", ETAS CHD");
+				etasCurve.setName("  "+name+", ETAS ACHD");
 				funcs.add(etasCurve);
 				chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 4f, color));
 				

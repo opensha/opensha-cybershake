@@ -32,6 +32,7 @@ import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DefaultXY_DataSet;
 import org.opensha.commons.data.function.DiscretizedFunc;
+import org.opensha.commons.data.function.EvenlyDiscretizedFunc;
 import org.opensha.commons.data.function.HistogramFunction;
 import org.opensha.commons.data.function.LightFixedXFunc;
 import org.opensha.commons.data.function.XY_DataSet;
@@ -48,6 +49,7 @@ import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotPreferences;
 import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.gui.plot.PlotSymbol;
+import org.opensha.commons.gui.plot.PlotUtils;
 import org.opensha.commons.mapping.gmt.GMT_Map;
 import org.opensha.commons.mapping.gmt.elements.PSXYSymbol;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
@@ -726,6 +728,7 @@ public class ETAS_ScenarioPageGen {
 		System.out.println("Done caching spectra");
 		
 		FaultBasedMapGen.LOCAL_MAPGEN = true;
+		FaultBasedMapGen.SAVE_PS = true;
 		
 		lines.add("## Hazard Maps");
 		lines.add(topLink); lines.add("");
@@ -1523,6 +1526,11 @@ public class ETAS_ScenarioPageGen {
 		
 		FaultBasedMapGen.plotMap(resourcesDir, prefix, false, map);
 	}
+
+	private static final Color SCEN_LOC_COLOR = Color.GREEN.darker();
+	private static final Color CS_MAPPED_HYPO_COLOR = Color.BLUE;
+	private static final Color CS_UNMAPPED_HYPO_COLOR = Color.GRAY;
+	private static final Color ETAS_HYPO_COLOR = Color.BLACK;
 	
 	private File[] plotCHDs(File resourcesDir, FaultSystemRupSet rupSet, int parentSectionID, boolean plotCS) throws IOException {
 		File[] ret = new File[timeSpans.length];
@@ -1628,20 +1636,36 @@ public class ETAS_ScenarioPageGen {
 			List<PlotCurveCharacterstics> chars = new ArrayList<>();
 			
 			funcs.add(etasCHD);
-			etasCHD.setName("ETAS CHD");
-			chars.add(new PlotCurveCharacterstics(PlotLineType.HISTOGRAM, 3f, Color.BLACK));
+			etasCHD.setName("ETAS ACHD");
+			chars.add(new PlotCurveCharacterstics(PlotLineType.HISTOGRAM, 1f, ETAS_HYPO_COLOR));
 			
 			if (plotCS) {
 				funcs.add(csCHD);
-				csCHD.setName("CyberShake Mapped CHD");
-				chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 2f, PlotSymbol.FILLED_CIRCLE, 3f, Color.BLUE));
+				csCHD.setName("CS Mapped ACHD");
+				chars.add(new PlotCurveCharacterstics(PlotLineType.SOLID, 4f, PlotSymbol.FILLED_CIRCLE, 3f, CS_MAPPED_HYPO_COLOR));
 				
 				funcs.add(csUniformCHD);
-				csUniformCHD.setName("CyberShake Uniform CHD");
-				chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 2f, PlotSymbol.CIRCLE, 3f, Color.RED));
+				csUniformCHD.setName("CS Uniform ACHD");
+				chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 4f, PlotSymbol.CIRCLE, 3f, CS_UNMAPPED_HYPO_COLOR));
 			}
 			
-			String title = timeSpans[t]+" "+parentName+" CHDs";
+			if (scenarioLoc != null) {
+				double minDist = Double.POSITIVE_INFINITY;
+				for (FaultSection sect : sects)
+					for (Location loc : sect.getFaultTrace())
+						minDist = Math.min(minDist, LocationUtils.horzDistanceFast(loc, scenarioLoc));
+				if (minDist < 10d) {
+					XY_DataSet scenarioXY = new DefaultXY_DataSet();
+					double x = latitude ? scenarioLoc.getLatitude() : scenarioLoc.getLongitude();
+					scenarioXY.set(x, 0d);
+					scenarioXY.set(x, 1d);
+					funcs.add(0, scenarioXY);
+					chars.add(0, new PlotCurveCharacterstics(PlotLineType.DOTTED, 3, SCEN_LOC_COLOR));
+					scenarioXY.setName("Scenario");
+				}
+			}
+			
+			String title = timeSpans[t]+" "+parentName+" ACHDs";
 			String prefix = "chd_"+parentPrefix+"_"+timeSpans[t].name();
 			if (!plotCS)
 				prefix += "_etas_only";
@@ -1649,16 +1673,9 @@ public class ETAS_ScenarioPageGen {
 			String xAxisLabel = latitude ? "Latitude (degrees)" : "Longitude (degrees)";
 			
 			PlotSpec spec = new PlotSpec(funcs, chars, title, xAxisLabel, "Conditional Probability");
-			spec.setLegendVisible(plotCS);
+			spec.setLegendVisible(true);
 			
-			PlotPreferences plotPrefs = PlotPreferences.getDefault();
-			plotPrefs.setTickLabelFontSize(18);
-			plotPrefs.setAxisLabelFontSize(20);
-			plotPrefs.setPlotLabelFontSize(21);
-			plotPrefs.setLegendFontSize(20);
-			plotPrefs.setBackgroundColor(Color.WHITE);
-			
-			HeadlessGraphPanel gp = new HeadlessGraphPanel(plotPrefs);
+			HeadlessGraphPanel gp = PlotUtils.initHeadless();
 			
 			Range xRange = new Range(minX, maxX);
 			Range yRange = new Range(0d, 1d);
@@ -1675,23 +1692,44 @@ public class ETAS_ScenarioPageGen {
 			funcs = new ArrayList<>();
 			chars = new ArrayList<>();
 			
-			XY_DataSet etasHypoFunc = getHypoFunc(rawHypos, latitude);
-			etasHypoFunc.setName("ETAS Hypocenters");
-			funcs.add(etasHypoFunc);
-			chars.add(new PlotCurveCharacterstics(PlotSymbol.BOLD_X, 4f, Color.BLACK));
-			
-			double maxDepth = etasHypoFunc.getMaxY();
+			Map<Location, Integer> etasBinnedHypos = binETASHypos(rawHypos, 0.5d);
+			int maxHypos = 0;
+			for (int count : etasBinnedHypos.values())
+				maxHypos = Integer.max(maxHypos, count);
+			System.out.println("Max etas hypo count: "+maxHypos);
+			double minSize = 3f;
+			double maxSize = 12f;
+			double sizeDelta = maxSize - minSize;
+			boolean labeled = false;
+			double maxDepth = 0d;
+			for (Location hypo : etasBinnedHypos.keySet()) {
+				int count = etasBinnedHypos.get(hypo);
+				double size;
+				if ((double)maxHypos > sizeDelta)
+					size = minSize + (count-1d)/(maxHypos-1d)*(maxSize-minSize);
+				else
+					size = minSize + (count-1d);
+				double x = latitude ? hypo.getLatitude() : hypo.getLongitude();
+				LightFixedXFunc hypoFunc = new LightFixedXFunc(new double[] { x }, new double[] { hypo.getDepth() });
+				funcs.add(hypoFunc);
+				chars.add(new PlotCurveCharacterstics(PlotSymbol.FILLED_SQUARE, (float)size, ETAS_HYPO_COLOR));
+				if (!labeled && count == maxHypos) {
+					hypoFunc.setName("ETAS Hypocenters");
+					labeled = true;
+				}
+				maxDepth = Math.max(maxDepth, hypo.getDepth());
+			}
 			
 			if (plotCS) {
 				XY_DataSet csHypoFunc = getHypoFunc(mappedHypos, latitude);
-				csHypoFunc.setName("CyberShake Mapped Hypocenters");
+				csHypoFunc.setName("CS Mapped Hypocenters");
 				funcs.add(csHypoFunc);
-				chars.add(new PlotCurveCharacterstics(PlotSymbol.FILLED_CIRCLE, 2f, new Color(0, 0, 255, 180)));
+				chars.add(new PlotCurveCharacterstics(PlotSymbol.FILLED_CIRCLE, 2f, CS_MAPPED_HYPO_COLOR));
 				
 				XY_DataSet csUniFunc = getHypoFunc(csUniformHypos, latitude);
-				csUniFunc.setName("CyberShake Uniform Hypocenters");
+				csUniFunc.setName("CS Uniform Hypocenters");
 				funcs.add(csUniFunc);
-				chars.add(new PlotCurveCharacterstics(PlotSymbol.CIRCLE, 1f, new Color(255, 0, 0, 127)));
+				chars.add(new PlotCurveCharacterstics(PlotSymbol.CIRCLE, 1f, CS_UNMAPPED_HYPO_COLOR));
 				
 				maxDepth = Math.max(maxDepth, csUniFunc.getMaxY());
 			}
@@ -1705,7 +1743,7 @@ public class ETAS_ScenarioPageGen {
 					XY_DataSet scenarioXY = new DefaultXY_DataSet();
 					scenarioXY.set(latitude ? scenarioLoc.getLatitude() : scenarioLoc.getLongitude(), scenarioLoc.getDepth());
 					funcs.add(0, scenarioXY);
-					chars.add(0, new PlotCurveCharacterstics(PlotSymbol.FILLED_INV_TRIANGLE, 8, Color.GREEN.darker()));
+					chars.add(0, new PlotCurveCharacterstics(PlotSymbol.FILLED_INV_TRIANGLE, 8, SCEN_LOC_COLOR));
 				}
 			}
 			
@@ -1794,6 +1832,31 @@ public class ETAS_ScenarioPageGen {
 			ys[i] = hypo.getDepth();
 		}
 		return new LightFixedXFunc(xs, ys);
+	}
+	
+	private Map<Location, Integer> binETASHypos(List<Location> hypos, double tolDist) {
+		Map<Location, Integer> hypoCounts = new HashMap<>();
+		
+		for (Location hypo : hypos) {
+			Location match = null;
+			for (Location prevHypo : hypoCounts.keySet()) {
+				double vertDist = LocationUtils.vertDistance(prevHypo, hypo);
+				if (vertDist > tolDist)
+					continue;
+				double horzDist = LocationUtils.horzDistance(prevHypo, hypo);
+				if (horzDist > tolDist)
+					continue;
+				match = prevHypo;
+				break;
+			}
+			if (match == null)
+				// it's new
+				hypoCounts.put(hypo, 1);
+			else
+				// it's additional
+				hypoCounts.put(match, hypoCounts.get(match)+1);
+		}
+		return hypoCounts;
 	}
 	
 	private boolean isHypocenterOnParentSect(int fssIndex, Location hypo, FaultSystemRupSet rupSet, int parentSectionID) {
@@ -1992,8 +2055,8 @@ public class ETAS_ScenarioPageGen {
 		
 		File[] configFiles = {
 //				new File(simsDir, "2019_04_25-2009BombayBeachM48-u2mapped-noSpont-10yr/config.json"),
-				new File(simsDir, "2019_04_25-2009BombayBeachM6-u2mapped-noSpont-10yr/config.json"),
-//				new File(simsDir, "2019_04_25-MojavePointM6-u2mapped-noSpont-10yr/config.json"),
+//				new File(simsDir, "2019_04_25-2009BombayBeachM6-u2mapped-noSpont-10yr/config.json"),
+				new File(simsDir, "2019_04_25-MojavePointM6-u2mapped-noSpont-10yr/config.json"),
 //				new File(simsDir, "2019_04_25-ParkfieldM6-u2mapped-noSpont-10yr/config.json"),
 //				new File(simsDir, "2019_11_19-ComCatM7p1_ci38457511_ShakeMapSurfaces_FM2_1/config.json")
 		};

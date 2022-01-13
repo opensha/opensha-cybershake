@@ -17,15 +17,18 @@ import org.opensha.commons.data.siteData.impl.CVM4BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVMHBasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
+import org.opensha.commons.data.siteData.impl.ThompsonVs30_2020;
 import org.opensha.commons.data.siteData.impl.WillsMap2006;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.Region;
 import org.opensha.commons.hpc.JavaShellScriptWriter;
+import org.opensha.commons.hpc.mpj.FastMPJShellScriptWriter;
 import org.opensha.commons.hpc.mpj.MPJExpressShellScriptWriter;
-import org.opensha.commons.hpc.pbs.USC_HPCC_ScriptWriter;
+import org.opensha.commons.hpc.pbs.USC_CARC_ScriptWriter;
 import org.opensha.commons.util.ClassUtils;
+import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.XMLUtils;
 import org.opensha.sha.calc.hazardMap.components.AsciiFileCurveArchiver;
 import org.opensha.sha.calc.hazardMap.components.BinaryCurveArchiver;
@@ -36,7 +39,9 @@ import org.opensha.sha.calc.hazardMap.mpj.MPJHazardCurveDriver;
 import org.opensha.sha.calc.hazus.parallel.HazusJobWriter;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
+import org.opensha.sha.cybershake.gui.util.ERFSaver;
 import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
+import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.ERF;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.UCERF2;
 import org.opensha.sha.gui.infoTools.IMT_Info;
@@ -48,6 +53,7 @@ import org.opensha.sha.imr.param.OtherParams.SigmaTruncLevelParam;
 import org.opensha.sha.imr.param.OtherParams.SigmaTruncTypeParam;
 import org.opensha.sha.util.TectonicRegionType;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -62,7 +68,8 @@ public class CyberShakeBaseMapGen {
 		if (args.length < 9 || args.length > 11) {
 			System.out.println("USAGE: "+ClassUtils.getClassNameWithoutPackage(CyberShakeBaseMapGen.class)
 					+" <IMRs> <SA period> <spacing> <CVM4/CVMH/CVMHnGTL/BBP/CVM4i26/CCAi6/CCA1D/CS18_8/null> <constrainBasinMin>"
-					+" <jobName> <minutes> <nodes> <queue> [<LA/CCA/CA/BAY> OR minLat/minLon/maxLat/maxLon] ['Include'/'Exclude' background]");
+					+" <jobName> <minutes> <nodes> <queue> [<LA/CCA/CA/BAY> OR minLat/minLon/maxLat/maxLon]"
+					+ "['Include'/'Exclude' background, or RSQSim catalog dir]");
 			System.exit(2);
 		}
 		
@@ -75,7 +82,7 @@ public class CyberShakeBaseMapGen {
 		String jobName = args[5];
 		int mins = Integer.parseInt(args[6]);
 		int nodes = Integer.parseInt(args[7]);
-		int ppn = 8;
+		int ppn = 20;
 		String queue = args[8];
 		if (queue.equals("scec"))
 			ppn = 20;
@@ -126,7 +133,8 @@ public class CyberShakeBaseMapGen {
 		
 		List<SiteData<?>> provs = Lists.newArrayList();
 //		provs.add(new WillsMap2006());
-		provs.add(new WillsMap2015());
+//		provs.add(new WillsMap2015());
+		provs.add(new ThompsonVs30_2020());
 		boolean nullBasin = false;
 		if (cvmName.toLowerCase().equals("cvm4")) {
 			provs.add(new CVM4BasinDepth(SiteData.TYPE_DEPTH_TO_2_5));
@@ -163,10 +171,26 @@ public class CyberShakeBaseMapGen {
 		
 		ArrayList<Site> sites = HazusJobWriter.loadSites(provs, region.getNodeList(), imrs, nullBasin, constrainBasinMin, null);
 		
-		ERF erf = MeanUCERF2_ToDB.createUCERF2ERF();
-		
-		if (args.length == 11)
+		ERF erf;
+		if (args.length == 11 && args[10].contains("clude")) {
+			// it's UCERF2 with a background seis option
+			erf = MeanUCERF2_ToDB.createUCERF2ERF();
 			erf.setParameter(UCERF2.BACK_SEIS_NAME, args[10]);
+		} else if (args.length == 11) {
+			// it's an RSQSim catalog
+			File rsqsimDir = new File(args[11]);
+			Preconditions.checkState(rsqsimDir.exists() && rsqsimDir.isDirectory());
+			File paramFile = new File("erf_params.xml");
+			try {
+				erf = ERFSaver.LOAD_ERF_FROM_FILE(paramFile.getAbsolutePath());
+			} catch (Exception e) {
+				throw ExceptionUtils.asRuntimeException(e);
+			}
+			erf.updateForecast();
+		} else {
+			// UCERF2 without background
+			erf = MeanUCERF2_ToDB.createUCERF2ERF();
+		}
 		
 		ArbitrarilyDiscretizedFunc xValues = IMT_Info.getUSGS_PGA_Function();
 		double maxSourceDistance = 200;
@@ -175,15 +199,19 @@ public class CyberShakeBaseMapGen {
 		xValsMap.put("imrs1", xValues);
 		CalculationSettings calcSettings = new CalculationSettings(xValues, maxSourceDistance);
 		
-		File javaBin = USC_HPCC_ScriptWriter.JAVA_BIN;
+		File javaBin = USC_CARC_ScriptWriter.JAVA_BIN;
 		File buildDir = new File(hazMapsDir, "git/opensha-cybershake/build/libs/");
 		File jarFile = new File(buildDir, "opensha-cybershake-all.jar");
 		
 		ArrayList<File> classpath = new ArrayList<File>();
 		classpath.add(jarFile);
-		
-		MPJExpressShellScriptWriter mpj = new MPJExpressShellScriptWriter(javaBin, 60000, classpath,
-				USC_HPCC_ScriptWriter.MPJ_HOME);
+
+//		MPJExpressShellScriptWriter mpj = new MPJExpressShellScriptWriter(javaBin, 53000, classpath,
+//				USC_CARC_ScriptWriter.MPJ_HOME);
+//		mpj.setUseLaunchWrapper(true);
+		FastMPJShellScriptWriter mpj = new FastMPJShellScriptWriter(javaBin, 53000, classpath,
+				USC_CARC_ScriptWriter.FMPJ_HOME);
+		mpj.setUseLaunchWrapper(true);
 		
 		for (ScalarIMR imr : imrs) {
 			List<Map<TectonicRegionType, ScalarIMR>> imrMaps = Lists.newArrayList();
@@ -209,11 +237,12 @@ public class CyberShakeBaseMapGen {
 			String cliArgs = "--max-dispatch 1000 --mult-erfs "+inputsFile.getAbsolutePath();
 			
 			List<String> script = mpj.buildScript(MPJHazardCurveDriver.class.getName(), cliArgs);
-			USC_HPCC_ScriptWriter writer = new USC_HPCC_ScriptWriter();
+//			USC_HPCC_ScriptWriter writer = new USC_HPCC_ScriptWriter();
+			USC_CARC_ScriptWriter writer = new USC_CARC_ScriptWriter();
 			
 			script = writer.buildScript(script, mins, nodes, ppn, queue);
 			
-			File pbsFile = new File(imrDir, imr.getShortName().toLowerCase()+".pbs");
+			File pbsFile = new File(imrDir, imr.getShortName().toLowerCase()+".slurm");
 			JavaShellScriptWriter.writeScript(pbsFile, script);
 		}
 	}

@@ -180,7 +180,7 @@ public class CyberShakeBaseMapGen {
 			// it's an RSQSim catalog
 			File rsqsimDir = new File(args[10]);
 			Preconditions.checkState(rsqsimDir.exists() && rsqsimDir.isDirectory());
-			File paramFile = new File("erf_params.xml");
+			File paramFile = new File(rsqsimDir, "erf_params.xml");
 			try {
 				erf = ERFSaver.LOAD_ERF_FROM_FILE(paramFile.getAbsolutePath());
 			} catch (Exception e) {

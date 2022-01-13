@@ -178,7 +178,7 @@ public class CyberShakeBaseMapGen {
 			erf.setParameter(UCERF2.BACK_SEIS_NAME, args[10]);
 		} else if (args.length == 11) {
 			// it's an RSQSim catalog
-			File rsqsimDir = new File(args[11]);
+			File rsqsimDir = new File(args[01]);
 			Preconditions.checkState(rsqsimDir.exists() && rsqsimDir.isDirectory());
 			File paramFile = new File("erf_params.xml");
 			try {

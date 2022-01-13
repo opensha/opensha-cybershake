@@ -110,7 +110,7 @@ public class CyberShakeBaseMapGen {
 				throw new IllegalArgumentException("Unknown region: "+args[9]);
 		}
 		
-		File hazMapsDir = new File("/home/scec-02/kmilner/hazMaps");
+		File hazMapsDir = new File("/project/scec_608/kmilner/hazMaps");
 		
 		File jobDir = new File(hazMapsDir, jobName);
 		if (!jobDir.exists())

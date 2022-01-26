@@ -332,7 +332,7 @@ public class RunIDFetcher {
 //		
 //		db.destroy();
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
 //		for (CyberShakeStudy study : CyberShakeStudy.values()) {
 			System.out.println(study.getName());
 			RunIDFetcher fetch = study.runFetcher();

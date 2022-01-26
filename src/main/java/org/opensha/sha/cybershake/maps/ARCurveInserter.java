@@ -130,8 +130,12 @@ public class ARCurveInserter {
 //		String dir = "/home/kevin/CyberShake/baseMaps/2018_04_05-cca1d-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 //		String dir = "/home/kevin/CyberShake/baseMaps/2018_04_05-cca1d-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 //		String dir = "/home/kevin/CyberShake/baseMaps/2018_10_09-cs18_8-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
-		String dir = "/home/kevin/CyberShake/baseMaps/2020_05_06-cvm4i26-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2022_01_13-rs4983-cvm4i26-thompson2020-cs-nga2-2sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2022_01_13-rs4983-cvm4i26-thompson2020-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2022_01_13-rs4983-cvm4i26-thompson2020-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+		String dir = "/home/kevin/CyberShake/baseMaps/2022_01_13-rs4983-cvm4i26-thompson2020-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 		// UPDATE IM TYPE AND DATE BELOW!!!!!!!!!!!!!!!!!!!!!!!
+		// AND ERF ID
 		boolean deleteOld = false;
 		ScalarIMR imr = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
 //		ScalarIMR imr = AttenRelRef.ASK_2014.instance(null);
@@ -140,13 +144,14 @@ public class ARCurveInserter {
 //		ScalarIMR imr = AttenRelRef.CY_2014.instance(null);
 		imr.setParamDefaults();
 		setTruncation(imr, 3d);
-		int erfID = 36;
 		/*		UPDATE THESE		*/
+//		int erfID = 36;
+		int erfID = 62;
 		int velModelID = CybershakeVelocityModel.Models.CVM_S4_26.instance().getID();
 		int imTypeID = CybershakeIM.getSA(CyberShakeComponent.RotD50, 10d).getID();
 //		int velModelID = -1; // Vs30 only
 		Calendar cal = GregorianCalendar.getInstance();
-		cal.set(2020, 4, 6); // month is 0-based, 3=April
+		cal.set(2022, 0, 18); // month is 0-based, 3=April
 		/*		END UPDATE THESE	*/
 		int probModelID = 1;
 		int timeSpanID = 1;

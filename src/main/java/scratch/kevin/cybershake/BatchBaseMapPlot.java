@@ -24,6 +24,7 @@ import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.Region;
 import org.opensha.commons.mapping.gmt.GMT_Map;
+import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
 import org.opensha.commons.mapping.gmt.elements.PSXYSymbol;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
 import org.opensha.commons.util.FileUtils;
@@ -348,8 +349,9 @@ public class BatchBaseMapPlot {
 		for (int i=0; i<vals.size(); i++)
 			data.set(i, vals.get(i));
 		
-		CPT cpt = CPT.loadFromStream(HardCodedInterpDiffMapCreator.class.getResourceAsStream(
-				"/resources/cpt/MaxSpectrum2.cpt"));
+//		CPT cpt = CPT.loadFromStream(HardCodedInterpDiffMapCreator.class.getResourceAsStream(
+//				"/resources/cpt/MaxSpectrum2.cpt"));
+		CPT cpt = GMT_CPT_Files.RAINBOW_UNIFORM.instance();
 		
 		plot(dir, prefix, data, region, customMin, customMax, prov.getShortName()+" "+shortType, prov.getMetadata(), cpt, true);
 		return outputFile;

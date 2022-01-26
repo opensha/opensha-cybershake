@@ -44,6 +44,7 @@ import org.opensha.sha.cybershake.db.CybershakeSiteInfo2DB;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.HazardCurve2DB;
+import org.opensha.sha.cybershake.db.HazardDataset2DB;
 import org.opensha.sha.cybershake.db.Runs2DB;
 import org.opensha.sha.cybershake.maps.InterpDiffMap.InterpDiffMapType;
 import org.opensha.sha.cybershake.maps.servlet.CS_InterpDiffMapServletAccessor;
@@ -222,6 +223,7 @@ public class HardCodedInterpDiffMapCreator {
 			ScalarIMR imr,
 			boolean isProbAt_IML,
 			double level,
+			int erfID,
 			int velModelID,
 			int imTypeID,
 			Region reg) throws SQLException {
@@ -230,9 +232,7 @@ public class HardCodedInterpDiffMapCreator {
 		int attenRelID = ar2db.getAttenRelID(imr);
 		
 		AttenRelDataSets2DB ds2db = new AttenRelDataSets2DB(gmpe_db);
-		int datasetID = ds2db.getDataSetID(attenRelID, 35, velModelID, 1, 1, null);
-		if (datasetID < 0)
-			datasetID = ds2db.getDataSetID(attenRelID, 36, velModelID, 1, 1, null);
+		int datasetID = ds2db.getDataSetID(attenRelID, erfID, velModelID, 1, 1, null);
 		
 		String cacheName = "ar_curves_"+attenRelID+"_"+datasetID+"_"
 				+isProbAt_IML+"_"+(float)level+"_"+imTypeID;
@@ -629,12 +629,15 @@ public class HardCodedInterpDiffMapCreator {
 		else
 			scatterData = getMainScatter(isProbAt_IML, val, datasetIDs, imTypeID, siteTypes);
 		
-		return getMap(region, scatterData, logPlot, velModelID, imTypeID, customMin, customMax, isProbAt_IML,
+		Preconditions.checkState(!datasetIDs.isEmpty());
+		int erfID = new HazardDataset2DB(cs_db).getDataset(datasetIDs.get(0)).erfID;
+		
+		return getMap(region, scatterData, logPlot, erfID, velModelID, imTypeID, customMin, customMax, isProbAt_IML,
 				val, baseMapIMR, probGain, customLabel);
 	}
 	
-	public static String getMap(Region region, GeoDataSet scatterData, boolean logPlot, int velModelID, int imTypeID,
-			Double customMin, Double customMax, boolean isProbAt_IML,
+	public static String getMap(Region region, GeoDataSet scatterData, boolean logPlot, int erfID, int velModelID,
+			int imTypeID, Double customMin, Double customMax, boolean isProbAt_IML,
 			double val, ScalarIMR baseMapIMR,
 			boolean probGain, String customLabel) throws FileNotFoundException,
 			IOException, ClassNotFoundException, GMT_MapException, SQLException {
@@ -642,7 +645,7 @@ public class HardCodedInterpDiffMapCreator {
 		System.out.println("Loading basemap...");
 		GeoDataSet baseMap;
 		if (!probGain && baseMapIMR != null) {
-			baseMap = loadBaseMap(baseMapIMR, isProbAt_IML, val, velModelID, imTypeID, region);
+			baseMap = loadBaseMap(baseMapIMR, isProbAt_IML, val, erfID, velModelID, imTypeID, region);
 //			baseMap = loadBaseMap(singleDay, isProbAt_IML, val, imTypeID, baseMapName);
 			System.out.println("Basemap has " + baseMap.size() + " points");
 		} else {

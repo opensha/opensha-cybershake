@@ -20,9 +20,11 @@ import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeRun;
+import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.ERF2DB;
 import org.opensha.sha.earthquake.AbstractERF;
@@ -381,6 +383,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 		
+//		IMT[] imts = { IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 		IMT[] imts = { IMT.PGV, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 		double[] rotDPeriods = { 3, 5, 10 };
 		double minMag = 6;
@@ -397,10 +400,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 		boolean limitToHighlight = false;
 		
-		boolean replotScatters = false;
+		boolean replotScatters = true;
 		boolean replotZScores = true;
 		boolean replotCurves = false;
-		boolean replotResiduals = false;
+		boolean replotResiduals = true;
 		
 		IMT[] rotDIMTs = null;
 		if (rotDPeriods != null) {
@@ -503,6 +506,17 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 						csLAsites.add(siteNamesMap.get(b.getName()));
 				if (csLAsites.size() > 2)
 					comp.addSiteBundle(csLAsites, "LA Vs30=500 Initial Set");
+				
+				List<Site> grid10kmSites = new ArrayList<>();
+				for (Site site : comp.sites) {
+					Preconditions.checkState(site instanceof CyberShakeSiteRun);
+					CyberShakeSiteRun siteRun = (CyberShakeSiteRun)site;
+					int type = siteRun.getCS_Site().type_id;
+					if (type == CybershakeSite.TYPE_GRID_10_KM || type == CybershakeSite.TYPE_GRID_20_KM)
+						grid10kmSites.add(site);
+				}
+				if (grid10kmSites.size() >= 5)
+					comp.addSiteBundle(grid10kmSites, "10km Grid Sites");
 				
 				HashSet<CSRupture> allRups = new HashSet<>();
 				for (Site site : comp.sites)

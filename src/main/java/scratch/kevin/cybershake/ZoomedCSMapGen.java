@@ -58,6 +58,7 @@ public class ZoomedCSMapGen {
 		HardCodedInterpDiffMapCreator.gmpe_db = HardCodedInterpDiffMapCreator.cs_db;
 		Region csRegion = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION();
 		
+		int erfID = 36;
 //		int velModelIDforGMPE = 10;
 		int velModelIDforGMPE = -1;
 		DBAccess gmpeDB = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
@@ -123,7 +124,7 @@ public class ZoomedCSMapGen {
 				basemap.set(loc, HazardDataSetLoader.getCurveVal(curves.get(loc), isProbAt_IML, val));
 		} else if (baseMapIMR != null) {
 			basemap = HardCodedInterpDiffMapCreator.loadBaseMap(
-					baseMapIMR, isProbAt_IML, val, velModelIDforGMPE, imTypeID, csRegion);
+					baseMapIMR, isProbAt_IML, val, erfID, velModelIDforGMPE, imTypeID, csRegion);
 			GriddedGeoDataSet gridData = new GriddedGeoDataSet(basemapReg, scatter.isLatitudeX());
 			for (int i=0; i<basemap.size(); i++)
 				gridData.set(basemap.getLocation(i), basemap.get(i));

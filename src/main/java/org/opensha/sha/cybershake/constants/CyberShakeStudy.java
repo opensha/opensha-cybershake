@@ -73,7 +73,8 @@ import scratch.kevin.simulators.ruptures.rotation.RotatedRupVariabilityConfig;
 public enum CyberShakeStudy {
 	
 	STUDY_14_2_1D(cal(2014, 2), 38, "Study 14.2 BBP 1D", "study_14_2_bbp_1d",
-			"Los Angeles region with BBP 1-D Velocity Model, 0.5hz", 8,
+			"Los Angeles region with BBP 1-D Velocity Model, 0.5hz",
+			35, 8,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME) {
 		@Override
@@ -87,7 +88,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_14_2_CVM_S426(cal(2014, 2), 35, "Study 14.2 CVM-S4.26", "study_14_2_cvms426",
-			"Los Angeles region with CVM-S4.26 Velocity Model, 0.5hz", 5,
+			"Los Angeles region with CVM-S4.26 Velocity Model, 0.5hz",
+			35, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME) {
 		@Override
@@ -101,7 +103,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_14_2_CVMH(cal(2014, 2), 34, "Study 14.2 CVM-H", "study_14_2_cvmh",
-			"Los Angeles region with CVM-S4.26 Velocity Model, 0.5hz", 7,
+			"Los Angeles region with CVM-S4.26 Velocity Model, 0.5hz",
+			35, 7,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME) {
 		@Override
@@ -115,7 +118,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_15_4(cal(2015, 4), 57, "Study 15.4", "study_15_4",
-			"Los Angeles region with CVM-S4.26 Velocity Model, 1hz", 5,
+			"Los Angeles region with CVM-S4.26 Velocity Model, 1hz",
+			36, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME) {
 		@Override
@@ -129,7 +133,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_15_12(cal(2015, 12), 61, "Study 15.12", "study_15_12",
-			"Los Angeles region with CVM-S4.26 Velocity Model, 1hz deterministic with stochastic high frequencies", 5,
+			"Los Angeles region with CVM-S4.26 Velocity Model, 1hz deterministic with stochastic high frequencies",
+			36, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME) {
 		@Override
@@ -143,7 +148,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_17_3_1D(cal(2017, 3), 80, "Study 17.3 1-D",
-			"study_17_3_1d", "Central California with CCA-1D Velocity Model, 1hz", 9,
+			"study_17_3_1d", "Central California with CCA-1D Velocity Model, 1hz",
+			36, 9,
 			new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -157,7 +163,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_17_3_3D(cal(2017, 3), 81, "Study 17.3 3-D",
-			"study_17_3_3d", "Central California with CCA-06 Velocity Model, 1hz", 10,
+			"study_17_3_3d", "Central California with CCA-06 Velocity Model, 1hz",
+			36, 10,
 			new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -171,7 +178,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_18_4_RSQSIM_PROTOTYPE_2457(cal(2018, 4), 82, "RSQSim 2457",
-			"study_18_4_rsqsim_prototype_2457", "RSQSim prototype with catalog 2457", 5,
+			"study_18_4_rsqsim_prototype_2457", "RSQSim prototype with catalog 2457",
+			36, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -191,7 +199,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_18_4_RSQSIM_2585(cal(2018, 4), 83, "RSQSim 2585",
-			"study_18_4_rsqsim_2585", "RSQSim prototype with catalog 2585 (1myr)", 5,
+			"study_18_4_rsqsim_2585", "RSQSim prototype with catalog 2585 (1myr)",
+			36, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -211,7 +220,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_18_8(cal(2018, 8), 87, "Study 18.8", "study_18_8",
-			"Northern California with Bay Area, CCA, and CVM-S4.26 Velocity Models, 1hz", 12,
+			"Northern California with Bay Area, CCA, and CVM-S4.26 Velocity Models, 1hz",
+			36, 12,
 			new CaliforniaRegions.CYBERSHAKE_BAY_AREA_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -225,7 +235,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_18_9_RSQSIM_2740(cal(2018, 9), new int[] { 85, 86}, "RSQSim 2740",
-			"study_18_9_rsqsim_2740", "RSQSim prototype with catalog 2740 (259kyr)", 5,
+			"study_18_9_rsqsim_2740", "RSQSim prototype with catalog 2740 (259kyr)",
+			49, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -245,7 +256,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_19_2_RSQSIM_ROT_2740(cal(2019, 2), 88, "RSQSim RotRup 2740",
-			"study_19_2_rsqsim_rot_2740", "RSQSim rotated-rupture variability study with catalog 2740", 5,
+			"study_19_2_rsqsim_rot_2740", "RSQSim rotated-rupture variability study with catalog 2740",
+			50, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -254,7 +266,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(50).hasAmplitudes().unique(true);
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(true);
 		}
 		@Override
 		public List<String> writeStandardDiagnosticPlots(File outputDir, int skipYears, double minMag, boolean replot,
@@ -271,7 +283,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_19_3_RSQSIM_ROT_2585(cal(2019, 3), 89, "RSQSim RotRup 2585",
-			"study_19_3_rsqsim_rot_2585", "RSQSim rotated-rupture variability study with catalog 2585", 5,
+			"study_19_3_rsqsim_rot_2585", "RSQSim rotated-rupture variability study with catalog 2585",
+			51, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -280,7 +293,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(51).hasAmplitudes().unique(true);
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(true);
 		}
 		@Override
 		public List<String> writeStandardDiagnosticPlots(File outputDir, int skipYears, double minMag, boolean replot,
@@ -297,7 +310,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_20_2_RSQSIM_4841(cal(2020, 2), new int[] { 92 }, "RSQSim 4841",
-			"study_20_2_rsqsim_4841", "RSQSim prototype with catalog 4841 (134kyr)", 5,
+			"study_20_2_rsqsim_4841", "RSQSim prototype with catalog 4841 (134kyr)",
+			53, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -306,7 +320,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(53).hasAmplitudes().unique(false);
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(false);
 		}
 		private RSQSimCatalog catalog = null;
 		@Override
@@ -317,7 +331,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_20_2_RSQSIM_4860(cal(2020, 2), new int[] { 92 }, "RSQSim 4860",
-			"study_20_2_rsqsim_4860", "RSQSim prototype with catalog 4860 (35kyr)", 5,
+			"study_20_2_rsqsim_4860", "RSQSim prototype with catalog 4860 (35kyr)",
+			54, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -326,7 +341,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(54).hasAmplitudes().unique(false);
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(false);
 		}
 		private RSQSimCatalog catalog = null;
 		@Override
@@ -337,7 +352,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_20_2_RSQSIM_4860_10X(cal(2020, 2), new int[] { 93 }, "RSQSim 4860 10x",
-			"study_20_2_rsqsim_4860_10x", "RSQSim prototype with catalog 4860 (10x, 270kyr)", 5,
+			"study_20_2_rsqsim_4860_10x", "RSQSim prototype with catalog 4860 (10x, 270kyr)",
+			55, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -346,7 +362,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(55).hasAmplitudes().unique(false);
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(false);
 		}
 		private RSQSimCatalog catalog = null;
 		@Override
@@ -357,7 +373,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_20_2_RSQSIM_ROT_4860_10X(cal(2020, 3), 94, "RSQSim RotRup 4860 10X",
-			"study_20_2_rsqsim_rot_4860_10x", "RSQSim rotated-rupture variability study with catalog 4860 10X", 5,
+			"study_20_2_rsqsim_rot_4860_10x", "RSQSim rotated-rupture variability study with catalog 4860 10X",
+			56, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -366,7 +383,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(56).hasAmplitudes().unique(true);
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(true);
 		}
 		@Override
 		public List<String> writeStandardDiagnosticPlots(File outputDir, int skipYears, double minMag, boolean replot,
@@ -383,7 +400,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_20_5_RSQSIM_4983(cal(2020, 5), 98, "RSQSim 4983",
-			"study_20_5_rsqsim_4983", "RSQSim prototype with catalog 4983 (stitched, 4x, 775yr)", 5,
+			"study_20_5_rsqsim_4983", "RSQSim prototype with catalog 4983 (stitched, 4x, 775yr)",
+			58, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -392,7 +410,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(58).hasAmplitudes().unique(false);
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(false);
 		}
 		private RSQSimCatalog catalog = null;
 		@Override
@@ -404,7 +422,8 @@ public enum CyberShakeStudy {
 	},
 	STUDY_20_5_RSQSIM_ROT_4983(cal(2020, 5), 100, "RSQSim RotRup 4983 10X",
 			"study_20_5_rsqsim_rot_4983", "RSQSim rotated-rupture variability study with "
-					+ "catalog 4983 (stitched, 4x, 775yr)", 5,
+					+ "catalog 4983 (stitched, 4x, 775yr)",
+			59, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -413,7 +432,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(59).hasAmplitudes().unique(true);
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(true);
 		}
 		@Override
 		public List<String> writeStandardDiagnosticPlots(File outputDir, int skipYears, double minMag, boolean replot,
@@ -430,7 +449,8 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_20_5_RSQSIM_4983_SKIP65k(cal(2020, 5), 98, "RSQSim 4983",
-			"study_20_5_rsqsim_4983_skip65k", "RSQSim prototype with catalog 4983 (stitched, 4x, 715yr)", 5,
+			"study_20_5_rsqsim_4983_skip65k", "RSQSim prototype with catalog 4983 (stitched, 4x, 715yr)",
+			58, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -439,7 +459,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(58).hasAmplitudes().unique(false);
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(false);
 		}
 		private RSQSimCatalog catalog = null;
 		@Override
@@ -449,8 +469,9 @@ public enum CyberShakeStudy {
 			return catalog;
 		}
 	},
-	STUDY_21_12_RSQSIM_4983_SKIP65k_0p5hz(cal(2021, 12), 98, "RSQSim 4983 Production 0.5 Hz",
-			"study_21_12_rsqsim_4983_skip65k", "RSQSim production with catalog 4983 (stitched, 4x, 715yr)", 5,
+	STUDY_21_12_RSQSIM_4983_SKIP65k_0p5hz(cal(2021, 12), 109, "RSQSim 4983 Production 0.5 Hz",
+			"study_21_12_rsqsim_4983_skip65k", "RSQSim production with catalog 4983 (stitched, 4x, 715yr)",
+			61, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -459,7 +480,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(61).hasAmplitudes().unique(false);
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(false);
 		}
 		private RSQSimCatalog catalog = null;
 		@Override
@@ -469,8 +490,9 @@ public enum CyberShakeStudy {
 			return catalog;
 		}
 	},
-	STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz(cal(2021, 12), 98, "RSQSim 4983 Production 1 Hz",
-			"study_21_12_rsqsim_4983_skip65k_1hz", "RSQSim production with catalog 4983 (stitched, 4x, 715yr), 1hz", 5,
+	STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz(cal(2021, 12), 110, "RSQSim 4983 Production 1 Hz",
+			"study_21_12_rsqsim_4983_skip65k_1hz", "RSQSim production with catalog 4983 (stitched, 4x, 715yr), 1hz",
+			62, 5,
 			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
 			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
 		@Override
@@ -479,7 +501,32 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).forERF(62).hasAmplitudes().unique(false);
+//			return new RunIDFetcher(this.getDB()).forERF(62).hasAmplitudes().unique(false);
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(false)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_4983_STITCHED.instance();
+			return catalog;
+		}
+	},
+	STUDY_22_1_RSQSIM_4983_SKIP65k_1Hz_CVMH(cal(2022, 1), 111, "RSQSim 4983 Production 1 Hz CVMH",
+			"study_22_01_rsqsim_4983_skip65k_1hz_cvmh", "RSQSim production with catalog 4983 (stitched, 4x, 715yr), 1hz, CVMH",
+			62, 4,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return getRSQSimERF("rundir4983_stitched");
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+//			return new RunIDFetcher(this.getDB()).forERF(62).hasAmplitudes().unique(false);
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(false)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 		}
 		private RSQSimCatalog catalog = null;
 		@Override
@@ -528,6 +575,7 @@ public enum CyberShakeStudy {
 	private String name;
 	private String dirName;
 	private String description;
+	private int erfID;
 	private int velocityModelID;
 	private Region region;
 	private String dbHost;
@@ -538,18 +586,19 @@ public enum CyberShakeStudy {
 	private Runs2DB runs2db;
 	
 	private CyberShakeStudy(GregorianCalendar date, int datasetID, String name, String dirName, String description,
-			int velocityModelID, Region region, String dbHost) {
-		this(date, new int[] {datasetID}, name, dirName, description, velocityModelID, region, dbHost);
+			int erfID, int velocityModelID, Region region, String dbHost) {
+		this(date, new int[] {datasetID}, name, dirName, description, erfID, velocityModelID, region, dbHost);
 	}
 	
 	private CyberShakeStudy(GregorianCalendar date, int[] datasetIDs, String name, String dirName, String description,
-			int velocityModelID, Region region, String dbHost) {
+			int erfID, int velocityModelID, Region region, String dbHost) {
 		this.date = date;
 		Preconditions.checkState(datasetIDs.length > 0);
 		this.datasetIDs = datasetIDs;
 		this.name = name;
 		this.dirName = dirName;
 		this.description = description;
+		this.erfID = erfID;
 		this.velocityModelID = velocityModelID;
 		this.region = region;
 		this.dbHost = dbHost;
@@ -579,6 +628,10 @@ public enum CyberShakeStudy {
 
 	public int getVelocityModelID() {
 		return velocityModelID;
+	}
+
+	public int getERF_ID() {
+		return erfID;
 	}
 
 	public Region getRegion() {

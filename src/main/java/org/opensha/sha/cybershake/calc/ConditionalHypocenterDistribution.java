@@ -817,13 +817,13 @@ public class ConditionalHypocenterDistribution {
 				if (replotMaps || !new File(resourcesDir, plots[0][j]).exists()) {
 					System.out.println("Orig:");
 					try {
-						addr = HardCodedInterpDiffMapCreator.getMap(region, origScatter, logPlot, study.getVelocityModelID(), im.getID(),
+						addr = HardCodedInterpDiffMapCreator.getMap(region, origScatter, logPlot, study.getERF_ID(), study.getVelocityModelID(), im.getID(),
 								minVal, maxVal, isProbAtIML, level, baseMapGMPE, false, "Original Map, "+imLabel);
 					} catch (Exception e) {
 						e.printStackTrace();
 						System.err.flush();
 						System.out.println("Disabling GMPE for "+im);
-						addr = HardCodedInterpDiffMapCreator.getMap(region, origScatter, logPlot, study.getVelocityModelID(), im.getID(),
+						addr = HardCodedInterpDiffMapCreator.getMap(region, origScatter, logPlot, study.getERF_ID(), study.getVelocityModelID(), im.getID(),
 								minVal, maxVal, isProbAtIML, level, null, false, "Original Map, "+imLabel);
 					}
 					FileUtils.downloadURL(addr+"/interpolated.150.png", new File(resourcesDir, imPrefix+"_orig_chd.png"));
@@ -833,10 +833,10 @@ public class ConditionalHypocenterDistribution {
 				if (replotMaps || !new File(resourcesDir, plots[1][j]).exists()) {
 					System.out.println("Modified:");
 					try {
-						addr = HardCodedInterpDiffMapCreator.getMap(region, scatter, logPlot, study.getVelocityModelID(), im.getID(),
+						addr = HardCodedInterpDiffMapCreator.getMap(region, scatter, logPlot, study.getERF_ID(), study.getVelocityModelID(), im.getID(),
 								minVal, maxVal, isProbAtIML, level, baseMapGMPE, false, "Cond Prob Modified, "+imLabel);
 					} catch (Exception e) {
-						addr = HardCodedInterpDiffMapCreator.getMap(region, scatter, logPlot, study.getVelocityModelID(), im.getID(),
+						addr = HardCodedInterpDiffMapCreator.getMap(region, scatter, logPlot, study.getERF_ID(), study.getVelocityModelID(), im.getID(),
 								minVal, maxVal, isProbAtIML, level, null, false, "Cond Prob Modified, "+imLabel);
 					}
 					FileUtils.downloadURL(addr+"/interpolated.150.png", new File(resourcesDir, imPrefix+"_mod_chd.png"));

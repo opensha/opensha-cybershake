@@ -123,11 +123,11 @@ public class ModifiedMapCalc {
 		Region region = new CaliforniaRegions.CYBERSHAKE_MAP_REGION();
 
 		System.out.println("Modified:");
-		String addr = HardCodedInterpDiffMapCreator.getMap(region, modData, logPlot, velModelID, imTypeID,
+		String addr = HardCodedInterpDiffMapCreator.getMap(region, modData, logPlot, 36, velModelID, imTypeID,
 				customMin, customMax, isProbAt_IML, val, baseMapIMR, false, title+", Modified");
 		FileUtils.downloadURL(addr+"/interpolated.150.png", new File(outputDir, prefix+"_mod.png"));
 		System.out.println("Orig:");
-		addr = HardCodedInterpDiffMapCreator.getMap(region, origData, logPlot, velModelID, imTypeID,
+		addr = HardCodedInterpDiffMapCreator.getMap(region, origData, logPlot, 36, velModelID, imTypeID,
 				customMin, customMax, isProbAt_IML, val, baseMapIMR, false, title+", Original");
 		FileUtils.downloadURL(addr+"/interpolated.150.png", new File(outputDir, prefix+"_orig.png"));
 

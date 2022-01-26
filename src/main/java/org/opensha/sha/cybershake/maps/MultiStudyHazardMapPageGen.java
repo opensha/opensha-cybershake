@@ -52,11 +52,15 @@ public class MultiStudyHazardMapPageGen {
 	public static void main(String[] args) throws Exception {
 		HardCodedInterpDiffMapCreator.LOCAL_MAPGEN = true;
 		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
-		
+
+//		CyberShakeStudy[] studies = {
+//				CyberShakeStudy.STUDY_15_4,
+//				CyberShakeStudy.STUDY_17_3_3D,
+//				CyberShakeStudy.STUDY_18_8
+//		};
 		CyberShakeStudy[] studies = {
 				CyberShakeStudy.STUDY_15_4,
-				CyberShakeStudy.STUDY_17_3_3D,
-				CyberShakeStudy.STUDY_18_8
+				CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz
 		};
 		
 		double[] periods = { 2d, 3d, 5d, 10d };
@@ -77,14 +81,14 @@ public class MultiStudyHazardMapPageGen {
 		
 		File baseMapsDir = new File("/home/kevin/CyberShake/baseMaps/");
 		Map<Double, File> baseMapFiles = new HashMap<>();
-		baseMapFiles.put(2d, new File(baseMapsDir,
-				"2017_04_12-statewide-nobasin-cs-nga2-2sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
-		baseMapFiles.put(3d, new File(baseMapsDir,
-				"2017_04_12-statewide-nobasin-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
-		baseMapFiles.put(5d, new File(baseMapsDir,
-				"2017_04_12-statewide-nobasin-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
-		baseMapFiles.put(10d, new File(baseMapsDir,
-				"2017_04_12-statewide-nobasin-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
+//		baseMapFiles.put(2d, new File(baseMapsDir,
+//				"2017_04_12-statewide-nobasin-cs-nga2-2sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
+//		baseMapFiles.put(3d, new File(baseMapsDir,
+//				"2017_04_12-statewide-nobasin-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
+//		baseMapFiles.put(5d, new File(baseMapsDir,
+//				"2017_04_12-statewide-nobasin-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
+//		baseMapFiles.put(10d, new File(baseMapsDir,
+//				"2017_04_12-statewide-nobasin-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
 		
 		File studyDir = new File(mainOutputDir, lastStudy.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
@@ -231,7 +235,7 @@ public class MultiStudyHazardMapPageGen {
 						basemap.set(loc, HazardDataSetLoader.getCurveVal(curves.get(loc), isProbAt_IML, val));
 				} else if (baseMapIMR != null) {
 					basemap = HardCodedInterpDiffMapCreator.loadBaseMap(
-							baseMapIMR, isProbAt_IML, val, velModelIDforGMPE, imTypeID, basemapReg);
+							baseMapIMR, isProbAt_IML, val, studies[0].getERF_ID(), velModelIDforGMPE, imTypeID, basemapReg);
 					GriddedGeoDataSet gridData = new GriddedGeoDataSet(basemapReg, scatters[0].isLatitudeX());
 					for (int i=0; i<basemap.size(); i++)
 						gridData.set(basemap.getLocation(i), basemap.get(i));

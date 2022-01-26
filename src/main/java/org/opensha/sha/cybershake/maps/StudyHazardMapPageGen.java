@@ -23,6 +23,7 @@ import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.impl.CS_Study18_8_BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
+import org.opensha.commons.data.siteData.impl.ThompsonVs30_2020;
 import org.opensha.commons.data.siteData.impl.WillsMap2006;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.data.xyz.AbstractGeoDataSet;
@@ -71,6 +72,19 @@ public class StudyHazardMapPageGen {
 	public static void main(String[] args) throws IOException {
 		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
+		double[] periods = { 2d, 3d, 5d, 10d };
+//		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
+//		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
+		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
+		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+//		ScalarIMR baseMapGMPE = null;
+//		ScalarIMR backgroundGMPE = baseMapGMPE;
+		ScalarIMR backgroundGMPE = null;
+		SiteData<?>[] siteDatas = { new ThompsonVs30_2020(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+		Region zoomRegion = null;
+		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
 //		double[] periods = { 2d, 3d, 5d, 10d };
 //		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
@@ -95,17 +109,17 @@ public class StudyHazardMapPageGen {
 //		SiteData<?>[] siteDatas = null;
 //		Region zoomRegion = null;
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
-		double[] periods = { 2d, 3d, 5d, 10d };
-//		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
-//		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
-		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
-		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
-//		ScalarIMR backgroundGMPE = baseMapGMPE;
-		ScalarIMR backgroundGMPE = null;
-		SiteData<?>[] siteDatas = { new WillsMap2015(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
-				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
-		Region zoomRegion = null;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+//		double[] periods = { 2d, 3d, 5d, 10d };
+////		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
+////		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
+//		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
+//		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+////		ScalarIMR backgroundGMPE = baseMapGMPE;
+//		ScalarIMR backgroundGMPE = null;
+//		SiteData<?>[] siteDatas = { new WillsMap2015(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+//				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+//		Region zoomRegion = null;
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_14_2_CVM_S426;
 //		double[] periods = { 3d, 5d, 10d };
@@ -122,7 +136,7 @@ public class StudyHazardMapPageGen {
 //		SiteData<?>[] siteDatas = null;
 //		Region zoomRegion = null;
 		
-		boolean replot = false;
+		boolean replot = true;
 		
 		List<Double> probLevels = new ArrayList<>();
 		List<String> probLabels = new ArrayList<>();
@@ -241,7 +255,7 @@ public class StudyHazardMapPageGen {
 		HardCodedInterpDiffMapCreator.cs_db = study.getDB();
 		HardCodedInterpDiffMapCreator.gmpe_db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
 		
-		
+		int exitCode = 0;
 		try {
 			int[] origIDs;
 			int[] dsIDs;
@@ -330,7 +344,8 @@ public class StudyHazardMapPageGen {
 									// load the basemap
 									System.out.println("Loading basemap");
 									baseMap = HardCodedInterpDiffMapCreator.loadBaseMap(
-											baseMapGMPE, isProbAt_IML, probLevel, study.getVelocityModelID(),im.getID(), region);
+											baseMapGMPE, isProbAt_IML, probLevel, study.getERF_ID(),
+											study.getVelocityModelID(),im.getID(), region);
 								}
 								if (fetch == null) {
 									fetch = new HazardCurveFetcher(study.getDB(), runs, dsIDs, im.getID());
@@ -615,11 +630,12 @@ public class StudyHazardMapPageGen {
 			CyberShakeStudy.writeStudiesIndex(mainOutputDir);
 		} catch (Exception e) {
 			e.printStackTrace();
+			exitCode = 1;
 		} finally {
 			study.getDB().destroy();
 			if (study.getDB() != HardCodedInterpDiffMapCreator.gmpe_db)
 				HardCodedInterpDiffMapCreator.gmpe_db.destroy();
-			System.exit(0);
+			System.exit(exitCode);
 		}
 	}
 	

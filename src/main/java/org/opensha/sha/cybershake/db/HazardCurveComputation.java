@@ -233,7 +233,7 @@ public class HazardCurveComputation {
 	}
 
 	public static DiscretizedFunc setIMLProbs( ArrayList<Double> imlVals,DiscretizedFunc hazFunc,
-			ArbitrarilyDiscretizedFunc normalizedFunc, double rupProb) {
+			DiscretizedFunc normalizedFunc, double rupProb) {
 		// find prob. for each iml value
 		int numIMLs  = imlVals.size();
 		for(int i=0; i<numIMLs; ++i) {

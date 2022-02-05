@@ -220,14 +220,14 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 	 * @return
 	 */
 
-	private ArbitrarilyDiscretizedFunc getCumDistFunction(List<Double> vals) {
+	private DiscretizedFunc getCumDistFunction(List<Double> vals) {
 		ArbDiscrEmpiricalDistFunc function = new ArbDiscrEmpiricalDistFunc();
 
 		for (double val : vals) {
 			function.set(val,1);
 		}
 
-		ArbitrarilyDiscretizedFunc normCumDist = function.getNormalizedCumDist();
+		DiscretizedFunc normCumDist = function.getNormalizedCumDist();
 
 		return normCumDist;
 	}
@@ -238,7 +238,7 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 	 * @param func
 	 * @return
 	 */
-	private ArbitrarilyDiscretizedFunc getLogXFunction(ArbitrarilyDiscretizedFunc func) {
+	private ArbitrarilyDiscretizedFunc getLogXFunction(DiscretizedFunc func) {
 		ArbitrarilyDiscretizedFunc logFunc = new ArbitrarilyDiscretizedFunc();
 
 		for (int i=0; i<func.size(); i++) {
@@ -248,7 +248,7 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 		return logFunc;
 	}
 
-	private void oneMinusYFunction(ArbitrarilyDiscretizedFunc func) {
+	private void oneMinusYFunction(DiscretizedFunc func) {
 		for (int i=0; i<func.size(); i++) {
 			func.set(i, 1 - func.getY(i));
 		}
@@ -261,16 +261,16 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 	 * @return
 	 */
 
-	private ArbitrarilyDiscretizedFunc getLogX_OneMinusYCumDistFunction(List<Double> vals) {
-		ArbitrarilyDiscretizedFunc normCumDist = getCumDistFunction(vals);
+	private DiscretizedFunc getLogX_OneMinusYCumDistFunction(List<Double> vals) {
+		DiscretizedFunc normCumDist = getCumDistFunction(vals);
 
-		ArbitrarilyDiscretizedFunc logFunc = getLogXFunction(normCumDist);
+		DiscretizedFunc logFunc = getLogXFunction(normCumDist);
 		oneMinusYFunction(logFunc);
 
 		return logFunc;
 	}
 
-	private double getProbabilityFromLogCumDistFunc(ArbitrarilyDiscretizedFunc logFunc, double iml) {
+	private double getProbabilityFromLogCumDistFunc(DiscretizedFunc logFunc, double iml) {
 		double prob;
 		if(iml < logFunc.getMinX())
 			prob = 1;
@@ -306,7 +306,7 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 			// all zeros
 			return 0d;
 
-		ArbitrarilyDiscretizedFunc logFunc = getLogX_OneMinusYCumDistFunction(imVals);
+		DiscretizedFunc logFunc = getLogX_OneMinusYCumDistFunction(imVals);
 
 		return getProbabilityFromLogCumDistFunc(logFunc, iml);
 	}
@@ -356,7 +356,7 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 			return intensityMeasureLevels;
 		}
 
-		ArbitrarilyDiscretizedFunc logFunc = getLogX_OneMinusYCumDistFunction(imVals);
+		DiscretizedFunc logFunc = getLogX_OneMinusYCumDistFunction(imVals);
 
 		for (int i=0; i<intensityMeasureLevels.size(); i++) {
 			double iml = intensityMeasureLevels.getX(i);

@@ -378,10 +378,14 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		File bbpDir = new File("/data/kevin/bbp/parallel/2020_09_03-rundir4983_stitched-all-m6.5-skipYears65000-noHF-vmLA_BASIN_500-cs500Sites");
 //		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
 		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
-		CyberShakeStudy study = CyberShakeStudy.STUDY_22_1_RSQSIM_4983_SKIP65k_1Hz_CVMH;
-		File bbpDir = new File("/data/kevin/bbp/parallel/2020_09_03-rundir4983_stitched-all-m6.5-skipYears65000-noHF-vmLA_BASIN_500-cs500Sites");
-		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
+////		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_22_1_RSQSIM_4983_SKIP65k_1Hz_CVMH;
+//		File bbpDir = new File("/data/kevin/bbp/parallel/2020_09_03-rundir4983_stitched-all-m6.5-skipYears65000-noHF-vmLA_BASIN_500-cs500Sites");
+//		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
+		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
+		File bbpDir = new File("/data/kevin/bbp/parallel/2022_03_15-rundir5413-all-m6.5-skipYears5000-noHF-vmLA_BASIN_500-cs500Sites");
+		RSQSimCatalog catalog = Catalogs.BRUCE_5413.instance();
 		
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 //		CyberShakeStudy[] compStudies = { CyberShakeStudy.STUDY_15_4 };
@@ -401,7 +405,8 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		boolean includeAleatoryStrip = true;
 		
 //		String[] siteNames = { "USC" };
-		String[] siteNames = { "SBSM" };
+//		String[] siteNames = { "SBSM" };
+		String[] siteNames = { "SBSM", "PAS" };
 //		String[] siteNames = { "SBSM", "LAF", "s022", "STNI", "WNGC", "PDE" };
 //		String[] siteNames = { "USC", "SMCA", "OSI", "WSS", "SBSM",
 //				"LAF", "s022", "STNI", "WNGC", "PDE" };

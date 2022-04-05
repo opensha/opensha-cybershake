@@ -464,8 +464,8 @@ public class Cybershake_OpenSHA_DBApplication {
 		// *** END UCERF2 ***
 		
 		// *** RSQSim ***
-		File localBaseDir = new File("/home/kevin/Simulators/catalogs");
-		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance(localBaseDir);
+//		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
+		RSQSimCatalog catalog = Catalogs.BRUCE_5413.instance();
 		// regular RSQSim ERF
 		double minMag = 6.5;
 		double dt = 0.05;
@@ -473,7 +473,7 @@ public class Cybershake_OpenSHA_DBApplication {
 		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
 				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
 		String erfName = "RSQSim "+catalog.getName()+" M"+(float)minMag;
-		erfName += ", 715kyr, dt="+(float)dt;
+		erfName += ", 240kyr, dt="+(float)dt;
 		Document doc;
 		try {
 			doc = XMLUtils.loadDocument(new File(catalog.getCatalogDir(), "erf_params_"+(float)dt+"s.xml"));
@@ -632,7 +632,7 @@ public class Cybershake_OpenSHA_DBApplication {
 //		sites.add(sites2db.getSiteFromDB(1001));
 //		sites.add(sites2db.getSiteFromDB("s2839"));
 		// site from a previous study
-		for (CybershakeRun run : CyberShakeStudy.STUDY_15_4.runFetcher().fetch())
+		for (CybershakeRun run : CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz.runFetcher().fetch())
 			sites.add(sites2db.getSiteFromDB(run.getSiteID()));
 		System.out.println("Inserting ERF for "+sites.size()+" sites");
 //		System.exit(0);

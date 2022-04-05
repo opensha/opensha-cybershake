@@ -72,7 +72,7 @@ public class StudyHazardMapPageGen {
 	public static void main(String[] args) throws IOException {
 		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
 		double[] periods = { 2d, 3d, 5d, 10d };
 //		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
@@ -84,6 +84,19 @@ public class StudyHazardMapPageGen {
 		SiteData<?>[] siteDatas = { new ThompsonVs30_2020(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
 				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 		Region zoomRegion = null;
+		
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
+//		double[] periods = { 2d, 3d, 5d, 10d };
+////		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
+////		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
+//		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
+//		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+////		ScalarIMR baseMapGMPE = null;
+////		ScalarIMR backgroundGMPE = baseMapGMPE;
+//		ScalarIMR backgroundGMPE = null;
+//		SiteData<?>[] siteDatas = { new ThompsonVs30_2020(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+//				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+//		Region zoomRegion = null;
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
 //		double[] periods = { 2d, 3d, 5d, 10d };

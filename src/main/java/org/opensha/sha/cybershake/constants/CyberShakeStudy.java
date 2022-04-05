@@ -535,6 +535,29 @@ public enum CyberShakeStudy {
 				catalog = RSQSimCatalog.Catalogs.BRUCE_4983_STITCHED.instance();
 			return catalog;
 		}
+	},
+	STUDY_22_3_RSQSIM_5413(cal(2022, 3), 112, "RSQSim 5413",
+			"study_21_12_rsqsim_5413", "RSQSim catalog 5413 (240kyr), 1hz",
+			63, 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return getRSQSimERF("rundir5413");
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forERF(getERF_ID()).hasAmplitudes().unique(false)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+//					.hasHazardCurves(this.getDatasetIDs());
+		}
+		private RSQSimCatalog catalog = null;
+		@Override
+		public synchronized RSQSimCatalog getRSQSimCatalog() {
+			if (catalog == null)
+				catalog = RSQSimCatalog.Catalogs.BRUCE_5413.instance();
+			return catalog;
+		}
 	};
 	
 	public RSQSimCatalog getRSQSimCatalog() {
@@ -760,6 +783,8 @@ public enum CyberShakeStudy {
 			if (!mdFile.exists())
 				continue;
 			String name = subDir.getName();
+			if (name.endsWith(".bak"))
+				continue;
 			if (name.startsWith("gmpe_comparisons_") && name.contains("_Vs30")) {
 				String gmpeName = name.substring("gmpe_comparisons_".length());
 				gmpeName = gmpeName.substring(0, gmpeName.indexOf("_Vs30"));

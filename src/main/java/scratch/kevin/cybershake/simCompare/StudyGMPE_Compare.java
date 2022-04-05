@@ -200,6 +200,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		public void run() {
 			ScalarIMR gmpe = checkOutGMPE(gmpeRef);
 			
+			if (gmpe.getIntensityMeasure() == null)
+				gmpe.setIntensityMeasure(SA_Param.NAME);
 			gmpe.setAll(comp.getGMPERupture(), site, gmpe.getIntensityMeasure());
 //			for (Parameter<?> param : gmpe.getSiteParams())
 //				System.out.println(param.getName()+": "+param.getValue());
@@ -210,6 +212,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			
 			for (IMT imt : imts) {
 				imt.setIMT(gmpe);
+				Preconditions.checkNotNull(gmpe.getIntensityMeasure());
+				Preconditions.checkState(gmpe.getIntensityMeasure().getName().equals(imt.getParamName()));
 				comp.addResult(site, imt, gmpe.getMean(), gmpe.getStdDev());
 			}
 			
@@ -374,14 +378,17 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_20_5_RSQSIM_4983_SKIP65k);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-		studies.add(CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz);
+//		studies.add(CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz);
+//		vs30s.add(Vs30_Source.Simulation);
+		
+		studies.add(CyberShakeStudy.STUDY_22_3_RSQSIM_5413);
 		vs30s.add(Vs30_Source.Simulation);
 		
 		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014; // this one will include highlight sites
-//		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
-//				AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
+		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
+				AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
-		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
+//		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 		
 //		IMT[] imts = { IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 		IMT[] imts = { IMT.PGV, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
@@ -400,10 +407,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 		boolean limitToHighlight = false;
 		
-		boolean replotScatters = true;
-		boolean replotZScores = true;
+		boolean replotScatters = false;
+		boolean replotZScores = false;
 		boolean replotCurves = false;
-		boolean replotResiduals = true;
+		boolean replotResiduals = false;
 		
 		IMT[] rotDIMTs = null;
 		if (rotDPeriods != null) {

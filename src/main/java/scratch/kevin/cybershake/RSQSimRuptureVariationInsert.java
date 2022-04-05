@@ -26,9 +26,9 @@ import scratch.kevin.simulators.ruptures.BBP_PartBValidationConfig.Scenario;
 public class RSQSimRuptureVariationInsert {
 
 	public static void main(String[] args) throws IOException {
-		RSQSimCatalog catalog = Catalogs.BRUCE_4983_STITCHED.instance();
+		RSQSimCatalog catalog = Catalogs.BRUCE_5413.instance();
 		
-		int erfID = 62; // THIS ID MUST MATCH!
+		int erfID = 63; // THIS ID MUST MATCH!
 		double minMag = 6.5;
 		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
 		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,

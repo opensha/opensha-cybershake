@@ -755,6 +755,9 @@ public enum CyberShakeStudy {
 		Map<Vs30_Source, List<String>> gmpeLinksMap = new HashMap<>();
 		Map<Vs30_Source, List<String>> gmpeNamesMap = new HashMap<>();
 		
+		Map<Vs30_Source, List<String>> nonErgodicLinksMap = new HashMap<>();
+		Map<Vs30_Source, List<String>> nonErgodicNamesMap = new HashMap<>();
+		
 		Table<String, Vs30_Source, List<String>> siteHazardLinksTable = HashBasedTable.create();
 		Table<String, Vs30_Source, List<String>> siteHazardNamesTable = HashBasedTable.create();
 		
@@ -799,7 +802,21 @@ public enum CyberShakeStudy {
 				
 				gmpeLinksMap.get(vs30).add(name);
 				gmpeNamesMap.get(vs30).add(gmpeName);
-			} else if (name.equals("rotd_ratio_comparisons")) {
+			} else if (name.startsWith("gmpe_non_ergodic_maps_") && name.contains("_Vs30")) {
+				String gmpeName = name.substring("gmpe_non_ergodic_maps_".length());
+				gmpeName = gmpeName.substring(0, gmpeName.indexOf("_Vs30"));
+				String vs30Name = name.substring(name.indexOf("_Vs30")+5);
+				Vs30_Source vs30 = Vs30_Source.valueOf(vs30Name);
+				Preconditions.checkNotNull(vs30);
+				
+				if (!nonErgodicLinksMap.containsKey(vs30)) {
+					nonErgodicLinksMap.put(vs30, new ArrayList<>());
+					nonErgodicNamesMap.put(vs30, new ArrayList<>());
+				}
+				
+				nonErgodicLinksMap.get(vs30).add(name);
+				nonErgodicNamesMap.get(vs30).add(gmpeName);
+			}else if (name.equals("rotd_ratio_comparisons")) {
 				Preconditions.checkState(rotDDLink == null, "Duplicate RotDD dirs! %s and %s", name, rotDDLink);
 				rotDDLink = name;
 			} else if (name.startsWith("site_hazard_")) {
@@ -858,7 +875,7 @@ public enum CyberShakeStudy {
 			lines.add("");
 			lines.add("[Background Seismicity Hazard Maps Plotted Here]("+bgHazardMapLink+"/)");
 		}
-		
+
 		if (!gmpeLinksMap.isEmpty()) {
 			lines.add("");
 			lines.add("## GMPE Comparisons");
@@ -871,6 +888,23 @@ public enum CyberShakeStudy {
 				}
 				List<String> gmpeNames = gmpeNamesMap.get(vs30);
 				List<String> gmpeLinks = gmpeLinksMap.get(vs30);
+				
+				for (int i=0; i<gmpeNames.size(); i++)
+					lines.add("* ["+gmpeNames.get(i)+"]("+gmpeLinks.get(i)+"/)");
+			}
+		}
+		if (!nonErgodicLinksMap.isEmpty()) {
+			lines.add("");
+			lines.add("## GMPE Non-Ergodic Map Comparisons");
+			lines.add(topLink);
+			lines.add("");
+			for (Vs30_Source vs30 : nonErgodicLinksMap.keySet()) {
+				if (gmpeLinksMap.keySet().size() > 1) {
+					lines.add("### Vs30 model for GMPE comparisons: "+vs30);
+					lines.add("");
+				}
+				List<String> gmpeNames = nonErgodicNamesMap.get(vs30);
+				List<String> gmpeLinks = nonErgodicLinksMap.get(vs30);
 				
 				for (int i=0; i<gmpeNames.size(); i++)
 					lines.add("* ["+gmpeNames.get(i)+"]("+gmpeLinks.get(i)+"/)");

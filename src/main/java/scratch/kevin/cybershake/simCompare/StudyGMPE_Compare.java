@@ -30,12 +30,15 @@ import org.opensha.sha.cybershake.db.ERF2DB;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.EqkRupture;
 import org.opensha.sha.earthquake.ProbEqkRupture;
+import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.faultSurface.FaultTrace;
 import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
 import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 import org.opensha.sha.imr.param.SiteParams.Vs30_Param;
+import org.opensha.sha.simulators.RSQSimEvent;
+import org.opensha.sha.simulators.utils.RSQSimSubSectEqkRupture;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -47,7 +50,9 @@ import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.MultiRupGMPE_ComparePageGen;
 import scratch.kevin.simCompare.RuptureComparison;
 import scratch.kevin.simCompare.SimulationRotDProvider;
+import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
+import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
 import scratch.kevin.simulators.ruptures.RSQSimBBP_Config;
 
 public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
@@ -402,8 +407,9 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		double[] rotDPeriods = null;
 //		double minMag = 6;
 		
-		boolean doGMPE = true;
+		boolean doGMPE = false;
 		boolean doRotD = false;
+		boolean doNonErgodicMaps = true;
 		
 		boolean limitToHighlight = false;
 		
@@ -460,8 +466,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 				limitSiteNames = null;
 			
 			IMT[] calcIMTs = null;
-			Preconditions.checkState(doGMPE || doRotD);
-			if (doGMPE)
+			Preconditions.checkState(doGMPE || doRotD | doNonErgodicMaps);
+			if (doGMPE || doNonErgodicMaps)
 				calcIMTs = imts;
 			if (doRotD) {
 				if (calcIMTs == null) {
@@ -487,6 +493,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			erf.updateForecast();
 			
 			System.out.println("Calc IMTs: "+Joiner.on(",").join(calcIMTs));
+			
+			List<? extends FaultSection> subSects = null;
+			Map<CSRupture, List<FaultSection>> rupSectMappings = null;
+			Map<CSRupture, FaultSection> rupSectNucleations = null;
 			
 			try {
 				StudyGMPE_Compare comp = new StudyGMPE_Compare(study, erf, db, ampsCacheDir, calcIMTs,
@@ -552,6 +562,41 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 						File catalogGMPEDir = new File(studyDir, "gmpe_comparisons_"+gmpeRef.getShortName()+"_Vs30"+vs30Source.name());
 						Preconditions.checkState(catalogGMPEDir.exists() || catalogGMPEDir.mkdir());
 						comp.generateGMPE_page(catalogGMPEDir, gmpeRef, imts, comps);
+					}
+					
+					if (doNonErgodicMaps && study.getRSQSimCatalog() != null) {
+						RSQSimCatalog catalog = study.getRSQSimCatalog();
+						Map<Integer, RSQSimEvent> idEventMappings = new HashMap<>();
+						for (RSQSimEvent event : catalog.loader().minMag(6.4d).load())
+							idEventMappings.put(event.getID(), event);
+						if (subSects == null) {
+							subSects = catalog.getU3SubSects();
+							Preconditions.checkState(erf instanceof RSQSimSectBundledERF);
+							RSQSimSectBundledERF rsERF = (RSQSimSectBundledERF)erf;
+							rupSectMappings = new HashMap<>();
+							rupSectNucleations = new HashMap<>();
+							for (Site site : comp.sites) {
+								for (CSRupture rup : comp.prov.getRupturesForSite(site)) {
+									if (!rupSectMappings.containsKey(rup)) {
+										RSQSimProbEqkRup rsRup = rsERF.getRupture(rup.getSourceID(), rup.getRupID());
+										int eventID = rsRup.getEventID();
+										RSQSimEvent event = idEventMappings.get(eventID);
+										Preconditions.checkNotNull(event, "Event %s not loaded, check minimum mag above", eventID);
+										RSQSimSubSectEqkRupture mappedRup = catalog.getMappedSubSectRupture(event);
+										rupSectMappings.put(rup, new ArrayList<>(mappedRup.getSubSections()));
+										rupSectNucleations.put(rup, mappedRup.getNucleationSection());
+									}
+								}
+							}
+						}
+						
+						String dirname = "gmpe_non_ergodic_maps_"+gmpeRef.getShortName()+"_Vs30"+vs30Source.name();
+						File catalogGMPEDir = new File(studyDir, dirname);
+						Preconditions.checkState(catalogGMPEDir.exists() || catalogGMPEDir.mkdir());
+						
+						comp.generateNonErgodicMapPage(catalogGMPEDir, null, subSects, study.getRegion(),
+								bufferRegion(study.getRegion(), 200d), gmpeRef, comps, rupSectMappings,
+								rupSectNucleations, imts, comp.highlightSites);
 					}
 					
 					if (doRotD && gmpeRef == primaryGMPE) {

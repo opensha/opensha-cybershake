@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 import org.opensha.commons.data.CSVFile;
@@ -143,7 +144,7 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 		return Doubles.asList(runVals[srcId][rupId]);
 	}
 	
-	public synchronized double[][][] getAllIM_Values(int runID, CybershakeIM im) throws SQLException {
+	public double[][][] getAllIM_Values(int runID, CybershakeIM im) throws SQLException {
 		try {
 			return cache.get(new CacheKey(runID, im));
 		} catch (ExecutionException e) {
@@ -151,40 +152,47 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 		}
 	}
 	
-	private synchronized double[][][] loadAllIM_Values(int runID, CybershakeIM im) throws SQLException {
+	private static final int MAX_SIMULTANEOUS_FILE_LOADS = 10;
+	private static final Semaphore fileLoadSemaphore = new Semaphore(MAX_SIMULTANEOUS_FILE_LOADS);
+	
+	private double[][][] loadAllIM_Values(int runID, CybershakeIM im) throws SQLException {
 		double[][][] vals;
 		File cacheFile = getCacheFile(runID, im);
 		if (cacheFile != null && cacheFile.exists()) {
 			try {
+				fileLoadSemaphore.acquire();
 				vals = loadCacheFile(cacheFile);
-			} catch (IOException e) {
+				fileLoadSemaphore.release();
+			} catch (IOException | InterruptedException e) {
 				throw ExceptionUtils.asRuntimeException(e);
 			}
 		} else {
-			// need to get it from the db
-			int tries = 3;
-			vals = null;
-			SQLException ex = null;
-			while (tries >= 0 && vals == null) {
-				try {
-					vals = loadAmpsFromDB(runID, im);
-				} catch (SQLException e) {
-					ex = e;
+			synchronized (this) {
+				// need to get it from the db
+				int tries = 3;
+				vals = null;
+				SQLException ex = null;
+				while (tries >= 0 && vals == null) {
 					try {
-						Thread.sleep(200);
-					} catch (InterruptedException e1) {}
+						vals = loadAmpsFromDB(runID, im);
+					} catch (SQLException e) {
+						ex = e;
+						try {
+							Thread.sleep(200);
+						} catch (InterruptedException e1) {}
+					}
+					tries--;
 				}
-				tries--;
-			}
-			if (vals == null) {
-				System.out.println("Cache failed after 3 tries!");
-				throw ex;
-			}
-			if (cacheFile != null) {
-				try {
-					writeCacheFile(vals, cacheFile);
-				} catch (IOException e) {
-					throw ExceptionUtils.asRuntimeException(e);
+				if (vals == null) {
+					System.out.println("Cache failed after 3 tries!");
+					throw ex;
+				}
+				if (cacheFile != null) {
+					try {
+						writeCacheFile(vals, cacheFile);
+					} catch (IOException e) {
+						throw ExceptionUtils.asRuntimeException(e);
+					}
 				}
 			}
 		}

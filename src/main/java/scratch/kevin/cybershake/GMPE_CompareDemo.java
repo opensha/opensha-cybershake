@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
+import org.opensha.commons.param.Parameter;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
@@ -43,9 +44,11 @@ public class GMPE_CompareDemo {
 		
 		// get cybershake run IDs for study
 		List<CybershakeRun> runs = study.runFetcher().fetch();
+		System.out.println("Fetched "+runs.size()+" runs");
 		
 		// get site list, this also sets Vs30 and basin depth values in each site for use with the GMPEs
 		List<Site> sites = CyberShakeSiteBuilder.buildSites(study, Vs30_Source.Simulation, runs);
+		System.out.println("Built "+sites.size()+" sites");
 		
 		List<String> header = new ArrayList<>();
 		header.add("Source ID");
@@ -57,6 +60,9 @@ public class GMPE_CompareDemo {
 		}
 		
 		for (Site site : sites) {
+			System.out.println("Processing site "+site.getName());
+			for (Parameter<?> siteParam : site)
+				System.out.println("\t"+siteParam.getName()+":\t"+siteParam.getValue());
 			gmpe.setSite(site);
 			
 			CSVFile<String> csv = new CSVFile<>(true);
@@ -86,7 +92,9 @@ public class GMPE_CompareDemo {
 					csv.addLine(line);
 				}
 			}
-			csv.writeToFile(new File(outputDir, site.getName()+".csv"));
+			File outputFile = new File(outputDir, site.getName()+".csv");
+			System.out.println("\twriting to "+outputFile.getAbsolutePath());
+			csv.writeToFile(outputFile);
 		}
 	}
 

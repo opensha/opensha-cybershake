@@ -96,6 +96,9 @@ public class GMPE_CompareDemo {
 			System.out.println("\twriting to "+outputFile.getAbsolutePath());
 			csv.writeToFile(outputFile);
 		}
+		System.out.println("DONE");
+		study.getDB().destroy();
+		System.exit(0);
 	}
 
 }

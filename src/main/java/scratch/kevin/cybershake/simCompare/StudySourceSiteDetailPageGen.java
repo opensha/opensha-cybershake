@@ -187,7 +187,8 @@ public class StudySourceSiteDetailPageGen extends SourceSiteDetailPageGen {
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457;
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
-		CyberShakeStudy study = CyberShakeStudy.STUDY_20_5_RSQSIM_4983;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_20_5_RSQSIM_4983;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
 		RSQSimCatalog catalog = study.getRSQSimCatalog();
 		
 //		String sourceName = "San Jacinto (Northern)";

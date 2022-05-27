@@ -81,13 +81,14 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
 		
 		// RSQSim
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_PROTOTYPE_2457;
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_4_RSQSIM_2585;
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_18_9_RSQSIM_2740;
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_20_5_RSQSIM_4983;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
 		
 		List<String> sourceNames = new ArrayList<>();
 		List<int[]> parentIDs = new ArrayList<>();

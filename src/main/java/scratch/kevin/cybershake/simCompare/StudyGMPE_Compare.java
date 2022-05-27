@@ -452,12 +452,12 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 				highlightSiteNames.add("STNI");
 //				highlightSiteNames.add("FIL");
 				highlightSiteNames.add("OSI");
-				highlightSiteNames.add("SMCA");
-				highlightSiteNames.add("LAF");
-				highlightSiteNames.add("WSS");
-				highlightSiteNames.add("PDE");
-				highlightSiteNames.add("s022");
-				highlightSiteNames.add("s119");
+//				highlightSiteNames.add("SMCA");
+//				highlightSiteNames.add("LAF");
+//				highlightSiteNames.add("WSS");
+//				highlightSiteNames.add("PDE");
+//				highlightSiteNames.add("s022");
+//				highlightSiteNames.add("s119");
 			}
 			HashSet<String> limitSiteNames;
 			if (limitToHighlight)

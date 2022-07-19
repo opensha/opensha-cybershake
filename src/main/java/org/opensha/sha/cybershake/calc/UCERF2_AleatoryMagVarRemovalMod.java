@@ -205,7 +205,7 @@ public class UCERF2_AleatoryMagVarRemovalMod implements RuptureProbabilityModifi
 				List<String> line = Lists.newArrayList(sourceID+"", rupID+"", type, (float)area+"", (float)len+"", (float)ddw+"", (float)mag+"");
 				
 				for (ScalingRelationships scalar : scalars) {
-					double scalarMag = scalar.getMag(area * 1000000, ddw * 1000, rup.getAveRake()); // in S-I units
+					double scalarMag = scalar.getMag(area * 1e6, len * 1e3, ddw * 1e3, ddw * 1e3, rup.getAveRake()); // in S-I units
 					
 					line.add((float)scalarMag+"");
 				}

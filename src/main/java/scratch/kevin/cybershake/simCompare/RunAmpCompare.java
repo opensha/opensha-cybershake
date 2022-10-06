@@ -5,6 +5,7 @@ import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,6 +16,7 @@ import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.function.DefaultXY_DataSet;
 import org.opensha.commons.data.function.EvenlyDiscretizedFunc;
 import org.opensha.commons.data.function.XY_DataSet;
+import org.opensha.commons.geo.Location;
 import org.opensha.commons.gui.plot.GraphWindow;
 import org.opensha.commons.gui.plot.HeadlessGraphPanel;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
@@ -31,6 +33,8 @@ import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.Runs2DB;
 import org.opensha.sha.cybershake.db.SiteInfo2DB;
+import org.opensha.sha.earthquake.AbstractERF;
+import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 
 import com.google.common.base.Preconditions;
@@ -61,28 +65,45 @@ public class RunAmpCompare {
 //		int runID1 = 7052;
 //		int runID2 = 7218;
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
-		int runID1 = 3837; // 0.5hz
-		int runID2 = 3842; // 1hz
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+//		int runID1 = 3837; // 0.5hz
+//		int runID2 = 3842; // 1hz
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
 //		int runID1 = 7237; // 0.5hz
 //		int runID2 = 7236; // 1hz
 		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8; // just needs to be U2 and production
+		int runID1 = 4293; // 0.5hz
+		int runID2 = 8686; // 1hz
+		
 //		File outputDir = new File("/home/kevin/CyberShake/rotation_debug");
-		File outputDir = new File("/tmp/cs_old_1hz");
+//		File outputDir = new File("/tmp/cs_old_1hz");
+		File outputDir = new File("/tmp/cs_debug");
+		
+//		Range distRange = null;
+//		Range magRange = null;
+		Range distRange = new Range(0d, 70d);
+		Range magRange = new Range(6d, 7d);
+		
+		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
 		
 //		CybershakeIM[] ims = {
 //				CybershakeIM.getSA(CyberShakeComponent.RotD100, 3d),
 //		};
 		CybershakeIM[] ims = {
-//				CybershakeIM.getSA(CyberShakeComponent.RotD50, 3d),
-//				CybershakeIM.getSA(CyberShakeComponent.RotD50, 5d),
-//				CybershakeIM.getSA(CyberShakeComponent.RotD50, 10d)
-				CybershakeIM.getSA(CyberShakeComponent.GEOM_MEAN, 3d),
-				CybershakeIM.getSA(CyberShakeComponent.GEOM_MEAN, 5d),
-				CybershakeIM.getSA(CyberShakeComponent.GEOM_MEAN, 10d)
+				CybershakeIM.getSA(CyberShakeComponent.RotD50, 2d),
+				CybershakeIM.getSA(CyberShakeComponent.RotD50, 3d),
+				CybershakeIM.getSA(CyberShakeComponent.RotD50, 5d),
+				CybershakeIM.getSA(CyberShakeComponent.RotD50, 10d)
+//				CybershakeIM.getSA(CyberShakeComponent.GEOM_MEAN, 3d),
+//				CybershakeIM.getSA(CyberShakeComponent.GEOM_MEAN, 5d),
+//				CybershakeIM.getSA(CyberShakeComponent.GEOM_MEAN, 10d)
 		};
+		
+		// if true, we average across all RVs instead of comparing them directly
+		// needs to be true if the rupture generators are different
+		boolean averageAcrossRVs = true;
 		
 		CSVFile<String> csv = new CSVFile<>(true);
 		List<String> header = new ArrayList<>();
@@ -101,10 +122,23 @@ public class RunAmpCompare {
 		String siteName = new SiteInfo2DB(db).getSiteFromDB(run1.getSiteID()).short_name;
 		String prefix = siteName+"_"+runID2+"_vs_"+runID1;
 		
+		DecimalFormat oDF = new DecimalFormat("0.##");
+		if (magRange != null)
+			prefix += "_m"+oDF.format(magRange.getLowerBound())+"_"+oDF.format(magRange.getUpperBound());
+		if (distRange != null)
+			prefix += "_r"+oDF.format(distRange.getLowerBound())+"_"+oDF.format(distRange.getUpperBound());
+		
 		Preconditions.checkNotNull(run1);
 		Preconditions.checkNotNull(run2);
 		
 		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(db, null, study.getERF());
+		
+		AbstractERF erf = null;
+		if (magRange != null || distRange != null)
+			erf = study.getERF();
+		Location siteLoc = null;
+		if (distRange != null)
+			siteLoc = new SiteInfo2DB(db).getLocationForSiteID(run1.getSiteID());
 		
 		for (CybershakeIM im : ims) {
 			double[][][] amps1;
@@ -163,12 +197,31 @@ public class RunAmpCompare {
 								sourceID, rupID, runID1, amps2[sourceID][rupID] == null ? 0 : amps2[sourceID][rupID].length, runID2);
 						continue;
 					}
-					Preconditions.checkArgument(amps1[sourceID][rupID].length == amps2[sourceID][rupID].length,
-							"run %s has %s rups for source %s, but %s has %s",
-							runID1, amps1[sourceID][rupID].length, sourceID, runID2, amps2[sourceID][rupID].length);
-					for (int rvID=0; rvID<amps1[sourceID][rupID].length; rvID++) {
-						double v1 = amps1[sourceID][rupID][rvID];
-						double v2 = amps2[sourceID][rupID][rvID];
+					if (magRange != null) {
+						double mag = erf.getRupture(sourceID, rupID).getMag();
+						if (!magRange.contains(mag))
+							continue;
+					}
+					if (magRange != null) {
+						RuptureSurface surf = erf.getRupture(sourceID, rupID).getRuptureSurface();
+						double dist = surf.getDistanceRup(siteLoc);
+						if (!distRange.contains(dist))
+							continue;
+					}
+					double[] rvVals1, rvVals2;
+					if (averageAcrossRVs) {
+						rvVals1 = new double[] {StatUtils.mean(amps1[sourceID][rupID])};
+						rvVals2 = new double[] {StatUtils.mean(amps2[sourceID][rupID])};
+					} else {
+						rvVals1 = amps1[sourceID][rupID];
+						rvVals2 = amps2[sourceID][rupID];
+					}
+					Preconditions.checkArgument(rvVals1.length == rvVals2.length,
+							"run %s has %s rups for source %s rup %s, but %s has %s",
+							runID1, rvVals1.length, sourceID, rupID, runID2, rvVals2.length);
+					for (int rvID=0; rvID<rvVals1.length; rvID++) {
+						double v1 = rvVals1[rvID];
+						double v2 = rvVals2[rvID];
 						v1 /= HazardCurveComputation.CONVERSION_TO_G;
 						v2 /= HazardCurveComputation.CONVERSION_TO_G;
 						scatter.set(Math.log(v1), Math.log(v2));
@@ -265,7 +318,19 @@ public class RunAmpCompare {
 			List<XY_DataSet> funcs = new ArrayList<>();
 			List<PlotCurveCharacterstics> chars = new ArrayList<>();
 			
-			Color ptColor = new Color(0, 0, 0, 40);
+			int numPts = scatter.size();
+			int ptAlpha;
+			if (numPts > 100000)
+				ptAlpha = 40;
+			else if (numPts > 50000)
+				ptAlpha = 60;
+			else if (numPts > 10000)
+				ptAlpha = 80;
+			else if (numPts > 5000)
+				ptAlpha = 100;
+			else
+				ptAlpha = 127;
+			Color ptColor = new Color(0, 0, 0, ptAlpha);
 			Color avgColor = new Color(0, 255, 0, 127);
 			
 			funcs.add(scatter);

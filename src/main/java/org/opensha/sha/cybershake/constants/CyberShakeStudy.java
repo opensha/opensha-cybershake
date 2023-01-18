@@ -558,6 +558,42 @@ public enum CyberShakeStudy {
 				catalog = RSQSimCatalog.Catalogs.BRUCE_5413.instance();
 			return catalog;
 		}
+	},
+	STUDY_22_12_LF(cal(2022, 12), 115, "Study 22.12 LF", "study_22_12_lf",
+			"Southern California with the Graves and Pitarka (2022) rupture generator (0-1 Hz).",
+			36, 13,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return MeanUCERF2_ToDB.createUCERF2ERF();
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).noTestSites().unique(true)
+					// TODO switch back to verified
+//					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED).hasMeshVsitop();
+					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasMeshVsitop();
+		}
+	},
+	STUDY_22_12_HF(cal(2022, 12), 116, "Study 22.12 HF", "study_22_12_hf",
+			"Southern California with stochastic high frequency simulations added (1-50 Hz) using SCEC Broadband "
+			+ "Platform v22.4",
+			36, 13,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return MeanUCERF2_ToDB.createUCERF2ERF();
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			// TODO switch back to verified?
+			// TODO require Vsitop?
+			return new RunIDFetcher(this.getDB()).noTestSites().unique(true)
+//					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED)();
+					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null);
+		}
 	};
 	
 	public RSQSimCatalog getRSQSimCatalog() {

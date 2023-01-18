@@ -334,35 +334,35 @@ public class RunIDFetcher {
 		
 ////		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
-////		for (CyberShakeStudy study : CyberShakeStudy.values()) {
-//			System.out.println(study.getName());
-//			RunIDFetcher fetch = study.runFetcher();
-//			System.out.println(fetch.buildSelectSQL());
-//			System.out.println(fetch.fetch().size()+" runs");
-//			System.out.println();
-////		}
+		for (CyberShakeStudy study : CyberShakeStudy.values()) {
+			System.out.println(study.getName());
+			RunIDFetcher fetch = study.runFetcher();
+			System.out.println(fetch.buildSelectSQL());
+			System.out.println(fetch.fetch().size()+" runs");
+			System.out.println();
+		}
+		
+		for (CyberShakeStudy study : CyberShakeStudy.values())
+			study.getDB().destroy();
+		
+//		CyberShakeStudy study1 = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
+//		CyberShakeStudy study2 = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
 //		
-////		for (CyberShakeStudy study : CyberShakeStudy.values())
-//			study.getDB().destroy();
-		
-		CyberShakeStudy study1 = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
-		CyberShakeStudy study2 = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
-		
-		HashSet<Integer> ids1 = new HashSet<>();
-		for (CybershakeRun siteRun : study1.runFetcher().fetch())
-			ids1.add(siteRun.getSiteID());
-		HashSet<Integer> ids2 = new HashSet<>();
-		for (CybershakeRun siteRun : study2.runFetcher().fetch())
-			ids2.add(siteRun.getSiteID());
-		for (Integer id : ids1)
-			if (!ids2.contains(id))
-				System.out.println(study1.getName()+" has site "+id+" but "+study2.getName()+" doesn't");
-		for (Integer id : ids2)
-			if (!ids1.contains(id))
-				System.out.println(study2.getName()+" has site "+id+" but "+study1.getName()+" doesn't");
-		
-		study1.getDB().destroy();
-		study2.getDB().destroy();
+//		HashSet<Integer> ids1 = new HashSet<>();
+//		for (CybershakeRun siteRun : study1.runFetcher().fetch())
+//			ids1.add(siteRun.getSiteID());
+//		HashSet<Integer> ids2 = new HashSet<>();
+//		for (CybershakeRun siteRun : study2.runFetcher().fetch())
+//			ids2.add(siteRun.getSiteID());
+//		for (Integer id : ids1)
+//			if (!ids2.contains(id))
+//				System.out.println(study1.getName()+" has site "+id+" but "+study2.getName()+" doesn't");
+//		for (Integer id : ids2)
+//			if (!ids1.contains(id))
+//				System.out.println(study2.getName()+" has site "+id+" but "+study1.getName()+" doesn't");
+//		
+//		study1.getDB().destroy();
+//		study2.getDB().destroy();
 	}
 
 }

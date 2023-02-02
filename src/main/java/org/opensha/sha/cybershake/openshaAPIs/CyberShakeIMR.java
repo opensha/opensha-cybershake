@@ -10,6 +10,7 @@ import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbDiscrEmpiricalDistFunc;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
+import org.opensha.commons.data.function.LightFixedXFunc;
 import org.opensha.commons.exceptions.IMRException;
 import org.opensha.commons.exceptions.ParameterException;
 import org.opensha.commons.param.ParameterList;
@@ -219,17 +220,17 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 	 * @param vals
 	 * @return
 	 */
-
 	private DiscretizedFunc getCumDistFunction(List<Double> vals) {
-		ArbDiscrEmpiricalDistFunc function = new ArbDiscrEmpiricalDistFunc();
-
-		for (double val : vals) {
-			function.set(val,1);
-		}
-
-		DiscretizedFunc normCumDist = function.getNormalizedCumDist();
-
-		return normCumDist;
+		return ArbDiscrEmpiricalDistFunc.calcQuickNormCDF(vals, null);
+//		ArbDiscrEmpiricalDistFunc function = new ArbDiscrEmpiricalDistFunc();
+//
+//		for (double val : vals) {
+//			function.set(val,1);
+//		}
+//
+//		DiscretizedFunc normCumDist = function.getNormalizedCumDist();
+//
+//		return normCumDist;
 	}
 
 	/**
@@ -238,14 +239,15 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 	 * @param func
 	 * @return
 	 */
-	private ArbitrarilyDiscretizedFunc getLogXFunction(DiscretizedFunc func) {
-		ArbitrarilyDiscretizedFunc logFunc = new ArbitrarilyDiscretizedFunc();
-
+	private DiscretizedFunc getLogXFunction(DiscretizedFunc func) {
+		double[] xVals = new double[func.size()];
+		double[] yVals = new double[xVals.length];
 		for (int i=0; i<func.size(); i++) {
-			logFunc.set(Math.log(func.getX(i)), func.getY(i));
+			xVals[i] = Math.log(func.getX(i));
+			yVals[i] = func.getY(i);
 		}
 
-		return logFunc;
+		return new LightFixedXFunc(xVals, yVals);
 	}
 
 	private void oneMinusYFunction(DiscretizedFunc func) {

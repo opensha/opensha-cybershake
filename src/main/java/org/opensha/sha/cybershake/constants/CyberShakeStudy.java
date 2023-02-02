@@ -570,7 +570,7 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			return new RunIDFetcher(this.getDB()).noTestSites().unique(true)
+			return new RunIDFetcher(this.getDB()).noTestSites().unique(false)
 					// TODO switch back to verified
 //					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED).hasMeshVsitop();
 					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasMeshVsitop();
@@ -590,7 +590,7 @@ public enum CyberShakeStudy {
 		public RunIDFetcher runFetcher() {
 			// TODO switch back to verified?
 			// TODO require Vsitop?
-			return new RunIDFetcher(this.getDB()).noTestSites().unique(true)
+			return new RunIDFetcher(this.getDB()).noTestSites().unique(false)
 //					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED)();
 					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null);
 		}

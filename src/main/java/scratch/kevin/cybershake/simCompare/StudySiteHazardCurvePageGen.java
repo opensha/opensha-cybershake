@@ -417,7 +417,8 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		String[] siteNames = { "LAPD" };
 //		String[] siteNames = { "SMCA" };
 //		String[] siteNames = { "PAS" };
-		String[] siteNames = { "GAVI", "LBP", "PAS" };
+//		String[] siteNames = { "GAVI", "LBP", "PAS" };
+		String[] siteNames = { "LBP" };
 		
 		if (args.length > 0) {
 			System.out.println("assuming command line arguments are site names");
@@ -426,8 +427,8 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		
 		boolean sourceFractional = true;
 		
-		boolean replotCurves = false;
-		boolean replotDisaggs = false;
+		boolean replotCurves = true;
+		boolean replotDisaggs = true;
 		
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };

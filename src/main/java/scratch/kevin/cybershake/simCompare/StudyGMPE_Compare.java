@@ -102,6 +102,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			for (Site site : sites)
 				if (highlightSiteNames.contains(site.getName()))
 					highlightSites.add(site);
+			System.out.println("Matched "+highlightSites.size()+"/"+highlightSiteNames.size()+" highlight site names to sites");
 		}
 		
 		prov = new StudyRotDProvider(study, amps2db, imts, study.getName());
@@ -386,17 +387,21 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-		studies.add(CyberShakeStudy.STUDY_22_3_RSQSIM_5413);
+//		studies.add(CyberShakeStudy.STUDY_22_3_RSQSIM_5413);
+//		vs30s.add(Vs30_Source.Simulation);
+		
+		studies.add(CyberShakeStudy.STUDY_22_12_HF);
 		vs30s.add(Vs30_Source.Simulation);
 		
 		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014; // this one will include highlight sites
-		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
-				AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
+//		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
+//				AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
-//		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
+		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 		
 //		IMT[] imts = { IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
-		IMT[] imts = { IMT.PGV, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
+//		IMT[] imts = { IMT.PGV, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
+		IMT[] imts = { IMT.SA0P1, IMT.SA0P2, IMT.SA0P5, IMT.SA1P0, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 		double[] rotDPeriods = { 3, 5, 10 };
 		double minMag = 6;
 		
@@ -407,16 +412,16 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		double[] rotDPeriods = null;
 //		double minMag = 6;
 		
-		boolean doGMPE = false;
+		boolean doGMPE = true;
 		boolean doRotD = false;
-		boolean doNonErgodicMaps = true;
+		boolean doNonErgodicMaps = false;
 		
 		boolean limitToHighlight = false;
 		
-		boolean replotScatters = false;
-		boolean replotZScores = false;
-		boolean replotCurves = false;
-		boolean replotResiduals = false;
+		boolean replotScatters = true;
+		boolean replotZScores = true;
+		boolean replotCurves = true;
+		boolean replotResiduals = true;
 		
 		IMT[] rotDIMTs = null;
 		if (rotDPeriods != null) {
@@ -458,6 +463,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //				highlightSiteNames.add("PDE");
 //				highlightSiteNames.add("s022");
 //				highlightSiteNames.add("s119");
+				highlightSiteNames.add("GAVI");
+				highlightSiteNames.add("LBP");
 			}
 			HashSet<String> limitSiteNames;
 			if (limitToHighlight)

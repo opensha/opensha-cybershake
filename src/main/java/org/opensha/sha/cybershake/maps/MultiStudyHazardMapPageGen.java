@@ -63,9 +63,10 @@ public class MultiStudyHazardMapPageGen {
 //				CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz
 //		};
 		CyberShakeStudy[] studies = {
-//				CyberShakeStudy.STUDY_15_4,
-				CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz,
-				CyberShakeStudy.STUDY_22_3_RSQSIM_5413
+				CyberShakeStudy.STUDY_15_4,
+//				CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz,
+//				CyberShakeStudy.STUDY_22_3_RSQSIM_5413
+				CyberShakeStudy.STUDY_22_12_LF
 		};
 		
 		double[] periods = { 2d, 3d, 5d, 10d };

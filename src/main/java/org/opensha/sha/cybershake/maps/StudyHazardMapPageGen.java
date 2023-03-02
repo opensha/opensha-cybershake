@@ -72,7 +72,8 @@ public class StudyHazardMapPageGen {
 	public static void main(String[] args) throws IOException {
 		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
+		int vmOverride = 5;
 		double[] periods = { 2d, 3d, 5d, 10d };
 //		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
@@ -356,9 +357,10 @@ public class StudyHazardMapPageGen {
 								if (baseMapGMPE != null) {
 									// load the basemap
 									System.out.println("Loading basemap");
+									int vmID = vmOverride > 0 ? vmOverride : study.getVelocityModelID();;
 									baseMap = HardCodedInterpDiffMapCreator.loadBaseMap(
 											baseMapGMPE, isProbAt_IML, probLevel, study.getERF_ID(),
-											study.getVelocityModelID(),im.getID(), region);
+											vmID, im.getID(), region);
 								}
 								if (fetch == null) {
 									fetch = new HazardCurveFetcher(study.getDB(), runs, dsIDs, im.getID());

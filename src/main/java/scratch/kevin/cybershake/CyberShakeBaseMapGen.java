@@ -171,6 +171,7 @@ public class CyberShakeBaseMapGen {
 			boolean added = false;
 			try {
 				int cvmID = Integer.parseInt(cvmName);
+				System.out.println("Adding basin providers by CVM ID="+cvmID);
 				OrderedSiteDataProviderList list = CyberShakeSiteBuilder.getMapBasinProviders(cvmID);
 				for (SiteData<?> prov : list) {
 					provs.add(prov);

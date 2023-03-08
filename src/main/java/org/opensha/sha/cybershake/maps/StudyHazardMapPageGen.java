@@ -377,7 +377,7 @@ public class StudyHazardMapPageGen {
 								if (period >= 10d)
 									cptMax = 0.4d;
 								else if (period >= 5d)
-									cptMax = 0.6d;
+									cptMax = 0.4d;
 								else
 									cptMax = 1d;
 								

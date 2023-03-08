@@ -168,13 +168,17 @@ public class CyberShakeBaseMapGen {
 			nullBasin = true;
 		} else {
 			// see if it's an ID number
+			boolean added = false;
 			try {
 				int cvmID = Integer.parseInt(cvmName);
 				OrderedSiteDataProviderList list = CyberShakeSiteBuilder.getMapBasinProviders(cvmID);
-				for (SiteData<?> prov : list)
+				for (SiteData<?> prov : list) {
 					provs.add(prov);
+					added = true;
+				}
 			} catch (NumberFormatException e) {}
-			System.err.println("Unknown basin model: "+cvmName);
+			if (!added)
+				System.err.println("Unknown basin model: "+cvmName);
 		}
 		
 		ArrayList<Site> sites = HazusJobWriter.loadSites(provs, region.getNodeList(), imrs, nullBasin, constrainBasinMin, null);

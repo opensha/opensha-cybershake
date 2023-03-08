@@ -13,6 +13,7 @@ import org.opensha.commons.data.siteData.SiteDataValueList;
 import org.opensha.commons.data.siteData.impl.CS_Study18_8_BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
+import org.opensha.commons.data.siteData.impl.CVM4i26_M01_TaperBasinDepth;
 import org.opensha.commons.data.siteData.impl.CVMHBasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
 import org.opensha.commons.data.siteData.impl.ConstantValueDataProvider;
@@ -389,6 +390,20 @@ public class CyberShakeSiteBuilder {
 				/*		CVM4i26 Depth to 1.0					 */
 				try {
 					providers.add(new CachedSiteDataWrapper<Double>(new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0)));
+				} catch (IOException e) {
+					ExceptionUtils.throwAsRuntimeException(e);
+				}
+			} else if (velModelID == CybershakeVelocityModel.Models.CVM_S4_26_M01_TAPER.getID()) {
+				/*		CVM4i26 Depth to 2.5					 */
+				try {
+					providers.add(new CachedSiteDataWrapper<Double>(new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
+				} catch (IOException e) {
+					ExceptionUtils.throwAsRuntimeException(e);
+				}
+
+				/*		CVM4i26 Depth to 1.0					 */
+				try {
+					providers.add(new CachedSiteDataWrapper<Double>(new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_1_0)));
 				} catch (IOException e) {
 					ExceptionUtils.throwAsRuntimeException(e);
 				}

@@ -17,7 +17,8 @@ public class CybershakeVelocityModel {
 		BBP_1D(8, "BBP 1D", "13.9.0"),
 		CCA_1D(9, "CCA 1D", "1.0"),
 		CCA_06(10, "CCA", "iteration 6"),
-		STUDY_18_8(12, "Study 18.8 Stitched", "");
+		STUDY_18_8(12, "Study 18.8 Stitched", ""),
+		CVM_S4_26_M01_TAPER(13, "CVM-S4.26-M01, Tapered", "4.26-M01-T");
 		
 		private CybershakeVelocityModel model;
 		private Models(int id, String name, String version) {

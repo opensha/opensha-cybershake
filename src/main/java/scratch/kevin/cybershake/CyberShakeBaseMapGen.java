@@ -11,6 +11,7 @@ import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.region.CaliforniaRegions;
+import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
 import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.impl.CS_Study18_8_BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4BasinDepth;
@@ -166,6 +167,13 @@ public class CyberShakeBaseMapGen {
 		} else if (cvmName.toLowerCase().equals("null")){
 			nullBasin = true;
 		} else {
+			// see if it's an ID number
+			try {
+				int cvmID = Integer.parseInt(cvmName);
+				OrderedSiteDataProviderList list = CyberShakeSiteBuilder.getMapBasinProviders(cvmID);
+				for (SiteData<?> prov : list)
+					provs.add(prov);
+			} catch (NumberFormatException e) {}
 			System.err.println("Unknown basin model: "+cvmName);
 		}
 		

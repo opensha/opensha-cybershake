@@ -326,11 +326,11 @@ public class BatchBaseMapPlot {
 			customMin = 180d;
 			shortType = "Vs30";
 		} else if (prov.getDataType().equals(SiteData.TYPE_DEPTH_TO_1_0)) {
-			customMax = 2d;
+			customMax = 1d;
 			customMin = 0d;
 			shortType = "Z1.0";
 		} else if (prov.getDataType().equals(SiteData.TYPE_DEPTH_TO_2_5)) {
-			customMax = 10d;
+			customMax = 6d;
 			customMin = 0d;
 			shortType = "Z2.5";
 		} else {

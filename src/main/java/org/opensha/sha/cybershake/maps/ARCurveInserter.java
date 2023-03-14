@@ -137,7 +137,11 @@ public class ARCurveInserter {
 //		String dir = "/home/kevin/CyberShake/baseMaps/2022_03_30-rs5413-cvm4i26-thompson2020-cs-nga2-2sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 //		String dir = "/home/kevin/CyberShake/baseMaps/2022_03_30-rs5413-cvm4i26-thompson2020-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
 //		String dir = "/home/kevin/CyberShake/baseMaps/2022_03_30-rs5413-cvm4i26-thompson2020-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
-		String dir = "/home/kevin/CyberShake/baseMaps/2022_03_30-rs5413-cvm4i26-thompson2020-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2022_03_30-rs5413-cvm4i26-thompson2020-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin";
+//		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-2sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 2d;
+//		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 3d;
+//		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 5d;
+		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 10d;
 		// UPDATE IM TYPE AND DATE BELOW!!!!!!!!!!!!!!!!!!!!!!!
 		// AND ERF ID
 		boolean deleteOld = false;
@@ -149,13 +153,13 @@ public class ARCurveInserter {
 		imr.setParamDefaults();
 		setTruncation(imr, 3d);
 		/*		UPDATE THESE		*/
-//		int erfID = 36;
-		int erfID = 63;
-		int velModelID = CybershakeVelocityModel.Models.CVM_S4_26.instance().getID();
-		int imTypeID = CybershakeIM.getSA(CyberShakeComponent.RotD50, 10d).getID();
+		int erfID = 36;
+//		int erfID = 63;
+		int velModelID = CybershakeVelocityModel.Models.CVM_S4_26_M01_TAPER.instance().getID();
+		int imTypeID = CybershakeIM.getSA(CyberShakeComponent.RotD50, period).getID();
 //		int velModelID = -1; // Vs30 only
 		Calendar cal = GregorianCalendar.getInstance();
-		cal.set(2022, 2, 30); // month is 0-based, 3=April
+		cal.set(2023, 2, 9); // month is 0-based, 3=April
 		/*		END UPDATE THESE	*/
 		int probModelID = 1;
 		int timeSpanID = 1;

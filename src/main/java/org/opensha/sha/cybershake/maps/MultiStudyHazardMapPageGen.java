@@ -263,7 +263,7 @@ public class MultiStudyHazardMapPageGen {
 			study.getDB().destroy();
 	}
 	
-	private static void plotIntersectionRatio(GeoDataSet scatter1, GeoDataSet scatter2, Region intersection,
+	static void plotIntersectionRatio(GeoDataSet scatter1, GeoDataSet scatter2, Region intersection,
 			File outputDir, String name1, String name2, String imtLabel, String imtPrefix)
 					throws FileNotFoundException, ClassNotFoundException, IOException, GMT_MapException, SQLException {
 		boolean logPlot = false;

@@ -15,6 +15,7 @@ import java.util.Map;
 
 import org.jfree.chart.plot.DatasetRenderingOrder;
 import org.jfree.data.Range;
+import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DefaultXY_DataSet;
 import org.opensha.commons.data.function.DiscretizedFunc;
@@ -22,11 +23,13 @@ import org.opensha.commons.data.function.XY_DataSet;
 import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.impl.CS_Study18_8_BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
+import org.opensha.commons.data.siteData.impl.CVM4i26_M01_TaperBasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
 import org.opensha.commons.data.siteData.impl.ThompsonVs30_2020;
 import org.opensha.commons.data.siteData.impl.WillsMap2006;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.data.xyz.AbstractGeoDataSet;
+import org.opensha.commons.data.xyz.ArbDiscrGeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSet;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.Region;
@@ -72,8 +75,12 @@ public class StudyHazardMapPageGen {
 	public static void main(String[] args) throws IOException {
 		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 		
+		int vmOverride = -1;
+		CyberShakeStudy compStudy = null;
+		
 		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
-		int vmOverride = 5;
+		compStudy = CyberShakeStudy.STUDY_15_4;
+//		vmOverride = 5;
 		double[] periods = { 2d, 3d, 5d, 10d };
 //		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
@@ -82,11 +89,12 @@ public class StudyHazardMapPageGen {
 //		ScalarIMR baseMapGMPE = null;
 //		ScalarIMR backgroundGMPE = baseMapGMPE;
 		ScalarIMR backgroundGMPE = null;
-		SiteData<?>[] siteDatas = { new ThompsonVs30_2020(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
-				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+		SiteData<?>[] siteDatas = { new ThompsonVs30_2020(), new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+				new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 		Region zoomRegion = null;
 		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
+////		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
 //		double[] periods = { 2d, 3d, 5d, 10d };
 ////		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
 ////		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
@@ -305,6 +313,11 @@ public class StudyHazardMapPageGen {
 			Map<Integer, CybershakeSite> siteIDMap = new HashMap<>();
 			CybershakeSiteInfo2DB sites2db = new CybershakeSiteInfo2DB(study.getDB());
 			
+			List<CybershakeRun> compRuns = null;
+			if (compStudy != null) {
+				compRuns = compStudy.runFetcher().fetch();
+			}
+			
 			List<Region> mapRegions = new ArrayList<>();
 			mapRegions.add(region);
 			if (zoomRegion != null)
@@ -375,7 +388,7 @@ public class StudyHazardMapPageGen {
 								
 								double cptMax;
 								if (period >= 10d)
-									cptMax = 0.4d;
+									cptMax = 0.2d;
 								else if (period >= 5d)
 									cptMax = 0.4d;
 								else
@@ -597,6 +610,57 @@ public class StudyHazardMapPageGen {
 							}
 							lines.addAll(table.build());
 							lines.add("");
+							
+							if (compRuns != null && !compRuns.isEmpty()) {
+								lines.add(myHeading+"# "+compStudy.getName()+" Comparisons, "+title);
+								lines.add(topLink); lines.add("");
+								
+								table = MarkdownUtils.tableBuilder();
+								
+								table.addLine("Difference: "+study.getName()+" - "+compStudy.getName(),
+										"Ratio: "+study.getName()+" / "+compStudy.getName());
+								
+								HazardCurveFetcher compFetch = new HazardCurveFetcher(compStudy.getDB(), compRuns,
+										compStudy.getDatasetIDs(), im.getID());
+								
+								ArbDiscrGeoDataSet compScatterData = HardCodedInterpDiffMapCreator.getMainScatter(
+										isProbAt_IML, probLevel, compFetch, im.getID(), null);
+								
+								CSVFile<String> csv = new CSVFile<>(true);
+								csv.addLine("Latitude", "Longitude", study.getName(), compStudy.getName(),
+										"Difference", "Ratio", "% Difference");
+								for (int j=0; j<scatterData.size(); j++) {
+									Location loc = scatterData.getLocation(j);
+									double val = scatterData.get(j);
+									if (compScatterData.contains(loc)) {
+										double compVal = compScatterData.get(loc);
+										List<String> line = new ArrayList<>();
+										line.add((float)loc.getLatitude()+"");
+										line.add((float)loc.getLongitude()+"");
+										line.add(val+"");
+										line.add(compVal+"");
+										line.add((val - compVal)+"");
+										line.add((val/compVal)+"");
+										line.add(100d*((val-compVal)/compVal)+"");
+										csv.addLine(line);
+									}
+								}
+								
+								File csvFile = new File(resourcesDir, "comp_"+prefix+".csv");
+								csv.writeToFile(csvFile);
+								
+								lines.add("Download CSV: ["+csvFile.getName()+"]("+resourcesDir.getName()+"/"+csvFile.getName()+")");
+								lines.add("");
+								
+								MultiStudyHazardMapPageGen.plotIntersectionRatio(scatterData, compScatterData, region,
+										resourcesDir, study.getName(), compStudy.getName(), title, "comp_"+prefix);
+								
+								table.addLine("![Difference]("+resourcesDir.getName()+"/diff_comp_"+prefix+".png)",
+										"![Ratio]("+resourcesDir.getName()+"/ratio_comp_"+prefix+".png)");
+								
+								lines.addAll(table.build());
+								lines.add("");
+							}
 						}
 					}
 				}

@@ -18,12 +18,17 @@ import java.util.Map;
 
 import org.jfree.data.Range;
 import org.opensha.commons.calc.FaultMomentCalc;
+import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.DefaultXY_DataSet;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.function.EvenlyDiscretizedFunc;
 import org.opensha.commons.data.region.CaliforniaRegions;
 import org.opensha.commons.eq.MagUtils;
 import org.opensha.commons.geo.Region;
+import org.opensha.commons.geo.json.Feature;
+import org.opensha.commons.geo.json.FeatureCollection;
+import org.opensha.commons.geo.json.FeatureProperties;
+import org.opensha.commons.geo.json.Geometry;
 import org.opensha.commons.gui.plot.HeadlessGraphPanel;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotLineType;
@@ -34,9 +39,12 @@ import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.FileNameComparator;
 import org.opensha.commons.util.MarkdownUtils;
 import org.opensha.commons.util.MarkdownUtils.TableBuilder;
+import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.RuptureProbabilityModifier;
 import org.opensha.sha.cybershake.calc.UCERF2_AleatoryMagVarRemovalMod;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
+import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeRun.Status;
 import org.opensha.sha.cybershake.db.CybershakeVelocityModel;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
@@ -48,6 +56,7 @@ import org.opensha.sha.cybershake.gui.util.ERFSaver;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.ProbEqkRupture;
 import org.opensha.sha.earthquake.ProbEqkSource;
+import org.opensha.sha.earthquake.faultSysSolution.ruptures.util.RupSetMapMaker;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.MeanUCERF2.MeanUCERF2;
 import org.opensha.sha.magdist.GutenbergRichterMagFreqDist;
 import org.opensha.sha.magdist.IncrementalMagFreqDist;
@@ -1027,6 +1036,22 @@ public enum CyberShakeStudy {
 		
 		TableBuilder table;
 		
+		File siteMapGeoJSON = new File(outputDir, "sites.geojson");
+		if (replot || !siteMapGeoJSON.exists()) {
+			writeSiteGeoJSON(siteMapGeoJSON);
+			
+			if (siteMapGeoJSON.exists()) {
+				lines.add("### Site Map");
+				lines.add(topLink);
+				
+				lines.add("");
+				String relLink = outputDir.getName()+"/"+siteMapGeoJSON.getName();
+				lines.add("[Download Sites GeoJSON]("+relLink+") "
+						+RupSetMapMaker.getGeoJSONViewerRelativeLink("View Sites GeoJSON", relLink));
+				lines.add("");
+			}
+		}
+		
 		if (replot || !new File(outputDir, "mfd.png").exists()) {
 			writeMFD(outputDir, "mfd", null);
 		}
@@ -1120,6 +1145,40 @@ public enum CyberShakeStudy {
 		}
 		
 		return lines;
+	}
+	
+	private void writeSiteGeoJSON(File outputFile) throws IOException {
+		List<Feature> features = new ArrayList<>();
+		
+		List<CybershakeRun> runs = runFetcher().fetch();
+		List<Site> sites;
+		try {
+			sites = CyberShakeSiteBuilder.buildSites(this, Vs30_Source.Simulation, runs);
+		} catch (Exception e) {
+			System.err.println("Warning: skipping site map for "+this.getName()+": "+e.getMessage());
+			return;
+		}
+		for (Site site : sites) {
+			CyberShakeSiteRun siteRun = (CyberShakeSiteRun)site;
+			FeatureProperties props = new FeatureProperties();
+			
+			props.set("id", siteRun.getCS_Site().id);
+			props.set("name", siteRun.getCS_Site().name);
+			props.set("short_name", siteRun.getCS_Site().short_name);
+			props.set("type_id", siteRun.getCS_Site().type_id);
+			props.set("lat", siteRun.getCS_Site().lat);
+			props.set("lon", siteRun.getCS_Site().lon);
+			props.set("run_id", siteRun.getCS_Run().getRunID());
+			props.set("model_vs30", siteRun.getCS_Run().getModelVs30());
+			props.set("mesh_vsitop", siteRun.getCS_Run().getMeshVsitop());
+			props.set("z1.0", siteRun.getCS_Run().getZ10());
+			props.set("z2.5", siteRun.getCS_Run().getZ25());
+			
+			features.add(new Feature(site.getName(), new Geometry.Point(site.getLocation()), props));
+		}
+		FeatureCollection collection = new FeatureCollection(features);
+		
+		FeatureCollection.write(collection, outputFile);
 	}
 	
 	private void writeMagSlipAreaPlots(File outputDir, String prefixAdd, RuptureProbabilityModifier probMod) throws IOException {

@@ -33,6 +33,9 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 7.5, 6);
 		saIDsMap.put(CyberShakeComponent.GEOM_MEAN, 10d, 1);
 		
+		saIDsMap.put(CyberShakeComponent.RotD50, 0.01, 202);
+		saIDsMap.put(CyberShakeComponent.RotD50, 0.02, 200);
+		saIDsMap.put(CyberShakeComponent.RotD50, 0.05, 194);
 		saIDsMap.put(CyberShakeComponent.RotD50, 0.1, 175);
 		saIDsMap.put(CyberShakeComponent.RotD50, 0.2, 174);
 		saIDsMap.put(CyberShakeComponent.RotD50, 0.5, 173);
@@ -44,6 +47,9 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 		saIDsMap.put(CyberShakeComponent.RotD50, 7.5, 154);
 		saIDsMap.put(CyberShakeComponent.RotD50, 10d, 152);
 		
+		saIDsMap.put(CyberShakeComponent.RotD100, 0.01, 203);
+		saIDsMap.put(CyberShakeComponent.RotD100, 0.02, 201);
+		saIDsMap.put(CyberShakeComponent.RotD100, 0.05, 195);
 		saIDsMap.put(CyberShakeComponent.RotD100, 0.1, 172);
 		saIDsMap.put(CyberShakeComponent.RotD100, 0.2, 171);
 		saIDsMap.put(CyberShakeComponent.RotD100, 0.5, 170);

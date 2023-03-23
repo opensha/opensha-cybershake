@@ -65,6 +65,7 @@ import org.opensha.sha.util.SiteTranslator;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import com.google.common.io.Files;
 
 import Jama.Matrix;
 import scratch.UCERF3.analysis.FaultBasedMapGen;
@@ -289,15 +290,28 @@ public class CyberShakeScenarioShakeMapGenerator {
 			String metadata = title;
 			
 			System.out.println("Making map...");
-			String addr = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
+			String addr;
+			if (LOCAL_MAPGEN)
+				addr = HardCodedInterpDiffMapCreator.plotLocally(map);
+			else
+				addr = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
 			
 			System.out.println("Done, downloading");
 			
 			for (InterpDiffMapType type : myTypes) {
 				File pngFile = new File(outputDir, prefix+"_"+type.getPrefix()+".png");
-				if (!addr.endsWith("/"))
-					addr += "/";
-				FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
+				if (LOCAL_MAPGEN) {
+					File inFile = new File(addr, type.getPrefix()+".150.png");
+					Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
+					Files.copy(inFile, pngFile);
+				} else {
+					if (!addr.endsWith("/"))
+						addr += "/";
+					FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
+				}
+//				if (!addr.endsWith("/"))
+//					addr += "/";
+//				FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
 			}
 			
 			if (numRandomFields > 0) {
@@ -803,12 +817,19 @@ public class CyberShakeScenarioShakeMapGenerator {
 		
 		return ops;
 	}
+	
+	private static boolean LOCAL_MAPGEN = false;
 
 	public static void main(String[] args) {
 		if (args.length == 1 && args[0].equals("--hardcoded")) {
+			LOCAL_MAPGEN = true;
 			System.out.println("HARDCODED");
-			String argz = "--study STUDY_15_4 --period 2,3,5,10 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "
-					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --spatial-corr-fields 20 --spacing 0.02 --spatial-corr-debug";
+//			String argz = "--study STUDY_15_4 --period 2,3,5,10 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "
+//					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --spatial-corr-fields 20 --spacing 0.02 --spatial-corr-debug";
+			String argz = "--study STUDY_22_12_HF --period 0.01,3 --source-id 57 --rupture-id 2 --output-dir /tmp/cs_shakemap_saf "
+					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
+//			String argz = "--study STUDY_22_12_HF --period 0.01,3 --source-id 111 --rupture-id 3 --output-dir /tmp/cs_shakemap_sjf "
+//					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
 //			String argz = "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --study STUDY_15_4 --period 0,-1,3 --source-id 69 --rupture-id 6 "
 //					+ "--rupture-var-id 14 --output-dir /tmp/cs_shakemap";
 //			String argz = "--study STUDY_15_4 --period -1 --colorbar-min 1 --colorbar-max 7 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "

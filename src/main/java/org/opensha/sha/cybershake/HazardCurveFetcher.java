@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
+import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.impl.CVM4BasinDepth;
@@ -101,6 +102,21 @@ public class HazardCurveFetcher {
 		for (int id : duplicateCurveIDs)
 			// use indexof because remove(int) will do index not object
 			curveIDs.remove(curveIDs.indexOf(id));
+	}
+	
+	public void scaleForDuration(double origDuration, double newDuration) {
+		for (int f=0; f<funcs.size(); f++) {
+			DiscretizedFunc curve = funcs.get(f);
+			ArbitrarilyDiscretizedFunc modCurve = new ArbitrarilyDiscretizedFunc();
+			for (int i=0; i<curve.size(); i++) {
+				double x = curve.getX(i);
+				double origY = curve.getY(i);
+				double rate = -Math.log(1 - origY)/origDuration;
+				double modY = 1d - Math.exp(-rate*newDuration);
+				modCurve.set(x, modY);
+			}
+			funcs.set(f, modCurve);
+		}
 	}
 	
 	public List<DiscretizedFunc> getCurvesForRun(int runID) {

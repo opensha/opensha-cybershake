@@ -141,7 +141,8 @@ public class ARCurveInserter {
 //		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-2sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 2d;
 //		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 3d;
 //		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 5d;
-		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 10d;
+//		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 10d;
+		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-0p01sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 0.01d;
 		// UPDATE IM TYPE AND DATE BELOW!!!!!!!!!!!!!!!!!!!!!!!
 		// AND ERF ID
 		boolean deleteOld = false;

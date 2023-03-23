@@ -471,7 +471,7 @@ public class Cybershake_OpenSHA_DBApplication {
 		double dt = 0.05;
 		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
 		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
-				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
+				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getSubSects(), catalog.getElements());
 		String erfName = "RSQSim "+catalog.getName()+" M"+(float)minMag;
 		erfName += ", 240kyr, dt="+(float)dt;
 		Document doc;

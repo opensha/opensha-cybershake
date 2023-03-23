@@ -580,7 +580,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 						for (RSQSimEvent event : catalog.loader().minMag(6.4d).load())
 							idEventMappings.put(event.getID(), event);
 						if (subSects == null) {
-							subSects = catalog.getU3SubSects();
+							subSects = catalog.getSubSects();
 							Preconditions.checkState(erf instanceof RSQSimSectBundledERF);
 							RSQSimSectBundledERF rsERF = (RSQSimSectBundledERF)erf;
 							rupSectMappings = new HashMap<>();

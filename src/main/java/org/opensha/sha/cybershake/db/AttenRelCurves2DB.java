@@ -15,6 +15,7 @@ import org.opensha.commons.data.xyz.GeoDataSet;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.Region;
 import org.opensha.sha.calc.hazardMap.HazardDataSetLoader;
+import org.opensha.sha.util.component.ComponentTranslation;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
@@ -319,15 +320,38 @@ public class AttenRelCurves2DB {
 			HashMap<Location, Integer> ids,
 			boolean latitudeX,
 			double minValue,
-			double maxValue) throws SQLException {
+			double maxValue,
+			ComponentTranslation trans,
+			double period,
+			double duration) throws SQLException {
 		GeoDataSet xyz = new ArbDiscrGeoDataSet(latitudeX);
 		
 		HashMap<Location, ArbitrarilyDiscretizedFunc> curves =
 			doFetchSubset(ids, minValue, maxValue, isProbAt_IML);
 		
 		for (Location loc : curves.keySet()) {
-			ArbitrarilyDiscretizedFunc curve = curves.get(loc);
+			DiscretizedFunc curve = curves.get(loc);
+//			System.out.println("Orig curve: "+curve);
+			if (trans != null) {
+				curve = trans.convertCurve(curve, period);
+//				System.out.println("Trans curve: "+curve);
+			}
+			if (Double.isFinite(duration) && (float)duration != 1f) {
+				// scale the y values
+				ArbitrarilyDiscretizedFunc modCurve = new ArbitrarilyDiscretizedFunc();
+				for (int i=0; i<curve.size(); i++) {
+					double x = curve.getX(i);
+					double origY = curve.getY(i);
+					double rate = -Math.log(1 - origY);
+					double modY = 1d - Math.exp(-rate*duration);
+					modCurve.set(x, modY);
+				}
+				curve = modCurve;
+			}
+//			System.out.println("Fetching AR curve with level="+level+" from curve: \n"+curve);
 			double value = HazardDataSetLoader.getCurveVal(curve, isProbAt_IML, level);
+			if (isProbAt_IML && !Double.isFinite(value))
+				value = 0d;
 			xyz.set(loc, value);
 		}
 		
@@ -368,6 +392,18 @@ public class AttenRelCurves2DB {
 			double level,
 			boolean latitudeX,
 			Region reg) throws SQLException {
+		return fetchMap(datasetID, imTypeID, isProbAt_IML, level, latitudeX, reg, null, 1d);
+	}
+	
+	public GeoDataSet fetchMap(
+			int datasetID,
+			int imTypeID,
+			boolean isProbAt_IML,
+			double level,
+			boolean latitudeX,
+			Region reg,
+			ComponentTranslation trans,
+			double duration) throws SQLException {
 		GeoDataSet xyz = new ArbDiscrGeoDataSet(latitudeX);
 		
 		System.out.println("Fetching AR curves for dataset "+datasetID);
@@ -378,15 +414,24 @@ public class AttenRelCurves2DB {
 		double[] minMax = detectMinMax(firstCurve, isProbAt_IML, level);
 		double minValue = minMax[0];
 		double maxValue = minMax[1];
+//		System.exit(0);
+		
+		// needed if we're translating
+		double period = Double.NaN;
+		if (trans != null) {
+			period = new HazardCurve2DB(db).getIMFromID(imTypeID).getVal();
+			minValue = 0d;
+			maxValue = firstCurve.getMaxX()*10;
+		}
+		
 		System.out.println("isProbAt_IML="+isProbAt_IML+", level="+level);
 		System.out.println("Detected min/max: min="+minValue+", max="+maxValue);
-//		System.exit(0);
 		
 		HashMap<Location, Integer> idSubset = new HashMap<Location, Integer>();
 		for (Location loc : ids.keySet()) {
 			if (idSubset.size() >= CURVE_BUNDLE_SIZE) {
 				xyz.setAll(doMapFetch(isProbAt_IML, level, idSubset, latitudeX,
-						minValue, maxValue));
+						minValue, maxValue, trans, period, duration));
 				idSubset = new HashMap<Location, Integer>();
 				System.gc();
 			}
@@ -394,7 +439,7 @@ public class AttenRelCurves2DB {
 		}
 		if (idSubset.size() > 0)
 			xyz.setAll(doMapFetch(isProbAt_IML, level, idSubset, latitudeX,
-					minValue, maxValue));
+					minValue, maxValue, trans, period, duration));
 		
 		return xyz;
 	}

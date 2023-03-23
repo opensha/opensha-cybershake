@@ -35,7 +35,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 	
 	public static int[] dpis = {72, 150, 300};
 	
-	public static GeoDataSet getDiffs(GeoDataSet baseMap, GeoDataSet scatterData, boolean ratio) {
+	public static GeoDataSet getDiffs(GeoDataSet baseMap, GeoDataSet scatterData, boolean ratio, boolean isLog) {
 		System.out.println("Generating diffs for interpolation...");
 		GeoDataSet diffs = new ArbDiscrGeoDataSet(baseMap.isLatitudeX());
 		
@@ -49,10 +49,14 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 //			System.out.println("scatterVal: " + scatterVal);
 //			System.out.println("closestVal: " + closestVal);
 			
+			double diff;
 			if (ratio)
-				diffs.set(loc, scatterVal / closestVal);
+				diff = scatterVal / closestVal;
 			else
-				diffs.set(loc, scatterVal - closestVal);
+				diff = scatterVal - closestVal;
+//			if (isLog && (diff == 0d || !Double.isFinite(diff)))
+//				diff = 1e-16;
+			diffs.set(loc, diff);
 		}
 		System.out.println("DONE");
 		
@@ -218,7 +222,10 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 				toBeWritten = scatterData;
 			} else {
 				interpXYZName = "scatter_diffs.xyz";
-				toBeWritten = getDiffs(griddedData, scatterData, false);
+				toBeWritten = getDiffs(griddedData, scatterData, false, map.isLogPlot());
+//				System.out.println("Diffs:");
+//				for (int i=0; i<toBeWritten.size(); i++)
+//					System.out.println(toBeWritten.getLocation(i)+":\t"+toBeWritten.get(i));
 			}
 			try {
 				ArbDiscrGeoDataSet.writeXYZFile(toBeWritten, dir + interpXYZName);
@@ -256,7 +263,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 			String interpRatioXYZName = "ratios.xyz";
 			if (shouldMakeRatio) {
 				try {
-					ArbDiscrGeoDataSet.writeXYZFile(getDiffs(griddedData, scatterData, true), dir + interpRatioXYZName);
+					ArbDiscrGeoDataSet.writeXYZFile(getDiffs(griddedData, scatterData, true, map.isLogPlot()), dir + interpRatioXYZName);
 				} catch (IOException e) {
 					throw new GMT_MapException("Could not write XYZ data to a file", e);
 				}
@@ -618,7 +625,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 					int heightInPixels = (int) ((11.0 - yOffset + 2.0) * (double) odpi);
 					cropArgs = " -crop "+widthInPixels+"x"+heightInPixels+"+0+0";
 //				}
-				String convertArgs = "-density " + odpi+cropArgs;
+				String convertArgs = "-background white -alpha remove -alpha off -density " + odpi+cropArgs;
 				String fName = mapType.getPrefix() + "." + odpi + ".png";
 
 				// add a command line to convert the ps file to a jpg file - using convert

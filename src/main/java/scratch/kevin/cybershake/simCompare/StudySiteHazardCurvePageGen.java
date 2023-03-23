@@ -31,6 +31,7 @@ import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.MeanUCERF2_ToDB;
 import org.opensha.sha.earthquake.AbstractERF;
+import org.opensha.sha.earthquake.faultSysSolution.modules.NamedFaults;
 import org.opensha.sha.earthquake.rupForecastImpl.WGCEP_UCERF_2_Final.MeanUCERF2.MeanUCERF2;
 import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.faultSurface.RuptureSurface;
@@ -183,15 +184,15 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 			return table;
 		} else if (erf instanceof RSQSimSectBundledERF) {
 			List<Map<String, Double>> sourceFractsList = new ArrayList<>();
-			Map<String, List<Integer>> faultNamesToIDsMap = catalog.getFaultModel().getNamedFaultsMapAlt();
+			NamedFaults faultNamesToIDsMap = catalog.getFaultModel().getNamedFaults();
 			Map<Integer, String> idsToFaultNamesMap = new HashMap<>();
-			for (String faultName : faultNamesToIDsMap.keySet()) {
+			for (String faultName : faultNamesToIDsMap.getFaultNames()) {
 				String name = faultName;
 				if (name.startsWith("San Andreas"))
 					name = "San Andreas";
 				else if (name.startsWith("San Jacinto"))
 					name = "San Jacinto";
-				for (Integer id : faultNamesToIDsMap.get(faultName))
+				for (Integer id : faultNamesToIDsMap.getParentIDsForFault(faultName))
 					idsToFaultNamesMap.put(id, name);
 			}
 			

@@ -32,7 +32,7 @@ public class RSQSimRuptureVariationInsert {
 		double minMag = 6.5;
 		File mappingFile = new File(catalog.getCatalogDir(), "erf_mappings.bin");
 		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(mappingFile, null,
-				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getU3SubSects(), catalog.getElements());
+				catalog.getFaultModel(), catalog.getDeformationModel(), catalog.getSubSects(), catalog.getElements());
 		
 //		int erfID = 59; // THIS ID MUST MATCH!
 //		File csRotDir = new File(catalog.getCatalogDir(), "cybershake_rotation_inputs");

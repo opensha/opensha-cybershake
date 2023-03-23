@@ -107,6 +107,8 @@ public class HardCodedInterpDiffMapCreator {
 				continue;
 			}
 			double siteVal = vals.get(i);
+			if (isProbAt_IML && !Double.isFinite(siteVal))
+				siteVal = 0d;
 			scatterData.set(loc, siteVal);
 		}
 		System.out.println("Kept "+scatterData.size()+"/"+sites.size()+" sites ("+duplicates+" duplicates)");

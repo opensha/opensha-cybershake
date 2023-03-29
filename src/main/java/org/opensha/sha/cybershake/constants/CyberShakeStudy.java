@@ -601,7 +601,7 @@ public enum CyberShakeStudy {
 			// TODO require Vsitop?
 			return new RunIDFetcher(this.getDB()).noTestSites().unique(false)
 //					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED)();
-					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null);
+					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasHazardCurves();
 		}
 	};
 	

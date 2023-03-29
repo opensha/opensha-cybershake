@@ -66,9 +66,15 @@ public class HazardCurveFetcher {
 	public HazardCurveFetcher(DBAccess db, List<CybershakeRun> runs, int[] datasetIDs, int imTypeID) {
 		this.initDBConnections(db);
 		List<Integer> curveIDs = new ArrayList<>();
-		for (int datasetID : datasetIDs)
-			for (CybershakeRun run : runs)
-				curveIDs.addAll(curve2db.getAllHazardCurveIDsForRun(run.getRunID(), datasetID, imTypeID));
+		for (int datasetID : datasetIDs) {
+			for (CybershakeRun run : runs) {
+				ArrayList<Integer> curvesForRun = curve2db.getAllHazardCurveIDsForRun(run.getRunID(), datasetID, imTypeID);
+				if (curvesForRun == null || curvesForRun.isEmpty())
+					System.err.println("WARNING: no curves for runID="+run.getRunID()+", datasetID="+datasetID+", imTypeID="+imTypeID);
+				else
+					curveIDs.addAll(curvesForRun);
+			}
+		}
 		init(curveIDs, imTypeID);
 	}
 	

@@ -785,6 +785,8 @@ public class DBAccess implements Runnable{
 	public ResultSet selectData(String sql) throws java.sql.SQLException {
 		return selectData(sql, -1);
 	}
+	
+	public static boolean PRINT_ALL_QUERIES = false;
 
 	public ResultSet selectData(String sql, int fetchSize) throws java.sql.SQLException {
 		Connection conn = getConnection();
@@ -797,6 +799,8 @@ public class DBAccess implements Runnable{
 			Statement stat = conn.createStatement();
 			if (fetchSize >= 0)
 				stat.setFetchSize(fetchSize);
+			if (PRINT_ALL_QUERIES)
+				System.out.println(sql);
 			result = stat.executeQuery(sql+";");
 		} catch (SQLException e) {
 			ex = e;

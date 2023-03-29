@@ -1,8 +1,11 @@
 package org.opensha.sha.cybershake.db;
 
+import java.awt.HeadlessException;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -410,22 +413,75 @@ public class Cybershake_OpenSHA_DBApplication {
 	
 	public static DBAccess getAuthenticatedDBAccess(boolean exitOnCancel, boolean allowReadOnly, String hostName)
 			throws IOException {
-		UserAuthDialog auth = new UserAuthDialog(null, exitOnCancel, allowReadOnly);
-		auth.setVisible(true);
-		auth.validate();
 		DBAccess db;
-		if (auth.isReadOnly()) {
-			db = new DBAccess(hostName, DATABASE_NAME);
-			db.setReadOnly(true);
-		} else {
-			db = new DBAccess(hostName, DATABASE_NAME, auth.getUsername(), new String(auth.getPassword()));
-			db.setReadOnly(false);
+		try {
+			UserAuthDialog auth = new UserAuthDialog(null, exitOnCancel, allowReadOnly);
+			auth.setVisible(true);
+			auth.validate();
+			if (auth.isReadOnly()) {
+				db = new DBAccess(hostName, DATABASE_NAME);
+				db.setReadOnly(true);
+			} else {
+				db = new DBAccess(hostName, DATABASE_NAME, auth.getUsername(), new String(auth.getPassword()));
+				db.setReadOnly(false);
+			}
+		} catch (HeadlessException | UnsatisfiedLinkError e) {
+			System.err.println("Caught headless exception, will use CLI prompt for DB username/password: "+e.getMessage());
+			return getCLIAuthenticatedDBAccess(allowReadOnly, hostName);
 		}
 		return db;
 	}
 	
 	public static DBAccess getAuthenticatedDBAccess(boolean exitOnCancel) throws IOException {
 		return getAuthenticatedDBAccess(exitOnCancel, false);
+	}
+	
+	public static DBAccess getCLIAuthenticatedDBAccess(boolean allowReadOnly) throws IOException {
+		return getCLIAuthenticatedDBAccess(allowReadOnly, HOST_NAME);
+	}
+	
+	public static DBAccess getCLIAuthenticatedDBAccess(boolean allowReadOnly, String hostName)
+			throws IOException {
+		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+		
+		String user = null;
+		String pass = null;
+		boolean hasUser = false;
+		String colonAdd = allowReadOnly ? " (blank for read-only): " : ": ";
+		while (true) {
+			try {
+				if (hasUser)
+					System.out.print("Database Password"+colonAdd);
+				else
+					System.out.print("Database Username"+colonAdd);
+				String line = in.readLine().trim();
+				if (line.isBlank()) {
+					if (!allowReadOnly)
+						throw new IllegalStateException("Read only not allowed!");
+					DBAccess db = new DBAccess(hostName, DATABASE_NAME);
+					db.setReadOnly(true);
+					return db;
+				}
+				if (line.length() > 0) {
+					if (hasUser) {
+						pass = line;
+						break;
+					} else {
+						user = line;
+						hasUser = true;
+					}
+				}
+			} catch (IOException e1) {
+				throw ExceptionUtils.asRuntimeException(e1);
+			}
+		}
+		DBAccess db = new DBAccess(hostName, DATABASE_NAME, user, pass);
+		db.setReadOnly(false);
+		return db;
+	}
+	
+	public static DBAccess getCLIAuthenticatedDBAccess() throws IOException {
+		return getCLIAuthenticatedDBAccess(false);
 	}
 	
 	/**

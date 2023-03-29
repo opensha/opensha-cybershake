@@ -57,7 +57,7 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 	private SiteInfo2DB sites2db;
 	private Runs2DB runs2db;
 	
-	private static int max_rups_per_query = 500;
+	private static int max_rups_per_query = 100;
 	
 	private class CacheKey {
 		private Integer runID;
@@ -176,6 +176,8 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 					try {
 						vals = loadAmpsFromDB(runID, im);
 					} catch (SQLException e) {
+						if (tries > 1)
+							System.err.println("WARNING: DB error, will retry ("+(tries-1)+" left): "+e.getMessage());
 						ex = e;
 						try {
 							Thread.sleep(200);
@@ -231,17 +233,24 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 		return vals;
 	}
 	
+	private static final Joiner commaJoin = Joiner.on(",");
 	private void fillInAmpsFromDB(int runID, CybershakeIM im, List<Integer> sources, double[][][] vals)
 			throws SQLException {
 		Preconditions.checkArgument(!sources.isEmpty());
-		String sql = "SELECT Source_ID,Rupture_ID,Rup_Var_ID,IM_Value from "+TABLE_NAME+" where Run_ID="+runID
-				+" and IM_Type_ID = '"+im.getID()+"' and Source_ID IN ("+Joiner.on(",").join(sources)
-				+")";
-		// not explicitly sorting because it's much faster this way but including checks to ensure that it's in order already
+		boolean singleSource = sources.size() == 1;
+		String sql;
+		if (singleSource) {
+			sql = "SELECT Rupture_ID,Rup_Var_ID,IM_Value from "+TABLE_NAME+" where Run_ID="+runID
+					+" and IM_Type_ID="+im.getID()+" and Source_ID="+sources.get(0);
+		} else {
+			// not explicitly sorting because it's much faster this way but including checks to ensure that it's in order already
+			sql = "SELECT Source_ID,Rupture_ID,Rup_Var_ID,IM_Value from "+TABLE_NAME+" where Run_ID="+runID
+					+" and IM_Type_ID="+im.getID()+" and Source_ID IN ("+commaJoin.join(sources)+")";
+		}
 		if (DD) System.out.println(sql);
 		ResultSet rs = null;
 		try {
-			rs = dbaccess.selectData(sql, max_rups_per_query*10);
+			rs = dbaccess.selectData(sql, max_rups_per_query*50);
 		} catch (SQLException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
@@ -258,11 +267,13 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 		int prevRupID = -1;
 		List<Double> curIMs = null;
 
+		int colIndex;
 		while (valid) {
-			int sourceID = rs.getInt(1);
-			int rupID = rs.getInt(2);
-			int rvID = rs.getInt(3);
-			double imVal = rs.getDouble(4);
+			colIndex = 1;
+			int sourceID = singleSource ? sources.get(0) : rs.getInt(colIndex++);
+			int rupID = rs.getInt(colIndex++);
+			int rvID = rs.getInt(colIndex++);
+			double imVal = rs.getDouble(colIndex++);
 			
 			if (prevSourceID != sourceID) {
 				// new source

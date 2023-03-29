@@ -30,6 +30,8 @@ import org.opensha.sha.imr.ScalarIMR;
 import org.opensha.sha.imr.param.OtherParams.SigmaTruncLevelParam;
 import org.opensha.sha.imr.param.OtherParams.SigmaTruncTypeParam;
 
+import com.google.common.base.Preconditions;
+
 public class ARCurveInserter {
 	
 	private static int MAX_CURVES_TO_INSERT = -1;
@@ -142,11 +144,38 @@ public class ARCurveInserter {
 //		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 3d;
 //		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 5d;
 //		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 10d;
-		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-0p01sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 0.01d;
-		// UPDATE IM TYPE AND DATE BELOW!!!!!!!!!!!!!!!!!!!!!!!
-		// AND ERF ID
-		boolean deleteOld = false;
+//		String dir = "/home/kevin/CyberShake/baseMaps/2023_03_08-cvm4i26-m01-taper-cs-nga2-0p01sec/NGAWest_2014_NoIdr/curves/imrs1.bin"; double period = 0.01d;
+		File baseDir = new File("/home/kevin/CyberShake/baseMaps/");
+		
+//		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-0p01sec"; double period = 0.01;
+//		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-0p02sec"; double period = 0.02;
+//		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-0p05sec"; double period = 0.05;
+//		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-0p1sec"; double period = 0.1;
+//		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-0p2sec"; double period = 0.2;
+//		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-0p5sec"; double period = 0.5;
+//		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-1sec"; double period = 1d;
+//		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-2sec"; double period = 2d;
+		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-3sec"; double period = 3d;
+//		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-5sec"; double period = 5d;
+//		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-10sec"; double period = 10d;
+
+		Calendar cal = GregorianCalendar.getInstance();
+		cal.set(2023, 2, 28); // month is 0-based, 3=April
+		
+		// UPDATE ERF ID and VM ID !!!!!!!
+		boolean deleteOld = true;
+		
 		ScalarIMR imr = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+		String curveFileName = "NGAWest_2014_NoIdr/curves/imrs1.bin";
+		
+		File dir = new File(baseDir, dirName);
+		System.out.println("Directory: "+dir.getAbsolutePath());
+		Preconditions.checkState(dir.exists(), "Directory doesn't exist: %s", dir.getAbsolutePath());
+		
+		File curveFile = new File(dir, curveFileName);
+		System.out.println("Curve file: "+curveFile.getAbsolutePath());
+		Preconditions.checkState(curveFile.exists(), "Curve file doesn't exist: %s", curveFile.getAbsolutePath());
+		
 //		ScalarIMR imr = AttenRelRef.ASK_2014.instance(null);
 //		ScalarIMR imr = AttenRelRef.BSSA_2014.instance(null);
 //		ScalarIMR imr = AttenRelRef.CB_2014.instance(null);
@@ -159,8 +188,6 @@ public class ARCurveInserter {
 		int velModelID = CybershakeVelocityModel.Models.CVM_S4_26_M01_TAPER.instance().getID();
 		int imTypeID = CybershakeIM.getSA(CyberShakeComponent.RotD50, period).getID();
 //		int velModelID = -1; // Vs30 only
-		Calendar cal = GregorianCalendar.getInstance();
-		cal.set(2023, 2, 9); // month is 0-based, 3=April
 		/*		END UPDATE THESE	*/
 		int probModelID = 1;
 		int timeSpanID = 1;
@@ -171,7 +198,7 @@ public class ARCurveInserter {
 //		MAX_CURVES_TO_INSERT = 0;
 		
 		// load the curves
-		Map<Location, ArbitrarilyDiscretizedFunc> curves = loadCurves(new File(dir));
+		Map<Location, ArbitrarilyDiscretizedFunc> curves = loadCurves(curveFile);
 		System.out.println("Loaded "+curves.size()+" curves");
 		
 		DBAccess db = Cybershake_OpenSHA_DBApplication.getAuthenticatedDBAccess(true, true, dbHostName);
@@ -221,10 +248,9 @@ public class ARCurveInserter {
 				} else {
 					System.exit(1);
 				}
-			}
-			
-			if (deleteOld)
+			} else if (deleteOld) {
 				arCurves2DB.deleteAllCurvesFromDataset(datasetID, imTypeID);
+			}
 			
 			arCurves2DB.insertARCurves(calcDate, datasetID, imTypeID, curves);
 		} catch (Exception e) {

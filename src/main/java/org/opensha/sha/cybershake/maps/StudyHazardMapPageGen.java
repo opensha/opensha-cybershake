@@ -78,10 +78,12 @@ public class StudyHazardMapPageGen {
 		int vmOverride = -1;
 		CyberShakeStudy compStudy = null;
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
-		compStudy = CyberShakeStudy.STUDY_15_4;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
+//		double[] periods = { 2d, 3d, 5d, 10d };
+		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_HF;
+		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
+//		compStudy = CyberShakeStudy.STUDY_15_4;
 //		vmOverride = 5;
-		double[] periods = { 2d, 3d, 5d, 10d };
 //		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
 		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };

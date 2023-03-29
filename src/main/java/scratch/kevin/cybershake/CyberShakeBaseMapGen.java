@@ -205,7 +205,13 @@ public class CyberShakeBaseMapGen {
 			erf = MeanUCERF2_ToDB.createUCERF2ERF();
 		}
 		
-		ArbitrarilyDiscretizedFunc xValues = IMT_Info.getUSGS_PGA_Function();
+		DiscretizedFunc xValues;
+		IMT_Info imtInfo = new IMT_Info();
+		if (period == 0d) {
+			xValues = imtInfo.getDefaultHazardCurve(PGA_Param.NAME);
+		} else {
+			xValues = imtInfo.getDefaultHazardCurve(SA_Param.NAME);
+		}
 		double maxSourceDistance = 200;
 		
 		Map<String, DiscretizedFunc> xValsMap = Maps.newHashMap();

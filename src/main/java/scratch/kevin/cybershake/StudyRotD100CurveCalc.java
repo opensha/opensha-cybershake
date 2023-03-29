@@ -24,6 +24,9 @@ public class StudyRotD100CurveCalc {
 		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_HF;
 		CybershakeIM im = CybershakeIM.getSA(CyberShakeComponent.RotD100, 0.01);
 		
+		boolean checkOnly = false;
+		
+		DBAccess.PRINT_ALL_QUERIES = true;
 		DBAccess db = Cybershake_OpenSHA_DBApplication.getAuthenticatedDBAccess(true, true);
 		
 		int dbID = study.getDatasetIDs()[0];
@@ -39,10 +42,20 @@ public class StudyRotD100CurveCalc {
 		
 		int exitCode = 0;
 		
+		List<CybershakeRun> runs = study.runFetcher().fetch();
+		
+		int numAlreadyDone = 0;
+		int numRuns = runs.size();
+		int numCalculated = 0;
+		
 		try {
-			for (CybershakeRun run : study.runFetcher().fetch()) {
+			for (int i=0; i<runs.size(); i++) {
+				CybershakeRun run = runs.get(i);
+				System.out.println("Processing run "+i+"/"+numRuns+", runID="+run.getRunID());
 				int id = curves2db.getHazardCurveID(run.getRunID(), dbID, im.getID());
-				if (id < 0) {
+				if (id >= 0)
+					numAlreadyDone++;
+				if (id < 0 && !checkOnly) {
 					// calculate it
 					System.out.println("Calculating for run "+run.getRunID());
 					DiscretizedFunc curve = calc.computeHazardCurve(xValList, run, im);
@@ -52,8 +65,12 @@ public class StudyRotD100CurveCalc {
 						id = curves2db.getHazardCurveID(run.getRunID(), im.getID());
 						System.out.println("Inserted with Curve_ID="+id);
 					}
+					numCalculated++;
 				}
 			}
+			
+			System.out.println("Calculated "+numCalculated+"/"+numRuns+" curves");
+			System.out.println(numAlreadyDone+"/"+numRuns+" were already done");
 		} catch (Exception e) {
 			e.printStackTrace();
 			exitCode = 1;

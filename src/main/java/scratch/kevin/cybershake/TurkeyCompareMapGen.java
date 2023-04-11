@@ -63,7 +63,8 @@ public class TurkeyCompareMapGen {
 		
 		double[] imRefGMs = {
 //				1.616981,
-				0.820891
+//				0.820891
+				0.4
 		};
 		
 		double duration = 10d;

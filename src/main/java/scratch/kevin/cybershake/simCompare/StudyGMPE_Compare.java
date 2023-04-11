@@ -50,6 +50,7 @@ import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.MultiRupGMPE_ComparePageGen;
 import scratch.kevin.simCompare.RuptureComparison;
 import scratch.kevin.simCompare.SimulationRotDProvider;
+import scratch.kevin.simCompare.ZScoreHistPlot;
 import scratch.kevin.simulators.RSQSimCatalog;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
@@ -345,6 +346,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		List<CyberShakeStudy> studies = new ArrayList<>();
 		List<Vs30_Source> vs30s = new ArrayList<>();
 		
+		ZScoreHistPlot.D = true;
+		
 //		studies.add(CyberShakeStudy.STUDY_18_9_RSQSIM_2740);
 //		vs30s.add(Vs30_Source.Simulation);
 		
@@ -390,11 +393,11 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_22_3_RSQSIM_5413);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-//		studies.add(CyberShakeStudy.STUDY_22_12_HF);
-//		vs30s.add(Vs30_Source.Simulation);
-		
-		studies.add(CyberShakeStudy.STUDY_22_12_LF);
+		studies.add(CyberShakeStudy.STUDY_22_12_HF);
 		vs30s.add(Vs30_Source.Simulation);
+		
+//		studies.add(CyberShakeStudy.STUDY_22_12_LF);
+//		vs30s.add(Vs30_Source.Simulation);
 		
 		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014; // this one will include highlight sites
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
@@ -402,9 +405,9 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 		
-		IMT[] imts = { IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
+//		IMT[] imts = { IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 //		IMT[] imts = { IMT.PGV, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
-//		IMT[] imts = { IMT.SA0P1, IMT.SA0P2, IMT.SA0P5, IMT.SA1P0, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
+		IMT[] imts = { IMT.SA0P1, IMT.SA0P2, IMT.SA0P5, IMT.SA1P0, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 		double[] rotDPeriods = { 3, 5, 10 };
 		double minMag = 6;
 		
@@ -456,11 +459,11 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 				highlightSiteNames.add("PAS");
 //				highlightSiteNames.add("COO");
 				highlightSiteNames.add("WNGC");
-				highlightSiteNames.add("LAPD");
+//				highlightSiteNames.add("LAPD");
 				highlightSiteNames.add("STNI");
 //				highlightSiteNames.add("FIL");
-				highlightSiteNames.add("OSI");
-//				highlightSiteNames.add("SMCA");
+//				highlightSiteNames.add("OSI");
+				highlightSiteNames.add("SMCA");
 //				highlightSiteNames.add("LAF");
 //				highlightSiteNames.add("WSS");
 //				highlightSiteNames.add("PDE");
@@ -468,6 +471,18 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //				highlightSiteNames.add("s119");
 				highlightSiteNames.add("GAVI");
 				highlightSiteNames.add("LBP");
+				highlightSiteNames.add("SABD");
+				highlightSiteNames.add("FFI");
+				highlightSiteNames.add("PTWN");
+				highlightSiteNames.add("PEDL");
+				highlightSiteNames.add("LADT");
+				highlightSiteNames.add("CCP");
+				highlightSiteNames.add("ALIS");
+				highlightSiteNames.add("PERR");
+				highlightSiteNames.add("MBRD");
+				highlightSiteNames.add("LBUT");
+				highlightSiteNames.add("SLVW");
+				highlightSiteNames.add("PACI");
 			}
 			HashSet<String> limitSiteNames;
 			if (limitToHighlight)
@@ -526,13 +541,13 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 				}
 				if (!vs500_sites.isEmpty())
 					comp.addSiteBundle(vs500_sites, "Vs30=500");
-				List<BBP_Site> csLABBPsites = RSQSimBBP_Config.getCyberShakeVs500LASites();
-				List<Site> csLAsites = new ArrayList<>();
-				for (BBP_Site b : csLABBPsites)
-					if (siteNamesMap.containsKey(b.getName()))
-						csLAsites.add(siteNamesMap.get(b.getName()));
-				if (csLAsites.size() > 2)
-					comp.addSiteBundle(csLAsites, "LA Vs30=500 Initial Set");
+//				List<BBP_Site> csLABBPsites = RSQSimBBP_Config.getCyberShakeVs500LASites();
+//				List<Site> csLAsites = new ArrayList<>();
+//				for (BBP_Site b : csLABBPsites)
+//					if (siteNamesMap.containsKey(b.getName()))
+//						csLAsites.add(siteNamesMap.get(b.getName()));
+//				if (csLAsites.size() > 2)
+//					comp.addSiteBundle(csLAsites, "LA Vs30=500 Initial Set");
 				
 				List<Site> grid10kmSites = new ArrayList<>();
 				for (Site site : comp.sites) {

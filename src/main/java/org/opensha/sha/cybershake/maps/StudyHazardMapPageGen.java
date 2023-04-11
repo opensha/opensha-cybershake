@@ -52,6 +52,7 @@ import org.opensha.sha.cybershake.db.AttenRels2DB;
 import org.opensha.sha.cybershake.db.CybershakeHazardDataset;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
+import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.HazardDataset2DB;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeRun;
@@ -80,9 +81,10 @@ public class StudyHazardMapPageGen {
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
 //		double[] periods = { 2d, 3d, 5d, 10d };
+//		compStudy = CyberShakeStudy.STUDY_15_4;
 		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_HF;
 		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
-//		compStudy = CyberShakeStudy.STUDY_15_4;
+		compStudy = CyberShakeStudy.STUDY_15_12;
 //		vmOverride = 5;
 //		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
@@ -144,6 +146,20 @@ public class StudyHazardMapPageGen {
 //		SiteData<?>[] siteDatas = { new WillsMap2015(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
 //				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 //		Region zoomRegion = null;
+		
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_15_12;
+//		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
+//		vmOverride = 13; // THIS IS TEMPORARY, NO GMPE BASEMAPS FOR <2s and vmID=5
+////		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
+////		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
+//		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
+//		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+////		ScalarIMR backgroundGMPE = baseMapGMPE;
+//		ScalarIMR backgroundGMPE = null;
+//		SiteData<?>[] siteDatas = { new WillsMap2015(), new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+//				new CVM4i26BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+//		Region zoomRegion = null;
+////		DBAccess.PRINT_ALL_QUERIES = true;
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_14_2_CVM_S426;
 //		double[] periods = { 3d, 5d, 10d };
@@ -278,6 +294,7 @@ public class StudyHazardMapPageGen {
 		
 		HardCodedInterpDiffMapCreator.cs_db = study.getDB();
 		HardCodedInterpDiffMapCreator.gmpe_db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
+//		HardCodedInterpDiffMapCreator.gmpe_db = study.getDB();
 		
 		int exitCode = 0;
 		try {
@@ -393,8 +410,10 @@ public class StudyHazardMapPageGen {
 									cptMax = 0.2d;
 								else if (period >= 5d)
 									cptMax = 0.4d;
-								else
+								else if (period >= 2d)
 									cptMax = 1d;
+								else
+									cptMax = 2d;
 								
 								CPT cpt = hazardCPT.rescale(0d, cptMax);
 								

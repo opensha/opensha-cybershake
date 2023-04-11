@@ -204,7 +204,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 		if (griddedData != null) {
 			rmFiles.add(baseGRD);
 			gmtCommandLines.add("# convert xyz file to grd file");
-			commandLine = "${GMT_PATH}xyz2grd "+ basemapXYZName +" -G"+ baseGRD+ " -I"+mapGridSpacing+
+			commandLine = "${GMT_PATH}xyz2grd -fg "+ basemapXYZName +" -G"+ baseGRD+ " -I"+mapGridSpacing+
 							region +" -D/degree/degree/amp/=/=/=  -:";
 			gmtCommandLines.add(commandLine+"\n");
 		}
@@ -235,13 +235,13 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 			
 			rmFiles.add(interpUnsampledGRD);
 			gmtCommandLines.add("# do GMT interpolation on the scatter data");
-			commandLine = "${GMT_PATH}surface "+ interpXYZName +" -G"+ interpUnsampledGRD+ " -I"+interpGridSpacing
+			commandLine = "${GMT_PATH}surface -fg "+ interpXYZName +" -G"+ interpUnsampledGRD+ " -I"+interpGridSpacing
 							+region+interpSettings.getConvergenceArg()+" "+interpSettings.getSearchArg()
 							+" "+interpSettings.getTensionArg()+" -: -h0 2>/dev/null";
 			gmtCommandLines.add(commandLine);
 			if (interpSettings.isSaveInterpSurface()) {
 				gmtCommandLines.add("# write interpolated XYZ file");
-				commandLine = "${GMT_PATH}grd2xyz "+ interpUnsampledGRD+ " > "+GMT_InterpolationSettings.INTERP_XYZ_FILE_NAME;
+				commandLine = "${GMT_PATH}grd2xyz -fg "+ interpUnsampledGRD+ " > "+GMT_InterpolationSettings.INTERP_XYZ_FILE_NAME;
 				gmtCommandLines.add(commandLine);
 			}
 			// resample the interpolation
@@ -253,7 +253,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 			} else {
 				gmtCommandLines.add("# resample the interpolated file");
 				boolean bicubic = false;
-				commandLine = "${GMT_PATH}grdsample "+interpUnsampledGRD+" -G"+interpSampledGRD
+				commandLine = "${GMT_PATH}grdsample -fg "+interpUnsampledGRD+" -G"+interpSampledGRD
 								+" -I"+mapGridSpacing+region;
 				if (!bicubic)
 					commandLine += "-nl";
@@ -270,7 +270,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 				
 				rmFiles.add(interpRatioUnsampledGRD);
 				gmtCommandLines.add("# do GMT interpolation on the scatter data");
-				commandLine = "${GMT_PATH}surface "+ interpRatioXYZName +" -G"+ interpRatioUnsampledGRD+ " -I"+interpGridSpacing
+				commandLine = "${GMT_PATH}surface -fg "+ interpRatioXYZName +" -G"+ interpRatioUnsampledGRD+ " -I"+interpGridSpacing
 								+region+interpSettings.getConvergenceArg()+" "+interpSettings.getSearchArg()
 								+" "+interpSettings.getTensionArg()+" -: -H0 2>/dev/null";
 				gmtCommandLines.add(commandLine);
@@ -283,7 +283,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 				} else {
 					gmtCommandLines.add("# resample the interpolated file");
 					boolean bicubic = false;
-					commandLine = "${GMT_PATH}grdsample "+interpRatioUnsampledGRD+" -G"+interpRatioSampledGRD
+					commandLine = "${GMT_PATH}grdsample -fg "+interpRatioUnsampledGRD+" -G"+interpRatioSampledGRD
 									+" -I"+mapGridSpacing+region;
 					if (!bicubic)
 						commandLine += "-nl";
@@ -414,7 +414,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 			interpPlotGRD = "interp_diff.grd";
 			// combine the basemap and interpolated map
 			gmtCommandLines.add("# add the interpolated vals to the basemap");
-			gmtCommandLines.add("${GMT_PATH}grdmath "+baseGRD+" "+interpSampledGRD+" ADD = "+interpPlotGRD+"\n");
+			gmtCommandLines.add("${GMT_PATH}grdmath -fg "+baseGRD+" "+interpSampledGRD+" ADD = "+interpPlotGRD+"\n");
 		} else {
 			interpPlotGRD = interpSampledGRD;
 		}
@@ -436,7 +436,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 
 			intenGRD = "topo_inten.grd";
 			gmtCommandLines.add("# Cut the topo file to match the data region");
-			commandLine="${GMT_PATH}grdcut " + topoIntenFile + " -G"+intenGRD+ " " +region;
+			commandLine="${GMT_PATH}grdcut -fg " + topoIntenFile + " -G"+intenGRD+ " " +region;
 			rmFiles.add(intenGRD);
 			gmtCommandLines.add(commandLine);
 		}
@@ -457,7 +457,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 			else
 				spacing = mapGridSpacing + "";
 			gmtCommandLines.add("# creat mask");
-			commandLine = "${GMT_PATH}grdmask "+maskName+region+" -I"+spacing+" -NNaN/1/1 -G"+maskGRD;
+			commandLine = "${GMT_PATH}grdmask -fg "+maskName+region+" -I"+spacing+" -NNaN/1/1 -G"+maskGRD;
 			gmtCommandLines.add(commandLine+"\n");
 		}
 		
@@ -537,7 +537,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 				String topoResGRD = "topores_"+grdFile;
 				rmFiles.add(topoResGRD);
 				gmtCommandLines.add("# Resample the map to the topo resolution");
-				commandLine="${GMT_PATH}grdsample "+grdFile+" -G"+topoResGRD+" -I" +
+				commandLine="${GMT_PATH}grdsample -fg "+grdFile+" -G"+topoResGRD+" -I" +
 				topoFile.resolution() + "c -nl "+region;
 				gmtCommandLines.add(commandLine);
 				grdFile = topoResGRD;
@@ -548,7 +548,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 				String unmaskedGRD = "unmasked_"+grdFile;
 				rmFiles.add(unmaskedGRD);
 				gmtCommandLines.add("mv "+grdFile+" "+unmaskedGRD);
-				gmtCommandLines.add("${GMT_PATH}grdmath "+unmaskedGRD+" "+maskGRD+" MUL = "+grdFile+"\n");
+				gmtCommandLines.add("${GMT_PATH}grdmath -fg "+unmaskedGRD+" "+maskGRD+" MUL = "+grdFile+"\n");
 			}
 			gmtCommandLines.add("# Plot the gridded data");
 			commandLine="${GMT_PATH}grdimage "+ grdFile + xOff + yOff + proj + topoOption + " -C"+myCPTFileName+

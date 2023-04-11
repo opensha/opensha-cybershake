@@ -49,6 +49,8 @@ public class TurkeyGroundMotionCalcs {
 		
 		double maxPGA = 0d;
 		String maxPGAStation = null;
+		double maxSA0p3 = 0d;
+		String maxSA0p3Station = null;
 		double maxSA3 = 0d;
 		String maxSA3Station = null;
 		for (Feature feature : features) {
@@ -83,6 +85,16 @@ public class TurkeyGroundMotionCalcs {
 										maxSA3Station = feature.id.toString();
 									}
 								}
+							} else if (ampName.equals("sa(0.3)")) {
+								// 3s SA
+								String units = amp.get("units", null);
+								if (units.equals("%g")) {
+									double sa0p3 = amp.getDouble("value", Double.NaN)/100d;
+									if (sa0p3 > maxSA0p3) {
+										maxSA0p3 = sa0p3;
+										maxSA0p3Station = feature.id.toString();
+									}
+								}
 							}
 						}
 					}
@@ -91,6 +103,7 @@ public class TurkeyGroundMotionCalcs {
 		}
 
 		System.out.println("Max PGA: "+(float)maxPGA+" at "+maxPGAStation);
+		System.out.println("Max 0.3s SA: "+(float)maxSA0p3+" at "+maxSA0p3Station);
 		System.out.println("Max 3s SA: "+(float)maxSA3+" at "+maxSA3Station);
 		
 		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_HF;

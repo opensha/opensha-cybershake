@@ -580,9 +580,8 @@ public enum CyberShakeStudy {
 		@Override
 		public RunIDFetcher runFetcher() {
 			return new RunIDFetcher(this.getDB()).noTestSites().unique(false)
-					// TODO switch back to verified
-//					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED).hasMeshVsitop();
-					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasMeshVsitop();
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED).hasMeshVsitop();
+//					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasMeshVsitop();
 		}
 	},
 	STUDY_22_12_HF(cal(2022, 12), 116, "Study 22.12 HF", "study_22_12_hf",
@@ -597,11 +596,10 @@ public enum CyberShakeStudy {
 		}
 		@Override
 		public RunIDFetcher runFetcher() {
-			// TODO switch back to verified?
 			// TODO require Vsitop?
 			return new RunIDFetcher(this.getDB()).noTestSites().unique(false)
-//					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED)();
-					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasHazardCurves();
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+//					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasHazardCurves();
 		}
 	};
 	

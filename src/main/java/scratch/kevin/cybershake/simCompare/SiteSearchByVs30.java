@@ -37,20 +37,19 @@ public class SiteSearchByVs30 {
 		// study from which we are selecting sites
 		CyberShakeStudy siteStudy = CyberShakeStudy.STUDY_15_4;
 		
-		List<Site> sites = CyberShakeSiteBuilder.buildSites(siteStudy, Vs30_Source.Simulation, siteStudy.runFetcher().fetch());
-		List<Site> matches = new ArrayList<>();
+		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(siteStudy, Vs30_Source.Simulation, siteStudy.runFetcher().fetch());
+		List<CyberShakeSiteRun> matches = new ArrayList<>();
 		List<String> bbStations = new ArrayList<>();
 		
 		WillsMap2015 wills = new WillsMap2015();
 		
-		for (Site site : sites) {
+		for (CyberShakeSiteRun site : sites) {
 			double vs30 = site.getParameter(Double.class, Vs30_Param.NAME).getValue();
 			double willsVal = wills.getValue(site.getLocation());
 			if (vs30Range.contains(vs30) && (willsRange == null || willsRange.contains(willsVal))) {
 				System.out.println("Site: "+site.getName()+"\tVs30: "+vs30+"\tWills: "+willsVal);
 				matches.add(site);
-				if (site instanceof CyberShakeSiteRun
-						&& ((CyberShakeSiteRun)site).getCS_Site().type_id == CybershakeSite.TYPE_BROADBAND_STATION)
+				if (site.getCS_Site().type_id == CybershakeSite.TYPE_BROADBAND_STATION)
 					bbStations.add(site.getName());
 			}
 		}

@@ -11,6 +11,7 @@ import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.AttenRels2DB;
 import org.opensha.sha.cybershake.db.CybershakeHazardDataset;
@@ -93,7 +94,7 @@ public class BackgroundSeismicityCalculator {
 						runs.remove(r);
 					}
 				}
-				List<Site> sites = CyberShakeSiteBuilder.buildSites(study, vs30Source, runs);
+				List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study, vs30Source, runs);
 				
 				for (int i=0; i<runs.size(); i++) {
 					CybershakeRun run = runs.get(i);

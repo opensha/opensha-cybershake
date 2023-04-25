@@ -16,6 +16,7 @@ import org.opensha.commons.data.Site;
 import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
@@ -46,7 +47,7 @@ import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
 
 public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture> {
 
-	public StudySourceSiteDistPageGen(SimulationRotDProvider<CSRupture> simProv, List<Site> sites) {
+	public StudySourceSiteDistPageGen(SimulationRotDProvider<CSRupture> simProv, List<? extends Site> sites) {
 		super(simProv, sites);
 	}
 	
@@ -122,7 +123,7 @@ public class StudySourceSiteDistPageGen extends SourceSiteDistPageGen<CSRupture>
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
 		
 		List<CybershakeRun> runs = study.runFetcher().forSiteNames(siteNames).fetch();
-		List<Site> sites = CyberShakeSiteBuilder.buildSites(study, vs30Source, runs);
+		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study, vs30Source, runs);
 		sites.sort(new NamedComparator());
 		
 		Map<AttenRelRef, List<CSRuptureComparison>> gmpeComps = new HashMap<>();

@@ -38,6 +38,7 @@ import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 import org.opensha.commons.util.cpt.CPT;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeRun;
@@ -67,14 +68,14 @@ public class Study3Dvs1DCompare {
 	
 	private SimulationRotDProvider<CSRupture> prov3D;
 	private SimulationRotDProvider<CSRupture> prov1D;
-	private List<Site> sites;
+	private List<? extends Site> sites;
 	private double vs30_1d;
 	private double similarDeltaVs30;
 	
 	private static boolean DIST_JB = false; // else dist rup
 
 	public Study3Dvs1DCompare(SimulationRotDProvider<CSRupture> prov3D, SimulationRotDProvider<CSRupture> prov1D,
-			List<Site> sites, double vs30_1d, double similarDeltaVs30) {
+			List<? extends Site> sites, double vs30_1d, double similarDeltaVs30) {
 		this.prov3D = prov3D;
 		this.prov1D = prov1D;
 		this.sites = sites;
@@ -82,7 +83,7 @@ public class Study3Dvs1DCompare {
 		this.similarDeltaVs30 = similarDeltaVs30;
 	}
 	
-	public void generatePage(File outputDir, List<String> headerLines, double[] periods, Collection<Site> highlightSites) throws IOException {
+	public void generatePage(File outputDir, List<String> headerLines, double[] periods, Collection<? extends Site> highlightSites) throws IOException {
 		File resourcesDir = new File(outputDir, "resources");
 		Preconditions.checkState(resourcesDir.exists() || resourcesDir.mkdir());
 		List<String> lines = new LinkedList<>();
@@ -109,7 +110,7 @@ public class Study3Dvs1DCompare {
 			else if (sites.size() <= 10)
 				mySites.addAll(sites);
 		} else {
-			mySites = sites;
+			mySites = new ArrayList<>(sites);
 		}
 		
 		System.out.println("Calculating all gains...");
@@ -679,7 +680,7 @@ public class Study3Dvs1DCompare {
 //		StudyRotDProvider prov3D = getSimProv(study3D, siteNames, ampsCacheDir, periods, rd50_ims, vs30Source);
 		
 		List<CybershakeRun> runs3D = study3D.runFetcher().forSiteNames(siteNames).fetch();
-		List<Site> sites = CyberShakeSiteBuilder.buildSites(study3D, vs30Source, runs3D);
+		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study3D, vs30Source, runs3D);
 		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study3D.getDB(), ampsCacheDir, study3D.getERF());
 		StudyRotDProvider prov3D = new StudyRotDProvider(study3D, amps2db, imts, study3D.getName());
 		SimulationRotDProvider<CSRupture> prov1D;

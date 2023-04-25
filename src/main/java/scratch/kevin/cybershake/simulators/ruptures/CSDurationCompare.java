@@ -8,6 +8,7 @@ import java.util.List;
 import org.opensha.commons.data.Site;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeRun;
@@ -38,7 +39,7 @@ public class CSDurationCompare {
 		List<CybershakeRun> csRuns = study.runFetcher().fetch();
 		System.out.println("Loaded "+csRuns.size()+" runs for "+study.getName()+" (dataset "+study.getDatasetIDs()+")");
 		
-		List<Site> sites = CyberShakeSiteBuilder.buildSites(study, vs30Source, csRuns);
+		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study, vs30Source, csRuns);
 		
 		ScalarIMR gmpe = gmpeRef.instance(null);
 		gmpe.setParamDefaults();

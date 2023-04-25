@@ -67,6 +67,7 @@ import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.RuptureProbabilityModifier;
 import org.opensha.sha.cybershake.calc.RuptureVariationProbabilityModifier;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
@@ -123,7 +124,7 @@ public class ETAS_ScenarioPageGen {
 	private ETASModProbConfig[] modProbConfigs;
 	
 	private List<CybershakeRun> runs;
-	private List<Site> sites;
+	private List<CyberShakeSiteRun> sites;
 	private List<Site> curveSites;
 	
 	private CachedPeakAmplitudesFromDB amps2db;

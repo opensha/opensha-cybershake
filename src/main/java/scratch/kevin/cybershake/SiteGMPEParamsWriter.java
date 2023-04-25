@@ -53,7 +53,7 @@ public class SiteGMPEParamsWriter {
 		
 		AbstractERF erf = study.buildNewERF();
 		
-		List<Site> sites = CyberShakeSiteBuilder.buildSites(
+		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(
 				study, Vs30_Source.Simulation, runs);
 		
 		List<String> header = Lists.newArrayList("Site Name", "Site Lat", "Site Lon", "Wills (2015) Vs30 (m/s)",

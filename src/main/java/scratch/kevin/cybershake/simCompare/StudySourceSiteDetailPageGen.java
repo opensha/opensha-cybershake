@@ -18,6 +18,7 @@ import org.opensha.commons.geo.Location;
 import org.opensha.refFaultParamDb.vo.FaultSectionPrefData;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
@@ -54,7 +55,7 @@ import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
 public class StudySourceSiteDetailPageGen extends SourceSiteDetailPageGen {
 	
 	public StudySourceSiteDetailPageGen(SimulationRotDProvider<RSQSimEvent> simProv, String sourceName,
-			int[] parentSectIDs, RSQSimCatalog catalog, List<RSQSimEvent> events, List<Site> sites) throws IOException {
+			int[] parentSectIDs, RSQSimCatalog catalog, List<RSQSimEvent> events, List<? extends Site> sites) throws IOException {
 		super(simProv, sourceName, parentSectIDs, catalog, events, sites);
 	}
 	
@@ -220,7 +221,7 @@ public class StudySourceSiteDetailPageGen extends SourceSiteDetailPageGen {
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
 		
 		List<CybershakeRun> runs = study.runFetcher().forSiteNames(siteNames).fetch();
-		List<Site> sites = CyberShakeSiteBuilder.buildSites(study, Vs30_Source.Simulation, runs);
+		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study, Vs30_Source.Simulation, runs);
 		sites.sort(new NamedComparator());
 		
 		File outputDir = new File(studyDir, "source_site_details_"+sourcePrefix);

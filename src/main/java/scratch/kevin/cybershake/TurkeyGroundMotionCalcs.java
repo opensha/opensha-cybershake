@@ -15,6 +15,7 @@ import org.opensha.commons.geo.json.FeatureProperties;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeRun;
@@ -114,7 +115,7 @@ public class TurkeyGroundMotionCalcs {
 		};
 		
 		List<CybershakeRun> runs = study.runFetcher().forSiteNames("SBSM", "LADT", "LAPD", "PAS", "CCP").fetch();
-		List<Site> sites = CyberShakeSiteBuilder.buildSites(study, Vs30_Source.Thompson2020, runs);
+		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study, Vs30_Source.Thompson2020, runs);
 		Preconditions.checkState(sites.size() == runs.size());
 		
 		PeakAmplitudesFromDB amps2db = new PeakAmplitudesFromDB(study.getDB());

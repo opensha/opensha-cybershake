@@ -11,6 +11,7 @@ import org.opensha.commons.data.Site;
 import org.opensha.commons.param.Parameter;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.earthquake.AbstractERF;
@@ -47,7 +48,7 @@ public class GMPE_CompareDemo {
 		System.out.println("Fetched "+runs.size()+" runs");
 		
 		// get site list, this also sets Vs30 and basin depth values in each site for use with the GMPEs
-		List<Site> sites = CyberShakeSiteBuilder.buildSites(study, Vs30_Source.Simulation, runs);
+		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study, Vs30_Source.Simulation, runs);
 		System.out.println("Built "+sites.size()+" sites");
 		
 		List<String> header = new ArrayList<>();

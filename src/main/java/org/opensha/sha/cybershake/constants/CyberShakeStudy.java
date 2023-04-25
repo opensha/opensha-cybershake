@@ -1149,7 +1149,7 @@ public enum CyberShakeStudy {
 		List<Feature> features = new ArrayList<>();
 		
 		List<CybershakeRun> runs = runFetcher().fetch();
-		List<Site> sites;
+		List<CyberShakeSiteRun> sites;
 		try {
 			sites = CyberShakeSiteBuilder.buildSites(this, Vs30_Source.Simulation, runs);
 		} catch (Exception e) {

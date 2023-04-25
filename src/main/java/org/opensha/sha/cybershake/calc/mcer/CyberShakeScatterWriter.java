@@ -159,7 +159,7 @@ public class CyberShakeScatterWriter {
 			System.out.println("Period "+(float)period+": "+im);
 			HazardCurveFetcher fetcher = new HazardCurveFetcher(db, runs, study.getDatasetIDs(), im.getID());
 			
-			List<Site> sites = CyberShakeMCErMapGenerator.getSitesList(fetcher);
+			List<CyberShakeSiteRun> sites = CyberShakeMCErMapGenerator.getSitesList(fetcher);
 			System.out.println("Will write scatters for "+sites.size()+" sites");
 			
 			GeoDataSet mcerScatter = new ArbDiscrGeoDataSet(true);

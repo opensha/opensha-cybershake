@@ -38,14 +38,14 @@ public class StudyBasinDepthWriter {
 			csSites.add(site);
 		}
 		
-		List<Site> sites = builder.buildSites(runs, csSites);
+		List<CyberShakeSiteRun> sites = builder.buildSites(runs, csSites);
 		CSVFile<String> csv = new CSVFile<>(true);
 		csv.addLine("Site ID", "Site Short Name", "Latitude", "Longitude", "Z1.0 [m]", "Z2.5 [km]");
-		for (Site site : sites) {
+		for (CyberShakeSiteRun site : sites) {
 			double z10 = site.getParameter(Double.class, DepthTo1pt0kmPerSecParam.NAME).getValue();
 			double z25 = site.getParameter(Double.class, DepthTo2pt5kmPerSecParam.NAME).getValue();
 			Location loc = site.getLocation();
-			int id = ((CyberShakeSiteRun)site).getCS_Site().id;
+			int id = site.getCS_Site().id;
 			csv.addLine(id+"", site.getName(), (float)loc.getLatitude()+"", (float)loc.getLongitude()+"", (float)z10+"", (float)z25+"");
 		}
 		System.out.println("Writing "+outputFile.getAbsolutePath());

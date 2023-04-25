@@ -10,6 +10,7 @@ import java.util.Map;
 import org.opensha.commons.data.Site;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeRun;
@@ -107,7 +108,7 @@ public class CyberShakeRotatedRupVariabilityPageGen extends RSQSimRotatedRupVari
 			List<CybershakeRun> matchingRuns = study.runFetcher().forSiteNames(siteNames).fetch();
 			Preconditions.checkState(matchingRuns.size() == siteNames.length, "Expected %s runs for %s sites",
 					matchingRuns.size(), siteNames.length);
-			List<Site> sites = CyberShakeSiteBuilder.buildSites(study, vs30Source, matchingRuns);
+			List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study, vs30Source, matchingRuns);
 			
 			Preconditions.checkState(study.getERF() instanceof RSQSimRotatedRuptureFakeERF);
 			RSQSimRotatedRuptureFakeERF erf = (RSQSimRotatedRuptureFakeERF)study.getERF();

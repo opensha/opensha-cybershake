@@ -23,6 +23,7 @@ import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.calc.UCERF2_AleatoryMagVarRemovalMod;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeSite;
@@ -181,7 +182,7 @@ public class AleatoryMagVariabilitiyTest {
 		List<DiscretizedFunc> newCurves = Lists.newArrayList();
 
 		CyberShakeSiteBuilder siteBuilder = new CyberShakeSiteBuilder(Vs30_Source.Wills2015, velModelID);
-		List<Site> sites = siteBuilder.buildSites(runs, curveSites);
+		List<CyberShakeSiteRun> sites = siteBuilder.buildSites(runs, curveSites);
 		
 		System.out.println("Calculating original curves");
 		for (Site site : sites) {

@@ -155,7 +155,7 @@ public class CyberShakeSiteBuilder {
 		this.forceVs30 = forceVs30;
 	}
 	
-	public Site buildSite(CybershakeRun run, CybershakeSite csSite) {
+	public CyberShakeSiteRun buildSite(CybershakeRun run, CybershakeSite csSite) {
 		List<CybershakeRun> runs = new ArrayList<>();
 		runs.add(run);
 		List<CybershakeSite> csSites = new ArrayList<>();
@@ -163,7 +163,7 @@ public class CyberShakeSiteBuilder {
 		return buildSites(runs, csSites).get(0);
 	}
 	
-	public List<Site> buildSites(List<CybershakeRun> runs, List<CybershakeSite> csSites) {
+	public List<CyberShakeSiteRun> buildSites(List<CybershakeRun> runs, List<CybershakeSite> csSites) {
 		Preconditions.checkState(runs.size() == csSites.size());
 		
 		LocationList locs = new LocationList();
@@ -173,7 +173,7 @@ public class CyberShakeSiteBuilder {
 		// will only fetch if needed
 		List<SiteDataValueList<?>> mapBasinVals = null;
 		
-		List<Site> sites = new ArrayList<>();
+		List<CyberShakeSiteRun> sites = new ArrayList<>();
 		
 		for (int i=0; i<runs.size(); i++) {
 			CybershakeRun run = runs.get(i);
@@ -237,7 +237,7 @@ public class CyberShakeSiteBuilder {
 		return sites;
 	}
 	
-	public static List<Site> buildSites(CyberShakeStudy study, Vs30_Source vs30Source, List<CybershakeRun> runs) {
+	public static List<CyberShakeSiteRun> buildSites(CyberShakeStudy study, Vs30_Source vs30Source, List<CybershakeRun> runs) {
 		CybershakeSiteInfo2DB site2db = new CybershakeSiteInfo2DB(study.getDB());
 		List<CybershakeSite> csSites = new ArrayList<>();
 		for (CybershakeRun run : runs)

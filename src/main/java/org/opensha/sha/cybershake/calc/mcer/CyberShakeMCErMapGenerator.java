@@ -93,7 +93,7 @@ public class CyberShakeMCErMapGenerator {
 		/*
 		 * Create site list
 		 */
-		List<Site> sites = getSitesList(fetcher);
+		List<CyberShakeSiteRun> sites = getSitesList(fetcher);
 		writeSitesFile(new File(outputDir, "sites.xml"), sites);
 		
 		/*
@@ -243,7 +243,7 @@ public class CyberShakeMCErMapGenerator {
 		return cachePrefix;
 	}
 
-	static List<Site> getSitesList(HazardCurveFetcher fetcher) {
+	static List<CyberShakeSiteRun> getSitesList(HazardCurveFetcher fetcher) {
 		List<CybershakeSite> csSites = fetcher.getCurveSites();
 		List<Integer> runIDs = fetcher.getRunIDs();
 		
@@ -278,7 +278,7 @@ public class CyberShakeMCErMapGenerator {
 		return new CyberShakeSiteBuilder(Vs30_Source.Wills2015, velModelID).buildSites(mapRuns, mapSites);
 	}
 	
-	static void writeSitesFile(File file, List<Site> sites) throws IOException {
+	static void writeSitesFile(File file, List<? extends Site> sites) throws IOException {
 		Document doc = XMLUtils.createDocumentWithRoot();
 		Element root = doc.getRootElement();
 		

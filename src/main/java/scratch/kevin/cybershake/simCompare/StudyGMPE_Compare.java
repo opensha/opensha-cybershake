@@ -64,7 +64,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	private CyberShakeStudy study;
 	
 	private List<CybershakeRun> csRuns;
-	private List<Site> sites;
+	private List<? extends Site> sites;
 	
 	private SimulationRotDProvider<CSRupture> prov;
 	

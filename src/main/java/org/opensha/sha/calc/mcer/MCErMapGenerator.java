@@ -174,7 +174,7 @@ public class MCErMapGenerator {
 	
 	public static void calculateMaps(String name, String prefix, AbstractMCErProbabilisticCalc probCalc, AbstractMCErDeterministicCalc detCalc,
 			String compareName, AbstractMCErProbabilisticCalc compareProbCalc, AbstractMCErDeterministicCalc compareDetCalc,
-			Region region, Collection<Site> sites, double period, File outputDir) throws IOException, GMT_MapException {
+			Region region, Collection<? extends Site> sites, double period, File outputDir) throws IOException, GMT_MapException {
 		Preconditions.checkNotNull(region);
 		Preconditions.checkState(!sites.isEmpty(), "No sites given!");
 		

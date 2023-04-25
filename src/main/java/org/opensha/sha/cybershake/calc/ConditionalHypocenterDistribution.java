@@ -639,7 +639,7 @@ public class ConditionalHypocenterDistribution {
 				new File("/home/kevin/CyberShake/MCER/.amps_cache"), erf));
 		
 		List<CybershakeRun> runs = study.runFetcher().fetch();
-		List<Site> sites = CyberShakeSiteBuilder.buildSites(study, Vs30_Source.Simulation, runs);
+		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study, Vs30_Source.Simulation, runs);
 		
 		DiscretizedFunc xValsFunc = new IMT_Info().getDefaultHazardCurve(SA_Param.NAME);
 		List<Double> xVals = Lists.newArrayList();

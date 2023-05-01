@@ -68,6 +68,11 @@ public class CSRuptureBBPWrapperRotDProvider implements SimulationRotDProvider<C
 	}
 
 	@Override
+	public double getPGA(Site site, CSRupture rupture, int index) throws IOException {
+		return bbpLoader.getPGA(site, getEvent(rupture), index);
+	}
+
+	@Override
 	public double getDuration(Site site, CSRupture rupture, DurationTimeInterval interval, int index)
 			throws IOException {
 		return bbpLoader.getDuration(site, getEvent(rupture), interval, index);
@@ -96,6 +101,11 @@ public class CSRuptureBBPWrapperRotDProvider implements SimulationRotDProvider<C
 	@Override
 	public boolean hasPGV() {
 		return bbpLoader.hasPGV();
+	}
+
+	@Override
+	public boolean hasPGA() {
+		return bbpLoader.hasPGA();
 	}
 
 	@Override

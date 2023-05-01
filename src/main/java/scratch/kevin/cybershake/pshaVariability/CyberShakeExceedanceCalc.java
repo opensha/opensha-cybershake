@@ -39,7 +39,7 @@ import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimSectBundledSource
 
 public class CyberShakeExceedanceCalc {
 	
-	public static WindowedFractionalExceedanceCalculator forStudy(CyberShakeStudy study, CybershakeIM im,
+	public static WindowedFractionalExceedanceCalculator<RSQSimEvent> forStudy(CyberShakeStudy study, CybershakeIM im,
 			File ampsCacheDir, List<RSQSimEvent> events, ReturnPeriods[] rps) {
 		List<CybershakeRun> runs = study.runFetcher().fetch();
 		
@@ -68,7 +68,7 @@ public class CyberShakeExceedanceCalc {
 		SimRotDPRovider simProv = new SimRotDPRovider(matchedEvents, im, amps2DB, eventIDtoSrcRups);
 		
 		IMT imt = IMT.forPeriod(im.getVal());
-		return new WindowedFractionalExceedanceCalculator(matchedEvents, simProv, sites, imt, rps);
+		return new WindowedFractionalExceedanceCalculator.RSQSim(matchedEvents, simProv, sites, imt, rps);
 	}
 	
 	private static class SimRotDPRovider implements SimulationRotDProvider<RSQSimEvent> {
@@ -131,6 +131,11 @@ public class CyberShakeExceedanceCalc {
 		}
 
 		@Override
+		public double getPGA(Site site, RSQSimEvent rupture, int index) throws IOException {
+			throw new IllegalStateException();
+		}
+
+		@Override
 		public double getDuration(Site site, RSQSimEvent rupture, DurationTimeInterval interval, int index)
 				throws IOException {
 			throw new IllegalStateException();
@@ -180,6 +185,11 @@ public class CyberShakeExceedanceCalc {
 		}
 
 		@Override
+		public boolean hasPGA() {
+			return false;
+		}
+
+		@Override
 		public boolean hasDurations() {
 			return false;
 		}
@@ -210,7 +220,7 @@ public class CyberShakeExceedanceCalc {
 		ReturnPeriods[] rps = ReturnPeriods.values();
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		
-		WindowedFractionalExceedanceCalculator calc = forStudy(study, im, ampsCacheDir, events, rps);
+		WindowedFractionalExceedanceCalculator<RSQSimEvent> calc = forStudy(study, im, ampsCacheDir, events, rps);
 		
 		int numSamples = 100000;
 		double windowDuration = 50d;

@@ -106,6 +106,11 @@ public class CSRotatedRupSimProv implements SimulationRotDProvider<RotationSpec>
 	}
 
 	@Override
+	public double getPGA(Site site, RotationSpec rupture, int index) throws IOException {
+		return prov.getPGA(site, rupForRotation(site, rupture), index);
+	}
+
+	@Override
 	public double getDuration(Site site, RotationSpec rupture, DurationTimeInterval interval, int index)
 			throws IOException {
 		return prov.getDuration(site, rupForRotation(site, rupture), interval, index);
@@ -142,6 +147,11 @@ public class CSRotatedRupSimProv implements SimulationRotDProvider<RotationSpec>
 	@Override
 	public boolean hasPGV() {
 		return prov.hasPGV();
+	}
+
+	@Override
+	public boolean hasPGA() {
+		return prov.hasPGA();
 	}
 
 	@Override

@@ -1,9 +1,11 @@
 package scratch.kevin.cybershake.pshaVariability;
 
+import java.awt.geom.Point2D;
+import java.io.File;
 import java.io.IOException;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,31 +16,65 @@ import java.util.function.Supplier;
 import org.apache.commons.math3.stat.StatUtils;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.DiscretizedFunc;
+import org.opensha.commons.data.function.IntegerPDF_FunctionSampler;
 import org.opensha.commons.data.function.LightFixedXFunc;
+import org.opensha.commons.data.function.XY_DataSet;
+import org.opensha.commons.data.region.CaliforniaRegions;
 import org.opensha.commons.data.xyz.ArbDiscrGeoDataSet;
+import org.opensha.commons.data.xyz.FixedLocationArbDiscrGeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSet;
+import org.opensha.commons.data.xyz.GriddedGeoDataSet;
+import org.opensha.commons.geo.BorderType;
+import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
+import org.opensha.commons.geo.LocationList;
+import org.opensha.commons.geo.Region;
+import org.opensha.commons.mapping.PoliticalBoundariesData;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CybershakeRun;
+import org.opensha.sha.earthquake.ProbEqkRupture;
+import org.opensha.sha.earthquake.ProbEqkSource;
+import org.opensha.sha.earthquake.faultSysSolution.FaultSystemSolution;
+import org.opensha.sha.earthquake.faultSysSolution.modules.GridSourceProvider;
 import org.opensha.sha.earthquake.faultSysSolution.util.SolHazardMapCalc.ReturnPeriods;
+import org.opensha.sha.earthquake.observedEarthquake.ObsEqkRupList;
+import org.opensha.sha.earthquake.observedEarthquake.ObsEqkRupture;
+import org.opensha.sha.earthquake.param.IncludeBackgroundOption;
+import org.opensha.sha.earthquake.param.IncludeBackgroundParam;
+import org.opensha.sha.earthquake.param.ProbabilityModelOptions;
+import org.opensha.sha.earthquake.param.ProbabilityModelParam;
+import org.opensha.sha.earthquake.rupForecastImpl.nshm23.logicTree.NSHM23_DeclusteringAlgorithms;
+import org.opensha.sha.earthquake.rupForecastImpl.nshm23.logicTree.NSHM23_SeisSmoothingAlgorithms;
+import org.opensha.sha.earthquake.rupForecastImpl.nshm23.util.NSHM23_RegionLoader.SeismicityRegions;
+import org.opensha.sha.faultSurface.PointSurface;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
 import org.opensha.sha.imr.attenRelImpl.ngaw2.NGAW2_WrapperFullParam;
 import org.opensha.sha.imr.attenRelImpl.ngaw2.ScalarGroundMotion;
 import org.opensha.sha.imr.param.IntensityMeasureParams.DurationTimeInterval;
+import org.opensha.sha.imr.param.IntensityMeasureParams.PGA_Param;
 import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
+import org.opensha.sha.magdist.GutenbergRichterMagFreqDist;
+import org.opensha.sha.magdist.IncrementalMagFreqDist;
 import org.opensha.sha.simulators.RSQSimEvent;
+import org.opensha.sha.simulators.utils.RSQSimUtils;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Doubles;
 
 import Jama.Matrix;
+import scratch.UCERF3.erf.FaultSystemSolutionERF;
+import scratch.UCERF3.erf.utils.ProbabilityModelsCalc;
 import scratch.kevin.cybershake.pshaVariability.WindowedFractionalExceedanceCalculator.ExceedanceResult;
 import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.SimulationRotDProvider;
 import scratch.kevin.simulators.RSQSimCatalog;
+import scratch.kevin.simulators.RSQSimCatalog.Catalogs;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimProbEqkRup;
 import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimSectBundledSource;
@@ -48,11 +84,8 @@ public class GMM_ExceedanceCalc {
 	
 	private static double SIGMA_TRUNCATION = 3;
 	
-	public static WindowedFractionalExceedanceCalculator forStudy(CyberShakeStudy study, RSQSimCatalog catalog, double period,
+	public static WindowedFractionalExceedanceCalculator<ObsEqkRupture> forRSQSim(List<? extends Site> sites, RSQSimCatalog catalog, double period,
 			List<RSQSimEvent> events, AttenRelRef gmmRef, ReturnPeriods[] rps, boolean randFields) throws IOException {
-		List<CybershakeRun> runs = study.runFetcher().fetch();
-		
-		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study, Vs30_Source.Simulation, runs);
 		
 		SpatialVarCalc randFieldCalc = null;
 		if (randFields)
@@ -60,89 +93,277 @@ public class GMM_ExceedanceCalc {
 		
 		Random rng = new Random(sites.size()*events.size());
 		
-		GMM_SimProv simProv = new GMM_SimProv(catalog, events, gmmRef, period, sites, randFieldCalc, rng);
+		// params
+		double minFractForInclusion = 0.2;
+		double srfPointCullDist = 100;
+		double maxSourceDist = 200d;
+		// these don't matter, just for meta that we won't use
+		double minMag = 0d;
+		double skipYears = 20000;
+		double dt = 0.1d;
+		
+		Map<Integer, RSQSimEvent> idToEventMap = new HashMap<>();
+		for (RSQSimEvent event : events)
+			idToEventMap.put(event.getID(), event);
+		
+		RSQSimSectBundledERF erf = new RSQSimSectBundledERF(catalog.getElements(), events, catalog.getFaultModel(),
+				catalog.getDeformationModel(), catalog.getSubSects(), minMag, minFractForInclusion,
+				srfPointCullDist, dt, skipYears);
+		erf.updateForecast();
+		
+		ObsEqkRupList obsRups = new ObsEqkRupList();
+		
+		double firstEventTimeYears = events.get(0).getTimeInYears();
+		
+		for (int sourceID=0; sourceID<erf.getNumSources(); sourceID++) {
+			RSQSimSectBundledSource source = erf.getSource(sourceID);
+			for (int rupID=0; rupID<source.getNumRuptures(); rupID++) {
+				RSQSimProbEqkRup rup = source.getRupture(rupID);
+				boolean includeRup = false;
+				for (Site site : sites) {
+					if (rup.getRuptureSurface().getQuickDistance(site.getLocation()) <= maxSourceDist) {
+						includeRup = true;
+						break;
+					}
+				}
+				if (includeRup) {
+					RSQSimEvent event = idToEventMap.get(rup.getEventID());
+					double deltaTimeYears = event.getTimeInYears() - firstEventTimeYears;
+					long epochMillis = (long)(deltaTimeYears*ProbabilityModelsCalc.MILLISEC_PER_YEAR + 0.5);
+					
+					ObsEqkRupture obsRup = new ObsEqkRupture(event.getID()+"", epochMillis,
+							RSQSimUtils.getHypocenter(event), event.getMagnitude());
+					obsRup.setRuptureSurface(rup.getRuptureSurface());
+					
+					obsRups.add(obsRup);
+				}
+			}
+		}
+		
+		obsRups.sortByOriginTime();
+		System.out.println("Filtered down to "+obsRups.size()+"/"+events.size()+" events");
+		
+		GMM_SimProv simProv = new GMM_SimProv(obsRups, gmmRef, period, sites, randFieldCalc, rng);
 		
 		IMT imt = IMT.forPeriod(period);
-		return new WindowedFractionalExceedanceCalculator(simProv.events, simProv, sites, imt, rps);
+		return new WindowedFractionalExceedanceCalculator.ObsRup(obsRups, simProv, sites, imt, rps);
 	}
 	
-	private static class GMM_SimProv implements SimulationRotDProvider<RSQSimEvent> {
+	public static WindowedFractionalExceedanceCalculator<ObsEqkRupture> forSourceRegion(GriddedRegion siteReg,
+			GriddedRegion sourceReg, IncrementalMagFreqDist mfd, double durationYears, AttenRelRef gmmRef,
+			double period, ReturnPeriods[] rps, boolean randFields, double[] seisPDF) {
+		double totRate = mfd.getTotalIncrRate();
+		int numEvents = (int)(durationYears*totRate + 0.5);
+		System.out.println("Creating "+numEvents+" events in "+(float)durationYears+" for totRate="+(float)totRate);
+		double[] mfdRates = new double[mfd.size()];
+		for (int i=0; i<mfdRates.length; i++)
+			mfdRates[i] = mfd.getY(i);
 		
-		private double durationYears;
+		Random rng = new Random(numEvents*sourceReg.getNodeCount());
+		
+		IntegerPDF_FunctionSampler magIndexSampler = new IntegerPDF_FunctionSampler(mfdRates);
+		double[] randMags = new double[numEvents];
+		for (int i=0; i<numEvents; i++) {
+			int magIndex = magIndexSampler.getRandomInt(rng);
+			randMags[i] = mfd.getX(magIndex);
+		}
+		
+		IntegerPDF_FunctionSampler pdfSampler = null;
+		if (seisPDF != null) {
+			Preconditions.checkState(seisPDF.length == sourceReg.getNodeCount());
+			pdfSampler = new IntegerPDF_FunctionSampler(seisPDF);
+		}
+		
+		// now build them with random locations and times
+		ObsEqkRupList obsRups = new ObsEqkRupList();
+		for (int i=0; i<numEvents; i++) {
+			String id = i+"";
+			double mag = randMags[i];
+			
+			int locIndex;
+			if (seisPDF == null) {
+				locIndex = rng.nextInt(sourceReg.getNodeCount());
+			} else {
+				locIndex = pdfSampler.getRandomInt(rng);
+			}
+			Location loc = sourceReg.getLocation(locIndex);
+			
+			long timeMillis = (long)(rng.nextDouble()*durationYears*ProbabilityModelsCalc.MILLISEC_PER_YEAR + 0.5);
+			
+			ObsEqkRupture rup = new ObsEqkRupture(id, timeMillis, loc, mag);
+			rup.setAveRake(0d);
+			PointSurface surf = new PointSurface(loc);
+			surf.setAveStrike(0d);
+			surf.setAveDip(90d);
+			if (mag > 6.5d) {
+				surf.setAveWidth(12d);
+				surf.setDepth(0d);
+			} else {
+				surf.setAveWidth(5d);
+				surf.setDepth(5d);
+			}
+			rup.setRuptureSurface(surf);
+			
+			obsRups.add(rup);
+		}
+		obsRups.sortByOriginTime();
+		
+		// now build sites
+		ScalarIMR gmm = gmmRef.get();
+		List<Site> sites = new ArrayList<>();
+		for (int i=0; i<siteReg.getNodeCount(); i++) {
+			Site site = new Site(siteReg.getLocation(i));
+			site.setName("Site "+i);
+			site.addParameterList(gmm.getSiteParams());
+			sites.add(site);
+		}
+		
+		SpatialVarCalc randFieldCalc = null;
+		if (randFields)
+			randFieldCalc = new SpatialVarCalc(new double[] {period}, sites);
+		
+		GMM_SimProv simProv = new GMM_SimProv(obsRups, gmmRef, period, sites, randFieldCalc, rng);
+		
+		IMT imt = IMT.forPeriod(period);
+		return new WindowedFractionalExceedanceCalculator.ObsRup(obsRups, simProv, sites, imt, rps);
+	}
+	
+	public static WindowedFractionalExceedanceCalculator<ObsEqkRupture> forFSS(GriddedRegion siteReg,
+			FaultSystemSolution sol, double durationYears, AttenRelRef gmmRef,
+			double period, ReturnPeriods[] rps, boolean randFields, boolean filterRups, boolean randomizeSiteLocs) {
+		System.out.println("Building ERF");
+		FaultSystemSolutionERF erf = new FaultSystemSolutionERF(sol);
+		erf.setParameter(IncludeBackgroundParam.NAME, IncludeBackgroundOption.INCLUDE);
+		erf.setParameter(ProbabilityModelParam.NAME, ProbabilityModelOptions.POISSON);
+		erf.getTimeSpan().setDuration(1d);
+		erf.updateForecast();
+		
+		double totRate = 0d;
+		
+		List<Double> rupRates = new ArrayList<>(erf.getTotNumRups());
+		
+		if (filterRups) {
+			GriddedRegion downsampled = new GriddedRegion(siteReg, 1d, GriddedRegion.ANCHOR_0_0);
+			List<Site> downsampledSites = new ArrayList<>();
+			for (int i=0; i<downsampled.getNodeCount(); i++)
+				downsampledSites.add(new Site(downsampled.getLocation(i)));
+			
+			double includeDist = 300d;
+			int numKept = 0;
+			
+			for (ProbEqkSource source : erf) {
+				boolean include = false;
+				for (Site site : downsampledSites) {
+					if (source.getMinDistance(site) <= includeDist) {
+						include = true;
+						break;
+					}
+				}
+				for (ProbEqkRupture rup : source) {
+					double rate = 0d;
+					if (include) {
+						rate = rup.getMeanAnnualRate(1d);
+						numKept++;
+					}
+					rupRates.add(rate);
+					totRate += rate;
+				}
+			}
+			
+			System.out.println("Kept "+numKept+" ("+pDF.format((double)numKept/(double)rupRates.size())
+				+") ruptures within "+oDF.format(includeDist)+" of downsampled site reg.");
+		} else {
+			for (int i=0; i<erf.getTotNumRups(); i++) {
+				double rate = erf.getNthRupture(i).getMeanAnnualRate(1d);
+				rupRates.add(rate);
+				totRate += rate;
+			}
+		}
+		
+		int numRups = rupRates.size();
+		
+		IntegerPDF_FunctionSampler rupSampler = new IntegerPDF_FunctionSampler(Doubles.toArray(rupRates));
+		
+		int numEvents = (int)(durationYears*totRate + 0.5);
+		System.out.println("Creating "+numEvents+" events in "+(float)durationYears+" for totRate="+(float)totRate);
+		
+		Random rng = new Random(numEvents*numRups);
+		
+		// now build them with random locations and times
+		ObsEqkRupList obsRups = new ObsEqkRupList();
+		for (int i=0; i<numEvents; i++) {
+			String id = i+"";
+			int index = rupSampler.getRandomInt(rng);
+			
+			ProbEqkRupture probRup = erf.getNthRupture(index);
+			
+			long timeMillis = (long)(rng.nextDouble()*durationYears*ProbabilityModelsCalc.MILLISEC_PER_YEAR + 0.5);
+			
+			ObsEqkRupture rup = new ObsEqkRupture(id, timeMillis, probRup.getHypocenterLocation(), probRup.getMag());
+			rup.setAveRake(probRup.getAveRake());
+			rup.setRuptureSurface(probRup.getRuptureSurface());
+			
+			obsRups.add(rup);
+		}
+		obsRups.sortByOriginTime();
+		
+		// now build sites
+		ScalarIMR gmm = gmmRef.get();
+		List<Site> sites = new ArrayList<>();
+		for (int i=0; i<siteReg.getNodeCount(); i++) {
+			Location loc = siteReg.getLocation(i);
+			if (randomizeSiteLocs) {
+				double latSpacing = siteReg.getLatSpacing();
+				double lonSpacing = siteReg.getLonSpacing();
+				double lat = loc.getLatitude() + latSpacing*(rng.nextDouble()-0.5);
+				double lon = loc.getLongitude() + lonSpacing*(rng.nextDouble()-0.5);
+				loc = new Location(latSpacing, lonSpacing);
+			}
+			Site site = new Site(loc);
+			site.setName("Site "+i);
+			site.addParameterList(gmm.getSiteParams());
+			sites.add(site);
+		}
+		
+		SpatialVarCalc randFieldCalc = null;
+		if (randFields)
+			randFieldCalc = new SpatialVarCalc(new double[] {period}, sites);
+		
+		GMM_SimProv simProv = new GMM_SimProv(obsRups, gmmRef, period, sites, randFieldCalc, rng);
+		
+		simProv.calcShakeMaps();
+		
+		IMT imt = IMT.forPeriod(period);
+		return new WindowedFractionalExceedanceCalculator.ObsRup(obsRups, simProv, sites, imt, rps);
+	}
+	
+	private static class GMM_SimProv implements SimulationRotDProvider<ObsEqkRupture> {
+		
 		private double[] x;
 		private AttenRelRef gmmRef;
 		private double period;
-		private List<RSQSimEvent> events;
+		private List<? extends ObsEqkRupture> events;
 		private List<? extends Site> sites;
 		private Random rng;
 		
-		private double maxSourceDist = 200d;
-		
-		private RSQSimSectBundledERF erf;
-		private Map<Integer, RSQSimEvent> eventIDMap;
-		private Map<Integer, RSQSimProbEqkRup> eventIDRupMap;
 		private SpatialVarCalc randFieldCalc;
 		
-		private Map<Integer, GeoDataSet> eventShakeMaps;
+		private Map<String, GeoDataSet> eventShakeMaps;
+		private double durationYears;
 		
-		public GMM_SimProv(RSQSimCatalog catalog, List<RSQSimEvent> events, AttenRelRef gmmRef, double period,
-				List<? extends Site> sites, SpatialVarCalc randFieldCalc, Random rng) throws IOException {
+		public GMM_SimProv(List<? extends ObsEqkRupture> events, AttenRelRef gmmRef, double period,
+				List<? extends Site> sites, SpatialVarCalc randFieldCalc, Random rng) {
 			this.gmmRef = gmmRef;
 			this.period = period;
 			this.sites = sites;
 			this.randFieldCalc = randFieldCalc;
 			this.rng = rng;
+			this.events = events;
+			long firstMillis = events.get(0).getOriginTime();
+			long lastMillis = events.get(events.size()-1).getOriginTime();
+			long deltaMillis = lastMillis - firstMillis;
+			this.durationYears = (double)deltaMillis/ProbabilityModelsCalc.MILLISEC_PER_YEAR;
 			x = new double[] {period};
-			
-			double minFractForInclusion = 0.2;
-			double srfPointCullDist = 100;
-			double dt = 0.1d;
-			
-			// doesn't matter, just for meta that we won't use
-			double minMag = 0d;
-			double skipYears = 20000;
-			
-			eventIDMap = new HashMap<>();
-			for (RSQSimEvent event : events)
-				eventIDMap.put(event.getID(), event);
-			durationYears = events.get(events.size()-1).getTimeInYears() - events.get(0).getTimeInYears();
-			
-			erf = new RSQSimSectBundledERF(catalog.getElements(), events, catalog.getFaultModel(),
-					catalog.getDeformationModel(), catalog.getSubSects(), minMag, minFractForInclusion,
-					srfPointCullDist, dt, skipYears);
-			erf.updateForecast();
-			
-			List<RSQSimEvent> filteredEvents = new ArrayList<>();
-			
-			eventIDRupMap = new HashMap<>();
-			for (int sourceID=0; sourceID<erf.getNumSources(); sourceID++) {
-				RSQSimSectBundledSource source = erf.getSource(sourceID);
-//				boolean includeSource = false;
-//				for (Site site : sites) {
-//					if (source.getMinDistance(site) <= maxSourceDist) {
-//						includeSource = true;
-//						break;
-//					}
-//				}
-//				if (!includeSource)
-//					break;
-				for (int rupID=0; rupID<source.getNumRuptures(); rupID++) {
-					RSQSimProbEqkRup rup = source.getRupture(rupID);
-					boolean includeRup = false;
-					for (Site site : sites) {
-						if (rup.getRuptureSurface().getQuickDistance(site.getLocation()) <= maxSourceDist) {
-							includeRup = true;
-							break;
-						}
-					}
-					eventIDRupMap.put(rup.getEventID(), rup);
-					if (includeRup)
-						filteredEvents.add(eventIDMap.get(rup.getEventID()));
-				}
-			}
-			Collections.sort(filteredEvents);
-			this.events = filteredEvents;
-			System.out.println("Filtered down to "+filteredEvents.size()+"/"+events.size()+" events");
 		}
 		
 		public void calcShakeMaps() {
@@ -151,8 +372,13 @@ public class GMM_ExceedanceCalc {
 			List<CompletableFuture<ScalarGroundMotion[]>> siteGroundMotionFutures = new ArrayList<>();
 			for (int s=0; s<sites.size(); s++) {
 				ScalarIMR gmm = gmmRef.get();
-				gmm.setIntensityMeasure(SA_Param.NAME);
-				SA_Param.setPeriodInSA_Param(gmm.getIntensityMeasure(), period);
+				if (period > 0d) {
+					gmm.setIntensityMeasure(SA_Param.NAME);
+					SA_Param.setPeriodInSA_Param(gmm.getIntensityMeasure(), period);
+				} else {
+					Preconditions.checkState(period == 0d);
+					gmm.setIntensityMeasure(PGA_Param.NAME);
+				}
 				gmm.setSite(sites.get(s));
 				Preconditions.checkState(gmm instanceof NGAW2_WrapperFullParam);
 				NGAW2_WrapperFullParam ngaGMM = (NGAW2_WrapperFullParam)gmm;
@@ -162,9 +388,8 @@ public class GMM_ExceedanceCalc {
 					public ScalarGroundMotion[] get() {
 						ScalarGroundMotion[] ret = new ScalarGroundMotion[events.size()];
 						for (int i=0; i<events.size(); i++) {
-							RSQSimEvent event = events.get(i);
-							RSQSimProbEqkRup rup = eventIDRupMap.get(event.getID());
-							ngaGMM.setEqkRupture(rup);
+							ObsEqkRupture event = events.get(i);
+							ngaGMM.setEqkRupture(event);
 							ret[i] = ngaGMM.getGroundMotion();
 						}
 						return ret;
@@ -172,27 +397,42 @@ public class GMM_ExceedanceCalc {
 				}));
 			}
 			
-			ArbDiscrGeoDataSet emptyMap = new ArbDiscrGeoDataSet(false);
-			for (Site site : sites)
-				emptyMap.set(site.getLocation(), 0d);
+			System.out.println("Initializing shakemaps...");
+			ImmutableList.Builder<Location> siteLocBuilder = ImmutableList.builderWithExpectedSize(sites.size());
+			ImmutableMap.Builder<Location, Integer> siteLocIndexMapBuilder = ImmutableMap.builderWithExpectedSize(sites.size());
+			for (int s=0; s<sites.size(); s++) {
+				Location loc = sites.get(s).getLocation();
+				siteLocIndexMapBuilder.put(loc, s);
+				siteLocBuilder.add(loc);
+			}
+			ImmutableList<Location> siteLocs = siteLocBuilder.build();
+			ImmutableMap<Location, Integer> siteLocIndexMap = siteLocIndexMapBuilder.build();
+			
 			List<GeoDataSet> maps = new ArrayList<>();
 			
 			for (int i=0; i<events.size(); i++)
-				maps.add(emptyMap.copy());
+				maps.add(new FixedLocationArbDiscrGeoDataSet(siteLocs, siteLocIndexMap));
 			
+			System.out.println("Waiting on ground motion calculations and filling in maps...");
 			// now fill them in
 			double[] avgSigmas = new double[events.size()];
 			double[] avgPhis = new double[events.size()];
 			double[] avgTaus = new double[events.size()];
 			for (int s=0; s<sites.size(); s++) {
 				ScalarGroundMotion[] siteGMs = siteGroundMotionFutures.get(s).join();
+				
+				System.out.println("Done with site "+s+"/"+sites.size());
 				for (int i=0; i<events.size(); i++) {
 					maps.get(i).set(s, Math.exp(siteGMs[i].mean()));
 					avgSigmas[i] += siteGMs[i].stdDev();
 					avgPhis[i] += siteGMs[i].phi();
 					avgTaus[i] += siteGMs[i].tau();
 				}
+				// clear it from memory
+				siteGroundMotionFutures.set(s, null);
 			}
+			siteGroundMotionFutures = null;
+			System.gc();
 			for (int i=0; i<events.size(); i++) {
 				avgSigmas[i] /= sites.size();
 				avgPhis[i] /= sites.size();
@@ -207,6 +447,7 @@ public class GMM_ExceedanceCalc {
 			double avgTau = StatUtils.mean(avgTaus);
 			System.out.println("GMM tau: avg="+(float)avgTau+", range=["
 					+(float)StatUtils.min(avgTaus)+", "+(float)StatUtils.max(avgTaus)+"]");
+			System.out.println("Adding random between-event variability...");
 			for (int i=0; i<events.size(); i++) {
 				// now add a random sigma
 				double gaussian = rng.nextGaussian();
@@ -234,18 +475,45 @@ public class GMM_ExceedanceCalc {
 				
 				System.out.println("Using average phi="+(float)avgPhi);
 				
-				Matrix[] fields = randFieldCalc.computeRandWithinEventResiduals(rng, avgPhi, events.size());
+				List<CompletableFuture<Matrix[]>> fieldFutures = new ArrayList<>();
+				int numCalculating = 0;
+				while (numCalculating < events.size()) {
+					int bundleSize = Integer.min(1000, events.size()-numCalculating);
+					
+					Random subRand = new Random(rng.nextLong());
+					
+					fieldFutures.add(CompletableFuture.supplyAsync(new Supplier<Matrix[]>() {
+
+						@Override
+						public Matrix[] get() {
+							return randFieldCalc.computeRandWithinEventResiduals(subRand, avgPhi, bundleSize);
+						}
+					}));
+					
+					numCalculating += bundleSize;
+				}
 				
 				double truncation = avgPhi*SIGMA_TRUNCATION;
 				
-				System.out.println("Done building, merging in "+events.size()+" fields");
-				for (int i=0; i<events.size(); i++)
-					maps.set(i, randFieldCalc.calcRandomShakeMap(maps.get(i), fields[i], 0, truncation));
+				int mapIndex = 0;
+				for (CompletableFuture<Matrix[]> future : fieldFutures) {
+					Matrix[] fields = future.join();
+					for (int i=0; i<fields.length; i++) {
+						maps.set(mapIndex, randFieldCalc.calcRandomShakeMap(maps.get(i), fields[i], 0, truncation));
+						mapIndex++;
+					}
+					System.out.println("Done with "+mapIndex+"/"+events.size()+" fields");
+				}
 			}
 			System.out.println("DONE");
-			Map<Integer, GeoDataSet> eventShakeMaps = new HashMap<>();
-			for (int i=0; i<events.size(); i++)
-				eventShakeMaps.put(events.get(i).getID(), maps.get(i));
+			Map<String, GeoDataSet> eventShakeMaps = new HashMap<>();
+			for (int i=0; i<events.size(); i++) {
+				ObsEqkRupture event = events.get(i);
+				String id = event.getEventId();
+				Preconditions.checkState(id != null && !id.isBlank(), "ObsEqkRupture eventID not populated: %s", id);
+				Preconditions.checkState(!eventShakeMaps.containsKey(id), "ObsEqkRupture eventID not unique: %s", id);
+				eventShakeMaps.put(id, maps.get(i));
+			}
 			this.eventShakeMaps = eventShakeMaps;
 		}
 
@@ -255,75 +523,82 @@ public class GMM_ExceedanceCalc {
 		}
 
 		@Override
-		public DiscretizedFunc getRotD50(Site site, RSQSimEvent rupture, int index) throws IOException {
+		public DiscretizedFunc getRotD50(Site site, ObsEqkRupture rupture, int index) throws IOException {
+			Preconditions.checkState(period > 0d);
+			double y = doLoad(site, rupture);
+			double[] ys = { y };
+			return new LightFixedXFunc(x, ys);
+		}
+		
+		@Override
+		public double getPGA(Site site, ObsEqkRupture rupture, int index) throws IOException {
+			Preconditions.checkState(period == 0d);
+			return doLoad(site, rupture);
+		}
+		
+		private double doLoad(Site site, ObsEqkRupture rupture) {
 			if (eventShakeMaps == null) {
 				synchronized (this) {
-					if (eventShakeMaps == null)
-						calcShakeMaps();
+					if (eventShakeMaps == null) {
+						try {
+							calcShakeMaps();
+						} catch (Throwable t) {
+							t.printStackTrace();
+							System.err.flush();
+							System.exit(1);
+						}
+					}
 				}
 			}
-			GeoDataSet map = eventShakeMaps.get(rupture.getID());
+			GeoDataSet map = eventShakeMaps.get(rupture.getEventId());
 			Preconditions.checkNotNull(map);
-			double[] y = { map.get(site.getLocation()) };
-			return new LightFixedXFunc(x, y);
+			return map.get(site.getLocation());
 		}
 
 		@Override
-		public DiscretizedFunc getRotD100(Site site, RSQSimEvent rupture, int index) throws IOException {
+		public DiscretizedFunc getRotD100(Site site, ObsEqkRupture rupture, int index) throws IOException {
 			throw new IllegalStateException();
 		}
 
 		@Override
-		public DiscretizedFunc[] getRotD(Site site, RSQSimEvent rupture, int index) throws IOException {
+		public DiscretizedFunc[] getRotD(Site site, ObsEqkRupture rupture, int index) throws IOException {
 			throw new IllegalStateException();
 		}
 
 		@Override
-		public DiscretizedFunc getRotDRatio(Site site, RSQSimEvent rupture, int index) throws IOException {
+		public DiscretizedFunc getRotDRatio(Site site, ObsEqkRupture rupture, int index) throws IOException {
 			throw new IllegalStateException();
 		}
 
 		@Override
-		public double getPGV(Site site, RSQSimEvent rupture, int index) throws IOException {
+		public double getPGV(Site site, ObsEqkRupture rupture, int index) throws IOException {
 			throw new IllegalStateException();
 		}
 
 		@Override
-		public double getDuration(Site site, RSQSimEvent rupture, DurationTimeInterval interval, int index)
+		public double getDuration(Site site, ObsEqkRupture rupture, DurationTimeInterval interval, int index)
 				throws IOException {
 			throw new IllegalStateException();
 		}
 
 		@Override
-		public int getNumSimulations(Site site, RSQSimEvent rupture) {
+		public int getNumSimulations(Site site, ObsEqkRupture rupture) {
 			return 1;
 		}
 
 		@Override
-		public Location getHypocenter(RSQSimEvent rupture, int index) {
-			throw new IllegalStateException();
+		public Location getHypocenter(ObsEqkRupture rupture, int index) {
+			return rupture.getHypocenterLocation();
 		}
 
 		@Override
-		public Collection<RSQSimEvent> getRupturesForSite(Site site) {
-			List<RSQSimEvent> rups = new ArrayList<>();
-			for (int sourceID=0; sourceID<erf.getNumSources(); sourceID++) {
-				RSQSimSectBundledSource source = erf.getSource(sourceID);
-				
-//				if (source.getMinDistance(site) > maxSourceDist)
-//					continue;
-				for (int rupID=0; rupID<source.getNumRuptures(); rupID++) {
-					RSQSimProbEqkRup rup = source.getRupture(rupID);
-					if (rup.getRuptureSurface().getQuickDistance(site.getLocation()) <= maxSourceDist)
-						rups.add(eventIDMap.get(rup.getEventID()));
-				}
-			}
-			return rups;
+		public Collection<? extends ObsEqkRupture> getRupturesForSite(Site site) {
+			return events;
 		}
 
 		@Override
 		public boolean hasRotD50() {
-			return true;
+			return period > 0d;
 		}
 
 		@Override
@@ -337,12 +612,17 @@ public class GMM_ExceedanceCalc {
 		}
 
 		@Override
+		public boolean hasPGA() {
+			return period == 0d;
+		}
+
+		@Override
 		public boolean hasDurations() {
 			return false;
 		}
 
 		@Override
-		public double getAnnualRate(RSQSimEvent rupture) {
+		public double getAnnualRate(ObsEqkRupture rupture) {
 			return 1d/durationYears;
 		}
 
@@ -352,50 +632,225 @@ public class GMM_ExceedanceCalc {
 		}
 
 		@Override
-		public double getMagnitude(RSQSimEvent rupture) {
-			return rupture.getMagnitude();
+		public double getMagnitude(ObsEqkRupture rupture) {
+			return rupture.getMag();
 		}
 		
 	}
-
-	public static void main(String[] args) throws IOException {
+	
+	private static WindowedFractionalExceedanceCalculator<ObsEqkRupture> initRSQSimCyberShakeMap(AttenRelRef gmmRef, double period,
+			ReturnPeriods[] rps, boolean randFields) throws IOException {
 		CyberShakeStudy study = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
 		double skipYears = 20000;
-//		double period = 3d;
-		double period = 0.1;
 		double minMag = 6d;
-		AttenRelRef gmmRef = AttenRelRef.ASK_2014;
-		ReturnPeriods[] rps = ReturnPeriods.values();
-		boolean randFields = true;
 		
 		RSQSimCatalog catalog = study.getRSQSimCatalog();
 		List<RSQSimEvent> events = catalog.loader().minMag(minMag).skipYears(skipYears).load();
 		System.out.println("Loaded "+events.size()+" events");
 		
-		WindowedFractionalExceedanceCalculator calc = forStudy(study, catalog, period, events, gmmRef, rps, randFields);
+		List<CybershakeRun> runs = study.runFetcher().fetch();
+		
+		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study, Vs30_Source.Simulation, runs);
 		
 		study.getDB().destroy();
 		
-		int numSamples = 100000;
-		double windowDuration = 50d;
-		Random rand = new Random(events.size());
+		WindowedFractionalExceedanceCalculator<ObsEqkRupture> calc = forRSQSim(sites, catalog, period, events, gmmRef, rps, randFields);
 		
-		ExceedanceResult[] samples = calc.getRandomFractExceedances(windowDuration, numSamples, rand);
-		ExceedanceResult[] poissonSamples = calc.getShuffledRandomFractExceedances(windowDuration, numSamples, rand);
+		return calc;
+	}
+	
+	private static WindowedFractionalExceedanceCalculator<ObsEqkRupture> initRSQSimStatewide(AttenRelRef gmmRef, double period,
+			ReturnPeriods[] rps, boolean randFields) throws IOException {
+		RSQSimCatalog catalog = Catalogs.BRUCE_5413.instance();
+		double skipYears = 20000;
+		double minMag = 6d;
 		
-		System.out.println("DONE, randFields="+randFields);
+		List<RSQSimEvent> events = catalog.loader().minMag(minMag).skipYears(skipYears).load();
+		System.out.println("Loaded "+events.size()+" events");
 		
-		for (boolean map : new boolean[] {true,false}) {
-			for (int r=0; r<rps.length; r++) {
-				for (boolean poisson : new boolean[] {false,true}) {
-					ExceedanceResult result = poisson ? poissonSamples[r] : samples[r];
-					double[] exceedFracts = map ? result.catalogFractSiteExceedances : result.siteFractExceedances;
-
-					System.out.println(rps[r]+", "+(map ? "Map" : "Single-Site")+(poisson ? ", Poisson" : ""));
-					WindowedFractionalExceedanceCalculator.printExceedStats(exceedFracts);
-				}
+		double siteSpacing = 0.5;
+		GriddedRegion siteRegion = new GriddedRegion(getMainlandCA(), siteSpacing, GriddedRegion.ANCHOR_0_0);
+		System.out.println(siteRegion.getNodeCount()+" sites");
+		ScalarIMR gmm = gmmRef.get();
+		List<Site> sites = new ArrayList<>();
+		for (int i=0; i<siteRegion.getNodeCount(); i++) {
+			Site site = new Site(siteRegion.getLocation(i));
+			site.setName("Site "+i);
+			site.addParameterList(gmm.getSiteParams());
+			sites.add(site);
+		}
+		
+		WindowedFractionalExceedanceCalculator<ObsEqkRupture> calc = forRSQSim(sites, catalog, period, events, gmmRef, rps, randFields);
+		
+		return calc;
+	}
+	
+	private static WindowedFractionalExceedanceCalculator<ObsEqkRupture> initUniform(AttenRelRef gmmRef, double period,
+			ReturnPeriods[] rps, boolean randFields, boolean useSeisPDF) throws IOException {
+//		GutenbergRichterMagFreqDist mfd = new GutenbergRichterMagFreqDist(6.05d, 20, 0.1);
+//		double totRate = 0.5d;
+//		double bVal = 1d;
+		
+		GutenbergRichterMagFreqDist mfd = new GutenbergRichterMagFreqDist(4.05d, 31, 0.1);
+		double totRate = 10d;
+		double bVal = 0.97d;
+		
+		mfd.setAllButTotMoRate(mfd.getMinX(), mfd.getMaxX(), totRate, bVal);
+		
+		int targetNumEvents = 250000;
+		double durationYears = targetNumEvents/totRate;
+		
+		Location regCenter = new Location(36, -117);
+		double siteRadius = 150d;
+		double sourceRadius = 300d;
+		double siteSpacing = 0.1;
+		double sourceSpacing = 0.05;
+		
+		GriddedRegion siteRegion = new GriddedRegion(regCenter, siteRadius, siteSpacing, GriddedRegion.ANCHOR_0_0);
+		GriddedRegion sourceRegion = new GriddedRegion(regCenter, sourceRadius, sourceSpacing, GriddedRegion.ANCHOR_0_0);
+		System.out.println(siteRegion.getNodeCount()+" sites and "+sourceRegion.getNodeCount()+" sources");
+		
+		double[] seisPDF = null;
+		if (useSeisPDF) {
+			SeismicityRegions seisReg = SeismicityRegions.CONUS_WEST;
+			GriddedGeoDataSet rawPDF = NSHM23_SeisSmoothingAlgorithms.ADAPTIVE.loadXYZ(
+					seisReg, NSHM23_DeclusteringAlgorithms.NN);
+			seisPDF = new double[sourceRegion.getNodeCount()];
+			for (int i=0; i<seisPDF.length; i++) {
+				Location loc = sourceRegion.getLocation(i);
+				int pdfRegIndex = rawPDF.indexOf(loc);
+				Preconditions.checkState(pdfRegIndex >= 0);
+				seisPDF[i] = rawPDF.get(pdfRegIndex);
 			}
 		}
+		
+		return forSourceRegion(siteRegion, sourceRegion, mfd, durationYears, gmmRef, period, rps, randFields, seisPDF);
 	}
+	
+	private static Region getMainlandCA() throws IOException {
+		XY_DataSet[] caOutlines = PoliticalBoundariesData.loadCAOutlines();
+		
+		Region largest = null;
+		for (XY_DataSet outlineXY : caOutlines) {
+			LocationList outline = new LocationList();
+			for (Point2D pt : outlineXY)
+				outline.add(new Location(pt.getY(), pt.getX()));
+			Region region = new Region(outline, BorderType.MERCATOR_LINEAR);
+			if (largest == null || region.getExtent() > largest.getExtent())
+				largest = region;
+		}
+		
+		return largest;
+	}
+	
+	private static WindowedFractionalExceedanceCalculator<ObsEqkRupture> initU3(AttenRelRef gmmRef, double period,
+			ReturnPeriods[] rps, boolean randFields) throws IOException {
+		FaultSystemSolution sol = FaultSystemSolution.load(new File("/home/kevin/OpenSHA/UCERF3/rup_sets/modular/FM3_1_branch_averaged.zip"));
+		
+		double durationYears = 100000;
+		double siteSpacing = 0.2;
+		boolean filter = false;
+		boolean randomizeSiteLocs = false;
+		
+		GriddedRegion siteRegion = new GriddedRegion(getMainlandCA(), siteSpacing, GriddedRegion.ANCHOR_0_0);
+		System.out.println(siteRegion.getNodeCount()+" sites");
+		
+		return forFSS(siteRegion, sol, durationYears, gmmRef, period, rps, randFields, filter, randomizeSiteLocs);
+	}
+	
+	private static WindowedFractionalExceedanceCalculator<ObsEqkRupture> initU3forLA(AttenRelRef gmmRef, double period,
+			ReturnPeriods[] rps, boolean randFields) throws IOException {
+		FaultSystemSolution sol = FaultSystemSolution.load(new File("/home/kevin/OpenSHA/UCERF3/rup_sets/modular/FM3_1_branch_averaged.zip"));
+		
+		double durationYears = 50000;
+		double siteSpacing = 0.025;
+		boolean filter = true;
+		boolean randomizeSiteLocs = false;
+		
+		GriddedRegion siteRegion = new GriddedRegion(new CaliforniaRegions.CYBERSHAKE_MAP_REGION(), siteSpacing, GriddedRegion.ANCHOR_0_0);
+		System.out.println(siteRegion.getNodeCount()+" sites");
+		
+		return forFSS(siteRegion, sol, durationYears, gmmRef, period, rps, randFields, filter, randomizeSiteLocs);
+	}
+
+	public static void main(String[] args) throws IOException {
+		boolean randFields = true;
+		AttenRelRef gmmRef = AttenRelRef.ASK_2014;
+		ReturnPeriods[] rps = ReturnPeriods.values();
+//		double period = 3d;
+		double period = 0d;
+		
+		File mainOutputDir = new File("/home/kevin/OpenSHA/psha_variability_study");
+		
+//		String dirName = "rsqsim_gmm_la";
+//		WindowedFractionalExceedanceCalculator<ObsEqkRupture> calc = initRSQSimCyberShakeMap(gmmRef, period, rps, randFields);
+		
+//		String dirName = "rsqsim_gmm_ca";
+//		WindowedFractionalExceedanceCalculator<ObsEqkRupture> calc = initRSQSimStatewide(gmmRef, period, rps, randFields);
+		
+//		boolean seisPDF = false;
+//		WindowedFractionalExceedanceCalculator<ObsEqkRupture> calc = initUniform(gmmRef, period, rps, randFields, seisPDF);
+		
+		String dirName = "ucerf3_gmm_ca";
+		WindowedFractionalExceedanceCalculator<ObsEqkRupture> calc = initU3(gmmRef, period, rps, randFields);
+		
+//		String dirName = "ucerf3_gmm_la";
+//		WindowedFractionalExceedanceCalculator<ObsEqkRupture> calc = initU3forLA(gmmRef, period, rps, randFields);
+		
+		File outputDir = new File(mainOutputDir, dirName);
+		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
+		
+		int numSamples = 10000;
+		double[] windowDurations = {50d, 100d, 200d, 500d};
+		Random rand = new Random(calc.getEvents().size()*numSamples);
+		
+		calc.setRandom(rand);
+		
+		String imtPrefix = period > 0 ? oDF.format(period)+"s" : "pga";
+		
+		for (double duration : windowDurations)
+			calc.plotCatalogExceedanceFractDists(duration, numSamples, outputDir, imtPrefix+"_"+oDF.format(duration)+"yr");
+		
+		calc.plotCatalogExceedanceFractsVsDuration(50d, 250d, 15, numSamples, outputDir, imtPrefix+"_fract_vs_windown_len");
+		
+//		ExceedanceResult[] samples = calc.getRandomFractExceedances(windowDuration, numSamples, rand);
+//		ExceedanceResult[] poissonSamples = null;
+//		if (doPoisson)
+//			poissonSamples = calc.getShuffledRandomFractExceedances(windowDuration, numSamples, rand);
+//		
+//		System.out.println("DONE, randFields="+randFields);
+//		
+//		for (boolean map : new boolean[] {true,false}) {
+//			for (int r=0; r<rps.length; r++) {
+//				for (boolean poisson : new boolean[] {false,true}) {
+//					if (poisson && !doPoisson)
+//						continue;
+//					ExceedanceResult result = poisson ? poissonSamples[r] : samples[r];
+//					double[] exceedFracts = map ? result.catalogFractSiteExceedances : result.siteFractExceedances;
+//
+//					System.out.println(rps[r]+", "+(map ? "Map" : "Single-Site")+(poisson ? ", Poisson" : ""));
+//					WindowedFractionalExceedanceCalculator.printExceedStats(exceedFracts);
+//					
+//					if (map) {
+//						String prefix, title;
+//						prefix = "map_fract_hist_"+rps[r].name();
+//						title = rps[r].label+" Map, "+oDF.format(windowDuration)+"yr Observations";
+//						
+//						if (poisson) {
+//							prefix += "_poisson";
+//							title += ", Suffled";
+//						}
+//						double expected = WindowedFractionalExceedanceCalculator.calcExpectedExceedanceFract(rps[r], windowDuration);
+//						calc.plotCatalogExceedanceFractDist(result, expected, false, outputDir, prefix, title);
+//						prefix += "_log";
+//						calc.plotCatalogExceedanceFractDist(result, expected, true, outputDir, prefix, title);
+//					}
+//				}
+//			}
+//		}
+	}
+
+	public static DecimalFormat pDF = new DecimalFormat("0.00%");
+	public static DecimalFormat oDF = new DecimalFormat("0.##");
 
 }

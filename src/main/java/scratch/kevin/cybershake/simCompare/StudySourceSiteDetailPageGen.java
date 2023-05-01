@@ -121,6 +121,11 @@ public class StudySourceSiteDetailPageGen extends SourceSiteDetailPageGen {
 		}
 
 		@Override
+		public double getPGA(Site site, RSQSimEvent rupture, int index) throws IOException {
+			return prov.getPGA(site, getCSRup(rupture, site), index);
+		}
+
+		@Override
 		public double getDuration(Site site, RSQSimEvent rupture, DurationTimeInterval interval, int index)
 				throws IOException {
 			return prov.getDuration(site, getCSRup(rupture, site), interval, index);
@@ -157,6 +162,11 @@ public class StudySourceSiteDetailPageGen extends SourceSiteDetailPageGen {
 		@Override
 		public boolean hasPGV() {
 			return prov.hasPGV();
+		}
+
+		@Override
+		public boolean hasPGA() {
+			return prov.hasPGA();
 		}
 
 		@Override

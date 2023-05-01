@@ -100,6 +100,12 @@ public class RSQSimSubsetStudyRotDProvider implements SimulationRotDProvider<CSR
 	}
 
 	@Override
+	public double getPGA(Site site, CSRupture rupture, int index) throws IOException {
+		Preconditions.checkState(included(rupture));
+		return prov.getPGA(site, rupture, index);
+	}
+
+	@Override
 	public double getDuration(Site site, CSRupture rupture, DurationTimeInterval interval, int index)
 			throws IOException {
 		Preconditions.checkState(included(rupture));
@@ -143,6 +149,11 @@ public class RSQSimSubsetStudyRotDProvider implements SimulationRotDProvider<CSR
 	@Override
 	public boolean hasPGV() {
 		return prov.hasPGV();
+	}
+
+	@Override
+	public boolean hasPGA() {
+		return prov.hasPGA();
 	}
 
 	@Override

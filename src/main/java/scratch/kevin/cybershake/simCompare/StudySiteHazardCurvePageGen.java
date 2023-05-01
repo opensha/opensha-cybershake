@@ -168,7 +168,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 	}
 	
 	static Table<String, CSRupture, Double> getSourceContribFracts(
-			AbstractERF erf, Collection<CSRupture> ruptures, RSQSimCatalog catalog, boolean fractional) {
+			AbstractERF erf, Collection<? extends CSRupture> ruptures, RSQSimCatalog catalog, boolean fractional) {
 		if (erf instanceof MeanUCERF2) {
 			Map<String, List<Integer>> sourceNameToIDs = MeanUCERF2_ToDB.getFaultsToSourcesMap(erf);
 			Map<Integer, String> sourceIDsToNames = new HashMap<>();

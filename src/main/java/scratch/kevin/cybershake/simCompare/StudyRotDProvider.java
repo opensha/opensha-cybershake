@@ -488,6 +488,11 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	}
 
 	@Override
+	public double getPGA(Site site, CSRupture rupture, int index) throws IOException {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
 	public double getDuration(Site site, CSRupture rupture, DurationTimeInterval interval, int index)
 			throws IOException {
 		try {
@@ -537,6 +542,11 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	@Override
 	public boolean hasPGV() {
 		return pgvIM != null;
+	}
+
+	@Override
+	public boolean hasPGA() {
+		return false;
 	}
 
 	@Override

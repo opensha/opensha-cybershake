@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.opensha.commons.data.CSVFile;
 import org.opensha.commons.data.Site;
+import org.opensha.commons.data.siteData.impl.ThompsonVs30_2020;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.geo.Location;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
@@ -18,6 +19,7 @@ import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.cybershake.db.CybershakeRun;
+import org.opensha.sha.cybershake.db.SiteInfo2DB;
 import org.opensha.sha.earthquake.AbstractERF;
 import org.opensha.sha.earthquake.ProbEqkRupture;
 import org.opensha.sha.earthquake.ProbEqkSource;
@@ -35,7 +37,8 @@ public class SiteGMPEParamsWriter {
 	public static void main(String[] args) throws IOException, SQLException {
 		File baseDir = new File("/home/kevin/CyberShake/site_flat_files");
 
-		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
 		
 		File outputDir = new File(baseDir, study.getDirName());
 		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
@@ -49,44 +52,50 @@ public class SiteGMPEParamsWriter {
 		
 		runs = study.runFetcher().fetch();
 		
-		WillsMap2015 wills = new WillsMap2015();
+//		WillsMap2015 wills = new WillsMap2015();
+		ThompsonVs30_2020 thompson = new ThompsonVs30_2020();
 		
 		AbstractERF erf = study.buildNewERF();
 		
 		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(
 				study, Vs30_Source.Simulation, runs);
 		
-		List<String> header = Lists.newArrayList("Site Name", "Site Lat", "Site Lon", "Wills (2015) Vs30 (m/s)",
+		List<String> header = Lists.newArrayList("Site Name", "Site Lat", "Site Lon", "Thompson (2022) Vs30 (m/s)",
 				"CyberShake Vs30 (m/s)", "Site Z1.0 (km)", "Site Z2.5 (km)", "Source ID", "Rupture ID", "Rate (1/yr)",
 				"Magnitude", "Dip", "Rake", "ZTOR (km)", "DDW (km)", "Rrup (km)", "Rjb (km)", "Rx (km)", "Ry0 (km)");
 //				"Closest Point Lat", "Closest Point Lon", "Closest Point Depth (km)");
 		
-		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), null, erf);
-		CybershakeIM refIM = CybershakeIM.getSA(CyberShakeComponent.RotD50, 3);
+//		CachedPeakAmplitudesFromDB amps2db = new CachedPeakAmplitudesFromDB(study.getDB(), null, erf);
+		SiteInfo2DB sites2db = new SiteInfo2DB(study.getDB());
+//		CybershakeIM refIM = CybershakeIM.getSA(CyberShakeComponent.RotD50, 3);
 		
-		for (Site site : sites) {
+		for (int s=0; s<sites.size(); s++) {
+			CyberShakeSiteRun site = sites.get(s);
 			CSVFile<String> csv = new CSVFile<>(true);
 			csv.addLine(header);
 			
 			Location siteLoc = site.getLocation();
 			String siteName = site.getName();
-			System.out.println("Doing site: "+siteName);
+			System.out.println("Doing site "+s+"/"+sites.size()+": "+siteName);
 			double csVs30 = site.getParameter(Double.class, Vs30_Param.NAME).getValue();
-			double willsVs30 = wills.getValue(siteLoc);
+			double thompsonVs30 = thompson.getValue(siteLoc);
 			double z10 = site.getParameter(Double.class, DepthTo1pt0kmPerSecParam.NAME).getValue()/1000d;;
 			double z25 = site.getParameter(Double.class, DepthTo2pt5kmPerSecParam.NAME).getValue();
 			
+			CybershakeRun run = site.getCS_Run();
 			int runID = ((CyberShakeSiteRun)site).getCS_Run().getRunID();
-			double[][][] amps = amps2db.getAllIM_Values(runID, refIM);
+			List<Integer> sources = sites2db.getSrcIdsForSite(run.getSiteID(), run.getERFID());
+//			double[][][] amps = amps2db.getAllIM_Values(runID, refIM);
 			
-			for (int sourceID=0; sourceID<amps.length; sourceID++) {
-				if (amps[sourceID] == null)
-					continue;
+			for (int sourceID : sources) {
+//				if (amps[sourceID] == null)
+//					continue;
 				ProbEqkSource source = erf.getSource(sourceID);
-				Preconditions.checkState(amps[sourceID].length == source.getNumRuptures());
-				for (int rupID=0; rupID<amps[sourceID].length; rupID++) {
-					if (amps[sourceID][rupID] == null)
-						continue;
+//				Preconditions.checkState(amps[sourceID].length == source.getNumRuptures());
+//				for (int rupID=0; rupID<amps[sourceID].length; rupID++) {
+//					if (amps[sourceID][rupID] == null)
+//						continue;
+				for (int rupID=0; rupID<source.getNumRuptures(); rupID++) {
 					ProbEqkRupture rup = source.getRupture(rupID);
 					RuptureSurface surf = rup.getRuptureSurface();
 					
@@ -114,7 +123,7 @@ public class SiteGMPEParamsWriter {
 					line.add(siteName);
 					line.add((float)siteLoc.getLatitude()+"");
 					line.add((float)siteLoc.getLongitude()+"");
-					line.add((float)willsVs30+"");
+					line.add((float)thompsonVs30+"");
 					line.add((float)csVs30+"");
 					line.add((float)z10+"");
 					line.add((float)z25+"");

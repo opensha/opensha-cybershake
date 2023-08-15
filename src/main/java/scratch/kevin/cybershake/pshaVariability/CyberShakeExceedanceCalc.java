@@ -27,6 +27,7 @@ import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
 import org.opensha.sha.earthquake.faultSysSolution.util.SolHazardMapCalc.ReturnPeriods;
 import org.opensha.sha.imr.param.IntensityMeasureParams.DurationTimeInterval;
 import org.opensha.sha.simulators.RSQSimEvent;
+import org.opensha.sha.simulators.utils.RSQSimUtils;
 
 import com.google.common.base.Preconditions;
 
@@ -207,6 +208,11 @@ public class CyberShakeExceedanceCalc {
 		@Override
 		public double getMagnitude(RSQSimEvent rupture) {
 			return rupture.getMagnitude();
+		}
+
+		@Override
+		public double getRake(RSQSimEvent rupture) {
+			return RSQSimUtils.getElemAvgRake(rupture, true);
 		}
 		
 	}

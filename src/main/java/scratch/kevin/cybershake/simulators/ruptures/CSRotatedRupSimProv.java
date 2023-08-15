@@ -174,4 +174,9 @@ public class CSRotatedRupSimProv implements SimulationRotDProvider<RotationSpec>
 		return prov.hasDurations();
 	}
 
+	@Override
+	public double getRake(RotationSpec rupture) {
+		return prov.getRake(rupForRotation(null, rupture));
+	}
+
 }

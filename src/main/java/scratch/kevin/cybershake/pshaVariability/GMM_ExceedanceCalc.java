@@ -635,6 +635,11 @@ public class GMM_ExceedanceCalc {
 		public double getMagnitude(ObsEqkRupture rupture) {
 			return rupture.getMag();
 		}
+
+		@Override
+		public double getRake(ObsEqkRupture rupture) {
+			return rupture.getAveRake();
+		}
 		
 	}
 	

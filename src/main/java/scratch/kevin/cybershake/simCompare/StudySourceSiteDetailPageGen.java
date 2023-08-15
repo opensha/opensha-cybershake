@@ -188,6 +188,11 @@ public class StudySourceSiteDetailPageGen extends SourceSiteDetailPageGen {
 		public double getMagnitude(RSQSimEvent rupture) {
 			return rupture.getMagnitude();
 		}
+
+		@Override
+		public double getRake(RSQSimEvent rupture) {
+			return RSQSimUtils.getElemAvgRake(rupture, true);
+		}
 		
 	}
 

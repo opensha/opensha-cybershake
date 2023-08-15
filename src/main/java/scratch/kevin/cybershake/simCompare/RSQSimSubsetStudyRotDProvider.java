@@ -178,4 +178,10 @@ public class RSQSimSubsetStudyRotDProvider implements SimulationRotDProvider<CSR
 		return prov.getMagnitude(rupture);
 	}
 
+	@Override
+	public double getRake(CSRupture rupture) {
+		Preconditions.checkState(included(rupture));
+		return prov.getRake(rupture);
+	}
+
 }

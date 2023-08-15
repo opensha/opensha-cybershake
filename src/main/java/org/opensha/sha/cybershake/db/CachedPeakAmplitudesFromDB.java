@@ -6,11 +6,13 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -35,6 +37,7 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Table;
 import com.google.common.collect.Table.Cell;
+import com.google.common.io.Files;
 import com.google.common.primitives.Doubles;
 
 public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
@@ -203,50 +206,93 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 	}
 	
 	private double[][][] loadAmpsFromDB(int runID, CybershakeIM im) throws SQLException {
-		if (D) System.out.println("Loading amps for "+runID);
+		if (D) System.out.println("Loading amps for "+runID+", im "+im.getID());
+		
+		Stopwatch watch = null;
+		if (D)
+			watch = Stopwatch.createStarted();
 		
 		double[][][] vals = new double[erf.getNumSources()][][];
 		
-		CybershakeRun run = runs2db.getRun(runID);
-		Preconditions.checkNotNull(run, "No run found for "+runID+"?");
-		if (D) System.out.println("Getting source list");
-		List<Integer> sourcesLeft = new LinkedList<>(sites2db.getSrcIdsForSite(run.getSiteID(), run.getERFID()));
-		Preconditions.checkState(!sourcesLeft.isEmpty());
-		
-		while (!sourcesLeft.isEmpty()) {
-			List<Integer> sources = Lists.newArrayList();
-			int numRups = 0;
-			while (numRups < max_rups_per_query && !sourcesLeft.isEmpty()) {
-				int sourceID = sourcesLeft.remove(0);
-				Preconditions.checkState(sourceID<vals.length);
-				numRups += erf.getNumRuptures(sourceID);
-				sources.add(sourceID);
+		if (dbaccess.isSQLite()) {
+			// fetch all at once
+			fillInAmpsFromDB(runID, im, null, vals);
+		} else {
+			// bundle so as not to hit packet size limits
+			if (D) System.out.println("Getting source list");
+			CybershakeRun run = runs2db.getRun(runID);
+			Preconditions.checkNotNull(run, "No run found for "+runID+"?");
+			List<Integer> sourcesLeft = new LinkedList<>(sites2db.getSrcIdsForSite(run.getSiteID(), run.getERFID()));
+			Preconditions.checkState(!sourcesLeft.isEmpty());
+			
+			if (D) System.out.println("Getting amps for "+sourcesLeft.size()+" sources");
+
+			int prevSourceID = -1;
+			while (!sourcesLeft.isEmpty()) {
+				List<Integer> sources = new ArrayList<>();
+				int numRups = 0;
+				
+				while (numRups < max_rups_per_query && !sourcesLeft.isEmpty()) {
+					int sourceID = sourcesLeft.remove(0);
+					Preconditions.checkState(sourceID<vals.length);
+					Preconditions.checkState(sourceID>prevSourceID);
+					prevSourceID = sourceID;
+					numRups += erf.getNumRuptures(sourceID);
+					sources.add(sourceID);
+				}
+//				if (D) System.out.println("Getting amps for "+sources.size()+" sources ("+numRups+" rups)");
+				int minSourceID = sources.get(0);
+				int maxSourceID = sources.get(sources.size()-1);
+				String where;
+				if (minSourceID == maxSourceID)
+					where = "Source_ID="+minSourceID;
+				else
+					where = "Source_ID>="+minSourceID+" AND Source_ID<="+maxSourceID;
+				fillInAmpsFromDB(runID, im, where, vals);
+				for (int sourceID : sources)
+					Preconditions.checkState(vals[sourceID] != null,
+					"Amps not filled in for run="+runID+", im="+im.getID()+", source="+sourceID+". Amps table incomplete?");
 			}
-//			if (D) System.out.println("Getting amps for "+sources.size()+" sources ("+numRups+" rups)");
-			fillInAmpsFromDB(runID, im, sources, vals);
-			for (int sourceID : sources)
-				Preconditions.checkState(vals[sourceID] != null,
-				"Amps not filled in for run="+runID+", im="+im.getID()+", source="+sourceID+". Amps table incomplete?");
 		}
-//		if (D) System.out.println("Done loading vals for "+runID);
+		
+		if (D) {
+			watch.stop();
+			double secs = watch.elapsed(TimeUnit.MILLISECONDS)/1000d;
+			String timeStr;
+			if (secs > 90d)
+				timeStr = twoDigits.format(secs/60d)+" m";
+			else
+				timeStr = twoDigits.format(secs)+" s";
+			System.out.println("Done loading vals for "+runID+", im "+im.getID()+" in "+timeStr);
+		}
 		
 		return vals;
 	}
 	
+	private DecimalFormat twoDigits = new DecimalFormat("0.00");
+	
 	private static final Joiner commaJoin = Joiner.on(",");
-	private void fillInAmpsFromDB(int runID, CybershakeIM im, List<Integer> sources, double[][][] vals)
+	private void fillInAmpsFromDB(int runID, CybershakeIM im, String sourceWhere, double[][][] vals)
 			throws SQLException {
-		Preconditions.checkArgument(!sources.isEmpty());
-		boolean singleSource = sources.size() == 1;
 		String sql;
-		if (singleSource) {
-			sql = "SELECT Rupture_ID,Rup_Var_ID,IM_Value from "+TABLE_NAME+" where Run_ID="+runID
-					+" and IM_Type_ID="+im.getID()+" and Source_ID="+sources.get(0);
-		} else {
-			// not explicitly sorting because it's much faster this way but including checks to ensure that it's in order already
-			sql = "SELECT Source_ID,Rupture_ID,Rup_Var_ID,IM_Value from "+TABLE_NAME+" where Run_ID="+runID
-					+" and IM_Type_ID="+im.getID()+" and Source_ID IN ("+commaJoin.join(sources)+")";
-		}
+		if (dbaccess.isSQLite())
+			// no communications overhead, so don't bother to reprocess data lines
+			sql = "SELECT *";
+		else
+			// lots of communications overhead, remove excess data
+			sql = "SELECT Source_ID,Rupture_ID,Rup_Var_ID,IM_Value";
+		sql += " FROM "+TABLE_NAME+" WHERE Run_ID="+runID+" AND IM_Type_ID="+im.getID();
+		if (sourceWhere != null)
+			sql += " AND "+sourceWhere;
+//		String sql;
+//		if (singleSource) {
+//			sql = "SELECT Rupture_ID,Rup_Var_ID,IM_Value from "+TABLE_NAME+" where Run_ID="+runID
+//					+" and IM_Type_ID="+im.getID()+" and Source_ID="+sources.get(0);
+//		} else {
+//			// not explicitly sorting because it's much faster this way but including checks to ensure that it's in order already
+//			sql = "SELECT Source_ID,Rupture_ID,Rup_Var_ID,IM_Value from "+TABLE_NAME+" where Run_ID="+runID
+//					+" and IM_Type_ID="+im.getID()+" and Source_ID IN ("+commaJoin.join(sources)+")";
+//		}
 		if (DD) System.out.println(sql);
 		ResultSet rs = null;
 		try {
@@ -255,7 +301,9 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
-//		if (D) System.out.println("Done selecting");
+		if (dbaccess.isSQLite()) {
+			rs.setFetchSize(10000);
+		}
 		boolean valid = rs.next();
 		if (!valid) {
 			rs.close();
@@ -266,14 +314,17 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 		int prevSourceID = -1;
 		int prevRupID = -1;
 		List<Double> curIMs = null;
+		
+		int sourceColIndex = rs.findColumn("Source_ID");
+		int rupColIndex = rs.findColumn("Rupture_ID");
+		int rvColIndex = rs.findColumn("Rup_Var_ID");
+		int imColIndex = rs.findColumn("IM_Value");
 
-		int colIndex;
 		while (valid) {
-			colIndex = 1;
-			int sourceID = singleSource ? sources.get(0) : rs.getInt(colIndex++);
-			int rupID = rs.getInt(colIndex++);
-			int rvID = rs.getInt(colIndex++);
-			double imVal = rs.getDouble(colIndex++);
+			int sourceID = rs.getInt(sourceColIndex);
+			int rupID = rs.getInt(rupColIndex);
+			int rvID = rs.getInt(rvColIndex);
+			double imVal = rs.getDouble(imColIndex);
 			
 			if (prevSourceID != sourceID) {
 				// new source
@@ -294,7 +345,11 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 				}
 				prevSourceID = sourceID;
 				prevRupID = rupID;
-				curIMs = Lists.newArrayList();
+				if (curIMs == null)
+					curIMs = new ArrayList<>();
+				else
+					// use previous count as a hint for expected size
+					curIMs = new ArrayList<>(curIMs.size()+1);
 			}
 			Preconditions.checkState(rvID == curIMs.size(), "RV IDs not returned in order");
 			curIMs.add(imVal);
@@ -334,29 +389,41 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 			}
 		}
 		Preconditions.checkState(notNull, "No valid values found!");
-		DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(file)));
+		File tmpFile = new File(file.getAbsolutePath()+".tmp");
+		
+		try {
+			DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(tmpFile)));
 
-		out.writeInt(cache.length);
+			out.writeInt(cache.length);
 
-		for (double[][] array2 : cache) {
-			// source array
-			if (array2 == null) {
-				out.writeInt(0);
-				continue;
-			}
-			out.writeInt(array2.length);
-			for (double[] array : array2) {
-				if (array == null) {
+			for (double[][] array2 : cache) {
+				// source array
+				if (array2 == null) {
 					out.writeInt(0);
 					continue;
 				}
-				out.writeInt(array.length);
-				for (double val : array)
-					out.writeDouble(val);
+				out.writeInt(array2.length);
+				for (double[] array : array2) {
+					if (array == null) {
+						out.writeInt(0);
+						continue;
+					}
+					out.writeInt(array.length);
+					for (double val : array)
+						out.writeDouble(val);
+				}
 			}
-		}
 
-		out.close();
+			out.close();
+		} catch (IOException e) {
+			tmpFile.delete();
+			throw e;
+		} catch (Exception e) {
+			tmpFile.delete();
+			throw ExceptionUtils.asRuntimeException(e);
+		}
+		
+		Files.move(tmpFile, file);
 	}
 	
 	private static double[][][] loadCacheFile(File file) throws IOException {

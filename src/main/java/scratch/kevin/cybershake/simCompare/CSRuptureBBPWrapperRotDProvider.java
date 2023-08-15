@@ -133,4 +133,9 @@ public class CSRuptureBBPWrapperRotDProvider implements SimulationRotDProvider<C
 		return RSQSimUtils.getHypocenter(getEvent(rupture));
 	}
 
+	@Override
+	public double getRake(CSRupture rupture) {
+		return RSQSimUtils.getElemAvgRake(getEvent(rupture), true);
+	}
+
 }

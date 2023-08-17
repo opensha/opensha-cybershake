@@ -15,6 +15,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 
 import org.opensha.commons.data.Site;
@@ -42,7 +44,9 @@ import org.opensha.sha.imr.param.IntensityMeasureParams.SignificantDurationParam
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
+import com.google.common.cache.CacheStats;
 import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import com.google.common.primitives.Doubles;
 
@@ -136,19 +140,19 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 		int cacheSize = DEFAULT_MAX_CACHED_SITES;
 		System.out.println("Max cache size: "+cacheSize+" sites");
 		
-		rd50Cache = CacheBuilder.newBuilder().maximumSize(cacheSize).build(new RD50Loader());
+		rd50Cache = new PrevValueQuickLoadingCache<>(CacheBuilder.newBuilder().maximumSize(cacheSize).build(new RD50Loader()));
 		if (hasRotD100()) {
-			rd100Cache = CacheBuilder.newBuilder().maximumSize(cacheSize).build(new RD100Loader());
-			rdRatioCache = CacheBuilder.newBuilder().maximumSize(cacheSize).build(new RDRatioLoader());
+			rd100Cache = new PrevValueQuickLoadingCache<>(CacheBuilder.newBuilder().maximumSize(cacheSize).build(new RD100Loader()));
+			rdRatioCache = new PrevValueQuickLoadingCache<>(CacheBuilder.newBuilder().maximumSize(cacheSize).build(new RDRatioLoader()));
 		}
 		
 		if (hasDurations())
-			durationCache = CacheBuilder.newBuilder().maximumSize(cacheSize).build(new DurationLoader());
+			durationCache = new PrevValueQuickLoadingCache<>(CacheBuilder.newBuilder().maximumSize(cacheSize).build(new DurationLoader()));
 		
 		if (hasPGV())
-			pgvCache = CacheBuilder.newBuilder().maximumSize(cacheSize).build(new PGVLoader());
+			pgvCache = new PrevValueQuickLoadingCache<>(CacheBuilder.newBuilder().maximumSize(cacheSize).build(new PGVLoader()));
 		
-		runsCache = CacheBuilder.newBuilder().build(runCacheLoader);
+		runsCache = new PrevValueQuickLoadingCache<>(CacheBuilder.newBuilder().build(runCacheLoader));
 		
 		csRups = new CSRupture[erf.getNumSources()][];
 		
@@ -164,7 +168,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 			refIM = ims[0];
 		}
 		
-		siteRupsCache = CacheBuilder.newBuilder().build(new CacheLoader<Site, List<CSRupture>>() {
+		siteRupsCache = new PrevValueQuickLoadingCache<>(CacheBuilder.newBuilder().build(new CacheLoader<Site, List<CSRupture>>() {
 
 			@Override
 			public List<CSRupture> load(Site site) throws Exception {
@@ -185,7 +189,7 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 				return siteRups;
 			}
 			
-		});
+		}));
 	}
 	
 	public AbstractERF getERF() {
@@ -242,6 +246,146 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	@Override
 	public String getName() {
 		return name;
+	}
+	
+	private static class PrevValueQuickLoadingCache<K,V> implements LoadingCache<K,V> {
+		
+		private LoadingCache<K, V> cache;
+		private Object prevKey;
+		private V prevVal;
+
+		public PrevValueQuickLoadingCache(LoadingCache<K,V> cache) {
+			this.cache = cache;
+		}
+
+		@Override
+		public void cleanUp() {
+			cache.cleanUp();
+		}
+		
+		private V checkGetPrev(Object key) {
+			if (key.equals(prevKey)) {
+				synchronized (this) {
+					if (key.equals(prevKey)) {
+						return prevVal;
+					}
+				}
+			}
+			return null;
+		}
+		
+		private synchronized void setPrevVal(Object key, V val) {
+			prevKey = key;
+			prevVal = val;
+		}
+
+		@Override
+		public V get(K key, Callable<? extends V> arg1) throws ExecutionException {
+			V cached = checkGetPrev(key);
+			if (cached != null)
+				return cached;
+			V val = cache.get(key, arg1);
+			setPrevVal(key, val);
+			return val;
+		}
+
+		@Override
+		public ImmutableMap<K, V> getAllPresent(Iterable<? extends Object> arg0) {
+			return cache.getAllPresent(arg0);
+		}
+
+		@Override
+		public V getIfPresent(Object key) {
+			V cached = checkGetPrev(key);
+			if (cached != null)
+				return cached;
+			V val = cache.getIfPresent(key);
+			if (val != null)
+				setPrevVal(key, val);
+			return val;
+		}
+
+		@Override
+		public void invalidate(Object arg0) {
+			if (arg0.equals(prevKey))
+				setPrevVal(null, null);
+			cache.invalidate(arg0);
+		}
+
+		@Override
+		public void invalidateAll() {
+			setPrevVal(null, null);
+			cache.invalidateAll();
+		}
+
+		@Override
+		public void invalidateAll(Iterable<? extends Object> arg0) {
+			setPrevVal(null, null);
+			cache.invalidateAll(arg0);
+		}
+
+		@Override
+		public void put(K arg0, V arg1) {
+			cache.put(arg0, arg1);
+		}
+
+		@Override
+		public void putAll(Map<? extends K, ? extends V> arg0) {
+			cache.putAll(arg0);
+		}
+
+		@Override
+		public long size() {
+			return cache.size();
+		}
+
+		@Override
+		public CacheStats stats() {
+			return cache.stats();
+		}
+
+		@Override
+		public V apply(K arg0) {
+			return cache.apply(arg0);
+		}
+
+		@Override
+		public ConcurrentMap<K, V> asMap() {
+			return cache.asMap();
+		}
+
+		@Override
+		public V get(K key) throws ExecutionException {
+			V cached = checkGetPrev(key);
+			if (cached != null)
+				return cached;
+			V val = cache.get(key);
+			setPrevVal(key, val);
+			return val;
+		}
+
+		@Override
+		public ImmutableMap<K, V> getAll(Iterable<? extends K> arg0) throws ExecutionException {
+			return cache.getAll(arg0);
+		}
+
+		@Override
+		public V getUnchecked(K key) {
+			V cached = checkGetPrev(key);
+			if (cached != null)
+				return cached;
+			V val = cache.getUnchecked(key);
+			setPrevVal(key, val);
+			return val;
+		}
+
+		@Override
+		public void refresh(K key) {
+			if (key.equals(prevKey))
+				setPrevVal(null, null);
+			cache.refresh(key);
+		}
+		
 	}
 	
 	private class RD50Loader extends CacheLoader<Site, DiscretizedFunc[][][]> {

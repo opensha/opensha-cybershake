@@ -395,7 +395,7 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		/*
 		 * For regular studies
 		 */
-		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_HF;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
 		Vs30_Source vs30Source = Vs30_Source.Simulation;
 		CyberShakeStudy[] compStudies = { };
 		
@@ -419,7 +419,8 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		String[] siteNames = { "SMCA" };
 //		String[] siteNames = { "PAS" };
 //		String[] siteNames = { "GAVI", "LBP", "PAS" };
-		String[] siteNames = { "LBP" };
+//		String[] siteNames = { "LBP" };
+		String[] siteNames = { "s3446", "s3430", "SJO" };
 		
 		if (args.length > 0) {
 			System.out.println("assuming command line arguments are site names");
@@ -435,9 +436,10 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };
 		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 //		IMT[] imts = IMT.forPeriods(new double[] { 3, 5, 7.5, 10 });
+		IMT[] imts = { IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 //		IMT[] imts = { IMT.PGV, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 //		IMT[] csvIMTs = { IMT.SA3P0 };
-		IMT[] imts = { IMT.SA0P1, IMT.SA0P2, IMT.SA0P5, IMT.SA1P0, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
+//		IMT[] imts = { IMT.SA0P1, IMT.SA0P2, IMT.SA0P5, IMT.SA1P0, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 		IMT[] csvIMTs = null;
 		
 		File studyDir = new File(mainOutputDir, study.getDirName());

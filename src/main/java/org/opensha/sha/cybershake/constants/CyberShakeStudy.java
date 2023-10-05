@@ -232,7 +232,7 @@ public enum CyberShakeStudy {
 			"Northern California with Bay Area, CCA, and CVM-S4.26 Velocity Models, 1hz",
 			36, 12,
 			new CaliforniaRegions.CYBERSHAKE_BAY_AREA_MAP_REGION(),
-			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+			Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME) {
 		@Override
 		public AbstractERF buildNewERF() {
 			return MeanUCERF2_ToDB.createUCERF2ERF();
@@ -646,6 +646,7 @@ public enum CyberShakeStudy {
 	private Region region;
 	private String dbHost;
 	private GregorianCalendar date;
+	private Integer rvScenID;
 
 	private DBAccess db;
 	private DBAccess writeDB;
@@ -698,6 +699,17 @@ public enum CyberShakeStudy {
 
 	public int getERF_ID() {
 		return erfID;
+	}
+	
+	public int getRupVarScenarioID() {
+		if (rvScenID == null) {
+			synchronized (this) {
+				if (rvScenID == null) {
+					rvScenID = getRupVarScenarioID(getDB());
+				}
+			}
+		}
+		return rvScenID;
 	}
 
 	public Region getRegion() {

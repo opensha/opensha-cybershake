@@ -95,8 +95,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 	
 	private List<CybershakeRun> runs;
 	
-	private Double cbMin = null;
-	private Double cbMax = null;
+	private double[] cbMin = null;
+	private double[] cbMax = null;
 	
 	private boolean noPlot;
 	
@@ -128,10 +128,14 @@ public class CyberShakeScenarioShakeMapGenerator {
 		
 		noPlot = cmd.hasOption("no-plot");
 		
-		if (cmd.hasOption("colorbar-min"))
-			cbMin = Double.parseDouble(cmd.getOptionValue("colorbar-min"));
-		if (cmd.hasOption("colorbar-max"))
-			cbMax = Double.parseDouble(cmd.getOptionValue("colorbar-max"));
+		if (cmd.hasOption("colorbar-min")) {
+			cbMin = cbLimitParse(cmd.getOptionValue("colorbar-min"));
+			Preconditions.checkState(cbMin.length == 1 || cbMin.length == periods.length);
+		}
+		if (cmd.hasOption("colorbar-max")) {
+			cbMax = cbLimitParse(cmd.getOptionValue("colorbar-max"));
+			Preconditions.checkState(cbMax.length == 1 || cbMax.length == periods.length);
+		}
 		
 		if (cmd.hasOption("gmpe")) {
 			gmpe = AttenRelRef.valueOf(cmd.getOptionValue("gmpe")).instance(null);
@@ -198,7 +202,19 @@ public class CyberShakeScenarioShakeMapGenerator {
 			spatialCorrDebug = cmd.hasOption("spatial-corr-debug");
 		}
 		
-		downloadInterpolated = cmd.hasOption("downloadInterpolated");
+		downloadInterpolated = cmd.hasOption("download-interpolated");
+	}
+	
+	private double[] cbLimitParse(String str) {
+		if (str.contains(",")) {
+			String[] split = str.split(",");
+			double[] ret = new double[split.length];
+			for (int i=0; i<ret.length; i++)
+				ret[i] = Double.parseDouble(split[i]);
+			return ret;
+		} else {
+			return new double[] { Double.parseDouble(str) };
+		}
 	}
 	
 	public void plot() throws SQLException, IOException, ClassNotFoundException, GMT_MapException {
@@ -279,10 +295,21 @@ public class CyberShakeScenarioShakeMapGenerator {
 			map.setLogPlot(false);
 			map.setDpi(300);
 			map.setXyzFileName("base_map.xyz");
-			map.setCustomScaleMin(cbMin == null ? 0d : cbMin);
-			map.setCustomScaleMax(cbMax == null ? maxZ : cbMax);
 			
-			if (numRandomFields > 0) {
+			if (cbMin == null)
+				map.setCustomScaleMin(0d);
+			else if (cbMin.length == 1)
+				map.setCustomScaleMin(cbMin[0]);
+			else
+				map.setCustomScaleMin(cbMin[p]);
+			if (cbMax == null)
+				map.setCustomScaleMax(0d);
+			else if (cbMax.length == 1)
+				map.setCustomScaleMax(cbMax[0]);
+			else
+				map.setCustomScaleMax(cbMax[p]);
+			
+			if (interp && (numRandomFields > 0 || downloadInterpolated)) {
 				map.getInterpSettings().setSaveInterpSurface(true);
 				map.getInterpSettings().setInterpSpacing(spacing);
 			}
@@ -295,6 +322,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 				addr = HardCodedInterpDiffMapCreator.plotLocally(map);
 			else
 				addr = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
+			if (!addr.endsWith("/"))
+				addr += "/";
 			
 			System.out.println("Done, downloading");
 			
@@ -305,8 +334,6 @@ public class CyberShakeScenarioShakeMapGenerator {
 					Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
 					Files.copy(inFile, pngFile);
 				} else {
-					if (!addr.endsWith("/"))
-						addr += "/";
 					FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
 				}
 //				if (!addr.endsWith("/"))
@@ -325,7 +352,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 				GeoDataSet interpXYZ;
 				if (interp) {
 					interpXYZ = downloadInterpolated(gmpeXYZs == null ? null : gmpeXYZs[p], prefix, addr);
-				} else {
+				} else  {
 					System.out.println("No CyberShake (or custom intensities) for P="+(float)+periods[p]
 							+", adding random fields to basemap instead");
 					interpXYZ = gmpeXYZs[p];
@@ -485,7 +512,11 @@ public class CyberShakeScenarioShakeMapGenerator {
 		
 		// download interpolated data
 		File interpFile = new File(outputDir, prefix+"_interp.txt");
-		FileUtils.downloadURL(interpAddr, interpFile);
+		if (new File(interpAddr).exists())
+			// local file
+			Files.copy(new File(interpAddr), interpFile);
+		else
+			FileUtils.downloadURL(interpAddr, interpFile);
 		
 		System.out.println("Loading interpolated data from "+interpFile.getAbsolutePath());
 		GriddedGeoDataSet interpDiff = GriddedGeoDataSet.loadXYZFile(interpFile, false);
@@ -826,8 +857,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 			System.out.println("HARDCODED");
 //			String argz = "--study STUDY_15_4 --period 2,3,5,10 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "
 //					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --spatial-corr-fields 20 --spacing 0.02 --spatial-corr-debug";
-			String argz = "--study STUDY_22_12_HF --period 0.01,3 --source-id 57 --rupture-id 2 --output-dir /tmp/cs_shakemap_saf "
-					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
+//			String argz = "--study STUDY_22_12_HF --period 0.01,3 --source-id 57 --rupture-id 2 --output-dir /tmp/cs_shakemap_saf "
+//					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
 //			String argz = "--study STUDY_22_12_HF --period 0.01,3 --source-id 111 --rupture-id 3 --output-dir /tmp/cs_shakemap_sjf "
 //					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name();
 //			String argz = "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --study STUDY_15_4 --period 0,-1,3 --source-id 69 --rupture-id 6 "
@@ -840,6 +871,23 @@ public class CyberShakeScenarioShakeMapGenerator {
 //			String argz = "--study STUDY_15_12 --period 0.2 --source-id 69 --rupture-id 6 --output-dir /tmp "
 //					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --spacing 0.01 --vs30-source Thompson2020"
 //							+ " --gmpe-sites /tmp/cs_gmpe_sites_STUDY_15_12_0.01.csv";
+			
+//			String argz = "--study STUDY_22_12_HF --source-id 184 --rupture-id 0 --rupture-var-id 7"
+//					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/hollywood"
+//			String argz = "--study STUDY_22_12_HF --source-id 264 --rupture-id 0 --rupture-var-id 5"
+//					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/santa-monica"
+			String argz = "--study STUDY_22_12_HF --source-id 231 --rupture-id 66 --rupture-var-id 41"
+					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/palos-verdes"
+//			String argz = "--study STUDY_22_12_HF --source-id 215 --rupture-id 35 --rupture-var-id 0"
+//					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/newport-inglewood"
+					+ "-spatialVal --spatial-corr-fields 1"
+					+ " --spacing 0.01"
+//					+ " --spacing 0.005"
+					+ " --gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()
+					+ " --period 0.01,0.3,1"
+					+ " --colorbar-max 0.5,1.0,0.7"
+					+ " --download-interpolated";
+			
 //			String argz = "--help";
 			args = argz.split(" ");
 		}

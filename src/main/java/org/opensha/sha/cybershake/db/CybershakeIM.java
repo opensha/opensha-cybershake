@@ -38,7 +38,10 @@ public class CybershakeIM implements Comparable<CybershakeIM> {
 		saIDsMap.put(CyberShakeComponent.RotD50, 0.05, 194);
 		saIDsMap.put(CyberShakeComponent.RotD50, 0.1, 175);
 		saIDsMap.put(CyberShakeComponent.RotD50, 0.2, 174);
+		saIDsMap.put(CyberShakeComponent.RotD50, 0.3, 190);
+		saIDsMap.put(CyberShakeComponent.RotD50, 0.4, 188);
 		saIDsMap.put(CyberShakeComponent.RotD50, 0.5, 173);
+		saIDsMap.put(CyberShakeComponent.RotD50, 0.75, 192);
 		saIDsMap.put(CyberShakeComponent.RotD50, 1d, 169);
 		saIDsMap.put(CyberShakeComponent.RotD50, 2d, 167);
 		saIDsMap.put(CyberShakeComponent.RotD50, 3d, 162);

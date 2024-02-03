@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -23,7 +22,6 @@ import org.opensha.commons.data.Site;
 import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
 import org.opensha.commons.data.siteData.SiteDataValue;
 import org.opensha.commons.data.siteData.SiteDataValueList;
-import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.data.xyz.ArbDiscrGeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSetMath;
@@ -31,7 +29,8 @@ import org.opensha.commons.data.xyz.GriddedGeoDataSet;
 import org.opensha.commons.exceptions.GMT_MapException;
 import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
-import org.opensha.commons.mapping.gmt.GMT_Map;
+import org.opensha.commons.geo.Region;
+import org.opensha.commons.geo.json.Feature;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
 import org.opensha.commons.param.Parameter;
@@ -68,7 +67,6 @@ import com.google.common.base.Stopwatch;
 import com.google.common.io.Files;
 
 import Jama.Matrix;
-import scratch.UCERF3.analysis.FaultBasedMapGen;
 import scratch.kevin.spatialVar.SpatialVarCalc;
 
 public class CyberShakeScenarioShakeMapGenerator {
@@ -110,6 +108,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 	private boolean spatialCorrDebug = false;
 	
 	private boolean downloadInterpolated = false;
+	
+	private Region region = null;
 	
 	public CyberShakeScenarioShakeMapGenerator(CommandLine cmd) {
 		study = CyberShakeStudy.valueOf(cmd.getOptionValue("study"));
@@ -178,11 +178,16 @@ public class CyberShakeScenarioShakeMapGenerator {
 			}
 		} else {
 			ims = new CybershakeIM[periods.length];
-			for (int p=0; p<periods.length; p++)
+			for (int p=0; p<periods.length; p++) {
 				if (periods[p] > 0d)
 					ims[p] = CybershakeIM.getSA(CyberShakeComponent.RotD50, periods[p]);
+				else if (periods[p] == 0)
+					ims[p] = CybershakeIM.PGA;
+				else if (periods[p] == -1)
+					ims[p] = CybershakeIM.PGV;
 				else
-					Preconditions.checkState(periods[p] == 0d || periods[p] == -1d);
+					throw new IllegalStateException();
+			}
 			
 			runs = study.runFetcher().fetch();
 			System.out.println("Have runs for "+runs.size()+" sites");
@@ -203,6 +208,16 @@ public class CyberShakeScenarioShakeMapGenerator {
 		}
 		
 		downloadInterpolated = cmd.hasOption("download-interpolated");
+		
+		if (cmd.hasOption("region")) {
+			try {
+				region = Region.fromFeature(Feature.read(new File(cmd.getOptionValue("region"))));
+			} catch (IOException e) {
+				throw ExceptionUtils.asRuntimeException(e);
+			}
+		} else { 
+			region = study.getRegion();
+		}
 	}
 	
 	private double[] cbLimitParse(String str) {
@@ -288,7 +303,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 				Preconditions.checkState(gmpe != null, "Can't plot period "+periods[p]+" without a GMPE!");
 			}
 			
-			InterpDiffMap map = new InterpDiffMap(study.getRegion(), gmpe == null ? null : gmpeXYZs[p], spacing, cpt, csXYZs[p],
+			InterpDiffMap map = new InterpDiffMap(region, gmpe == null ? null : gmpeXYZs[p], spacing, cpt, csXYZs[p],
 					interpSettings, myTypes);
 			map.setCustomLabel(title);
 			map.setTopoResolution(TopographicSlopeFile.CA_THREE);
@@ -360,7 +375,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 				GeoDataSet filtered = new ArbDiscrGeoDataSet(interpXYZ.isLatitudeX());
 				for (int i=0; i<interpXYZ.size(); i++) {
 					Location loc = interpXYZ.getLocation(i);
-					if (study.getRegion().contains(loc))
+					if (region.contains(loc))
 						filtered.set(loc, interpXYZ.get(i));
 				}
 				System.out.println("Keeping "+filtered.size()+"/"+interpXYZ.size()+" values inside Study region");
@@ -578,7 +593,9 @@ public class CyberShakeScenarioShakeMapGenerator {
 					}
 				}
 				Preconditions.checkState(Double.isFinite(value), "Couldn't fetch IM for run "+run.getRunID());
-				value /= HazardCurveComputation.CONVERSION_TO_G;
+				if (ims[p].getVal() >= 0d)
+					// PGA or SA
+					value /= HazardCurveComputation.CONVERSION_TO_G;
 				xyz[p].set(loc, value);
 			}
 		}
@@ -656,7 +673,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 	private GeoDataSet[] calcGMPE() throws IOException {
 		System.out.println("Calculating GMPE");
 		
-		GriddedRegion region = new GriddedRegion(study.getRegion(), spacing, null);
+		GriddedRegion region = new GriddedRegion(this.region, spacing, null);
 		
 		GeoDataSet[] xyz = new GeoDataSet[periods.length];
 		for (int p=0; p<xyz.length; p++)
@@ -786,6 +803,10 @@ public class CyberShakeScenarioShakeMapGenerator {
 		Option spacingOp = new Option("sp", "spacing", true, "Optional grid spacing in decimal degrees. Default: "+(float)SPACING_DEFAULT);
 		spacingOp.setRequired(false);
 		ops.addOption(spacingOp);
+		
+		Option regionOp = new Option("reg", "region", true, "Optional path to a GeoJSON file containing the region that we should compute for.");
+		regionOp.setRequired(false);
+		ops.addOption(regionOp);
 
 		Option cbMinOp = new Option("cbmin", "colorbar-min", true, "Optional plot colorbar min value");
 		cbMinOp.setRequired(false);
@@ -872,20 +893,34 @@ public class CyberShakeScenarioShakeMapGenerator {
 //					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --spacing 0.01 --vs30-source Thompson2020"
 //							+ " --gmpe-sites /tmp/cs_gmpe_sites_STUDY_15_12_0.01.csv";
 			
-//			String argz = "--study STUDY_22_12_HF --source-id 184 --rupture-id 0 --rupture-var-id 7"
-//					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/hollywood"
+			Region studyReg = CyberShakeStudy.STUDY_22_12_HF.getRegion();
+			// rectangularize
+			studyReg = new Region(new Location(studyReg.getMinLat(), studyReg.getMinLon()),
+					new Location(studyReg.getMaxLat(), studyReg.getMaxLon()));
+			File studyRegFile = new File("/tmp/region.geojson");
+			try {
+				Feature.write(studyReg.toFeature(), studyRegFile);
+			} catch (IOException e) {
+				throw ExceptionUtils.asRuntimeException(e);
+			}
+			
+			String argz = "--study STUDY_22_12_HF --source-id 184 --rupture-id 0 --rupture-var-id 7"
+					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/hollywood"
 //			String argz = "--study STUDY_22_12_HF --source-id 264 --rupture-id 0 --rupture-var-id 5"
 //					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/santa-monica"
-			String argz = "--study STUDY_22_12_HF --source-id 231 --rupture-id 66 --rupture-var-id 41"
-					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/palos-verdes"
+//			String argz = "--study STUDY_22_12_HF --source-id 231 --rupture-id 66 --rupture-var-id 41"
+//					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/palos-verdes"
 //			String argz = "--study STUDY_22_12_HF --source-id 215 --rupture-id 35 --rupture-var-id 0"
 //					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/newport-inglewood"
-					+ "-spatialVal --spatial-corr-fields 1"
-					+ " --spacing 0.01"
-//					+ " --spacing 0.005"
+//					+ "-spatialVal --spatial-corr-fields 1"
+//					+ " --spacing 0.01"
+					+ " --spacing 0.005"
 					+ " --gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()
-					+ " --period 0.01,0.3,1"
-					+ " --colorbar-max 0.5,1.0,0.7"
+					+ " --period -1,0,0.3,1,3"
+					+ " --colorbar-max 80,1.0,1.0,0.7,0.5"
+//					+ " --period 0.01,0.3,1"
+//					+ " --colorbar-max 0.5,1.0,0.7"
+					+ " --region "+studyRegFile.getAbsolutePath()
 					+ " --download-interpolated";
 			
 //			String argz = "--help";

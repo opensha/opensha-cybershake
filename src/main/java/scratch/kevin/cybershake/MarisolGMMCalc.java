@@ -57,7 +57,7 @@ public class MarisolGMMCalc {
 		
 		gmm.setIntensityMeasure(SA_Param.NAME);
 		
-		double[] periods = { 10d };
+		double[] periods = { 2, 3, 5, 10 };
 		
 		ThompsonVs30_2020 vs30Model = new ThompsonVs30_2020();
 		

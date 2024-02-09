@@ -24,6 +24,7 @@ import org.opensha.commons.util.FileUtils;
 import org.opensha.commons.util.cpt.CPT;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculator;
+import org.opensha.sha.calc.disaggregation.DisaggregationCalculatorAPI;
 import org.opensha.sha.calc.hazardMap.HazardDataSetLoader;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.db.CybershakeSite;
@@ -110,7 +111,7 @@ public class U3_U2_CurveCompare {
 		for (Point2D pt : xVals)
 			logXVals.set(Math.log(pt.getX()), 1);
 		
-		DisaggregationCalculator disaggCalc = new DisaggregationCalculator();
+		DisaggregationCalculatorAPI disaggCalc = new DisaggregationCalculator();
 		ParameterList disaggParams = DisaggregationCalculator.getDefaultParams();
 
 		// disagg plot settings
@@ -191,7 +192,7 @@ public class U3_U2_CurveCompare {
 					
 					System.out.println("Disaggregating U2 for prob="+disaggProb+", iml="+iml);
 					disaggCalc.setMagRange(minMag, numMags, deltaMag);
-					disaggCalc.setNumSourcestoShow(numSourcesForDisag);
+					disaggCalc.setNumSourcesToShow(numSourcesForDisag);
 					disaggCalc.setShowDistances(showSourceDistances);
 					boolean success = disaggCalc.disaggregate(Math.log(iml), site, gmpe, u2, disaggParams);
 					if (!success)
@@ -215,11 +216,11 @@ public class U3_U2_CurveCompare {
 
 					DisaggregationPlotViewerWindow.saveAsPDF(
 							address+DisaggregationCalculator.DISAGGREGATION_PLOT_PDF_NAME,
-							outputFile.getAbsolutePath()+".pdf", meanModeText, metadataText, binDataText, sourceDataText);
+							outputFile.getAbsolutePath()+".pdf", meanModeText, metadataText, binDataText, sourceDataText, null);
 					FileUtils.downloadURL(address+DisaggregationCalculator.DISAGGREGATION_PLOT_PNG_NAME,
 							new File(outputFile.getAbsolutePath()+".png"));
 					DisaggregationPlotViewerWindow.saveAsTXT(outputFile.getAbsolutePath()+".txt", meanModeText, metadataText,
-							binDataText, sourceDataText);
+							binDataText, sourceDataText, null);
 					
 					iml = HazardDataSetLoader.getCurveVal(u3Curve, false, disaggProb); // iml at prob
 					
@@ -242,11 +243,11 @@ public class U3_U2_CurveCompare {
 
 					DisaggregationPlotViewerWindow.saveAsPDF(
 							address+DisaggregationCalculator.DISAGGREGATION_PLOT_PDF_NAME,
-							outputFile.getAbsolutePath()+".pdf", meanModeText, metadataText, binDataText, sourceDataText);
+							outputFile.getAbsolutePath()+".pdf", meanModeText, metadataText, binDataText, sourceDataText, null);
 					FileUtils.downloadURL(address+DisaggregationCalculator.DISAGGREGATION_PLOT_PNG_NAME,
 							new File(outputFile.getAbsolutePath()+".png"));
 					DisaggregationPlotViewerWindow.saveAsTXT(outputFile.getAbsolutePath()+".txt", meanModeText, metadataText,
-							binDataText, sourceDataText);
+							binDataText, sourceDataText, null);
 				}
 			}
 		}

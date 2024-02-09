@@ -27,6 +27,7 @@ import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculator;
+import org.opensha.sha.calc.disaggregation.DisaggregationCalculatorAPI;
 import org.opensha.sha.calc.hazardMap.HazardCurveSetCalculator;
 import org.opensha.sha.calc.params.MaxDistanceParam;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
@@ -84,7 +85,7 @@ public class DisaggregationPlotter {
 	private double forceVs30 = Double.NaN;
 	
 	private HazardCurveCalculator gmpeCurveCalc;
-	private DisaggregationCalculator disaggCalc;
+	private DisaggregationCalculatorAPI disaggCalc;
 	private ParameterList disaggParams;
 	
 	private File outputDir;
@@ -336,7 +337,7 @@ public class DisaggregationPlotter {
 			for (double iml : myIMLevels) {
 				System.out.println("Disaggregating");
 				disaggCalc.setMagRange(minMag, numMags, deltaMag);
-				disaggCalc.setNumSourcestoShow(numSourcesForDisag);
+				disaggCalc.setNumSourcesToShow(numSourcesForDisag);
 				disaggCalc.setShowDistances(showSourceDistances);
 				boolean success = disaggCalc.disaggregate(Math.log(iml), site, imr, erf, disaggParams);
 				if (!success)
@@ -449,7 +450,7 @@ public class DisaggregationPlotter {
 			String outputFileName = outputDir.getAbsolutePath()+File.separator+outFileName+".pdf";
 			DisaggregationPlotViewerWindow.saveAsPDF(
 					address+DisaggregationCalculator.DISAGGREGATION_PLOT_PDF_NAME,
-					outputFileName, meanModeText, metadataText, binDataText, sourceDataText);
+					outputFileName, meanModeText, metadataText, binDataText, sourceDataText, null);
 		} else if (type == PlotType.PNG) {
 			downloadPlot(address+ DisaggregationCalculator.DISAGGREGATION_PLOT_PNG_NAME, outFileName, "png");
 		} else if (type == PlotType.JPG || type == PlotType.JPEG) {
@@ -457,7 +458,7 @@ public class DisaggregationPlotter {
 		} else if (type == PlotType.TXT) {
 			String outputFileName = outputDir.getAbsolutePath()+File.separator+outFileName+".txt";
 			DisaggregationPlotViewerWindow.saveAsTXT(outputFileName, meanModeText, metadataText,
-					binDataText, sourceDataText);
+					binDataText, sourceDataText, null);
 		} else {
 			throw new IllegalArgumentException("Unknown plot type: "+type);
 		}

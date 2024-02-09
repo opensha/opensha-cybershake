@@ -17,6 +17,7 @@ import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculator;
+import org.opensha.sha.calc.disaggregation.DisaggregationCalculatorAPI;
 import org.opensha.sha.cybershake.calc.mcer.MCERDataProductsCalc;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
@@ -222,9 +223,9 @@ public class DisaggBenchmarch {
 						int numSourcesForDisag = 100;
 						boolean showSourceDistances = true;
 						double maxZAxis = Double.NaN;
-						DisaggregationCalculator disagg = new DisaggregationCalculator();
+						DisaggregationCalculatorAPI disagg = new DisaggregationCalculator();
 						disagg.setMagRange(minMag, numMags, deltaMag);
-						disagg.setNumSourcestoShow(numSourcesForDisag);
+						disagg.setNumSourcesToShow(numSourcesForDisag);
 						disagg.setShowDistances(showSourceDistances);
 						
 						System.out.println("Global CS initialization took: "+timeStr(gmpeInitializationMillis));
@@ -261,7 +262,7 @@ public class DisaggBenchmarch {
 										String outputFileName = tempDir.getAbsolutePath()+File.separator+"gmpe_temp.pdf";
 										DisaggregationPlotViewerWindow.saveAsPDF(
 												address+DisaggregationCalculator.DISAGGREGATION_PLOT_PDF_NAME,
-												outputFileName, "safda", "asdf", "asfda", "asdf");
+												outputFileName, "safda", "asdf", "asfda", "asdf", "asdf");
 									}
 								}
 								watch.stop();

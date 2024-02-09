@@ -14,6 +14,7 @@ import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculator;
+import org.opensha.sha.calc.disaggregation.DisaggregationCalculatorAPI;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.mcer.MCERDataProductsCalc;
@@ -89,9 +90,9 @@ public class DisaggCompare {
 		int numSourcesForDisag = 100;
 		boolean showSourceDistances = true;
 		double maxZAxis = Double.NaN;
-		DisaggregationCalculator gmpeDisagg = new DisaggregationCalculator();
+		DisaggregationCalculatorAPI gmpeDisagg = new DisaggregationCalculator();
 		gmpeDisagg.setMagRange(minMag, numMags, deltaMag);
-		gmpeDisagg.setNumSourcestoShow(numSourcesForDisag);
+		gmpeDisagg.setNumSourcesToShow(numSourcesForDisag);
 		gmpeDisagg.setShowDistances(showSourceDistances);
 		
 		CyberShakeSiteBuilder siteBuilder = new CyberShakeSiteBuilder(Vs30_Source.Wills2015, study.getVelocityModelID());
@@ -146,7 +147,7 @@ public class DisaggCompare {
 						String address = gmpeDisagg.getDisaggregationPlotUsingServlet("asfd");
 						DisaggregationPlotViewerWindow.saveAsPDF(
 								address+DisaggregationCalculator.DISAGGREGATION_PLOT_PDF_NAME,
-								outputFileName+".pdf", "safda", "asdf", "asfda", "asdf");
+								outputFileName+".pdf", "safda", "asdf", "asfda", "asdf", "asdf");
 						FileUtils.downloadURL(address+ DisaggregationCalculator.DISAGGREGATION_PLOT_PNG_NAME, new File(outputFileName+".png"));
 					}
 				}

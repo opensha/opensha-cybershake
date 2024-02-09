@@ -547,7 +547,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 				double diff = interpDiff.bilinearInterpolation(loc);
 				if (!Double.isFinite(diff))
 					diff = interpDiff.get(loc);
-				interpXYZ.set(i, interpXYZ.get(i)+diff);
+				interpXYZ.set(i, Math.max(0d, interpXYZ.get(i)+diff));
 			}
 			System.out.println("Writing final interpolated differences map to "+interpFile.getAbsolutePath());
 			ArbDiscrGeoDataSet.writeXYZFile(interpXYZ, interpFile);
@@ -904,14 +904,14 @@ public class CyberShakeScenarioShakeMapGenerator {
 				throw ExceptionUtils.asRuntimeException(e);
 			}
 			
-			String argz = "--study STUDY_22_12_HF --source-id 184 --rupture-id 0 --rupture-var-id 7"
-					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/hollywood"
+//			String argz = "--study STUDY_22_12_HF --source-id 184 --rupture-id 0 --rupture-var-id 7"
+//					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/hollywood"
 //			String argz = "--study STUDY_22_12_HF --source-id 264 --rupture-id 0 --rupture-var-id 5"
 //					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/santa-monica"
 //			String argz = "--study STUDY_22_12_HF --source-id 231 --rupture-id 66 --rupture-var-id 41"
 //					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/palos-verdes"
-//			String argz = "--study STUDY_22_12_HF --source-id 215 --rupture-id 35 --rupture-var-id 0"
-//					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/newport-inglewood"
+			String argz = "--study STUDY_22_12_HF --source-id 215 --rupture-id 35 --rupture-var-id 0"
+					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/newport-inglewood"
 //					+ "-spatialVal --spatial-corr-fields 1"
 //					+ " --spacing 0.01"
 					+ " --spacing 0.005"

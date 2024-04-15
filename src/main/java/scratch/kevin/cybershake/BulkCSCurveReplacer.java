@@ -97,8 +97,8 @@ public class BulkCSCurveReplacer {
 			dir += File.separator;
 		
 		for (CybershakeRun run : ampRuns) {
-			ArrayList<CybershakeHazardCurveRecord> records = curveRecordsMap.get(new Integer(run.getRunID()));
-			ArrayList<DiscretizedFunc> curves = curvesMap.get(new Integer(run.getRunID()));
+			ArrayList<CybershakeHazardCurveRecord> records = curveRecordsMap.get(Integer.valueOf(run.getRunID()));
+			ArrayList<DiscretizedFunc> curves = curvesMap.get(Integer.valueOf(run.getRunID()));
 			if (records == null)
 				continue;
 			for (int i=0; i<records.size(); i++) {
@@ -147,14 +147,14 @@ public class BulkCSCurveReplacer {
 			if (run.getERFID() != 35)
 //				throw new RuntimeException("ERF ID IS NOT 35!!!!");
 				continue;
-			ArrayList<CybershakeHazardCurveRecord> records = curveRecordsMap.get(new Integer(run.getRunID()));
+			ArrayList<CybershakeHazardCurveRecord> records = curveRecordsMap.get(Integer.valueOf(run.getRunID()));
 			if (records == null)
 				continue;
 			for (int i=0; i<records.size(); i++) {
 				CybershakeHazardCurveRecord record = records.get(i);
 				
 				// if we're only calculating for specific IM(s), skip if this doesn't match them
-				if (recalcIMs != null && !recalcIMs.contains(new Integer(record.getImTypeID())))
+				if (recalcIMs != null && !recalcIMs.contains(Integer.valueOf(record.getImTypeID())))
 					continue;
 				
 				String fileName = dir + getFileName(run.getRunID(), record.getCurveID());
@@ -215,7 +215,7 @@ public class BulkCSCurveReplacer {
 			doneDir += File.separator;
 		
 		for (CybershakeRun run : ampRuns) {
-			ArrayList<CybershakeHazardCurveRecord> records = curveRecordsMap.get(new Integer(run.getRunID()));
+			ArrayList<CybershakeHazardCurveRecord> records = curveRecordsMap.get(Integer.valueOf(run.getRunID()));
 			if (records == null)
 				continue;
 			for (int i=0; i<records.size(); i++) {

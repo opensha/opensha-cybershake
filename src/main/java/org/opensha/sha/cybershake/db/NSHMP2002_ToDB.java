@@ -38,7 +38,7 @@ public class NSHMP2002_ToDB extends ERF2DB {
 	    // Rup offset
 	    eqkRupForecast.getAdjustableParameterList().getParameter(
 	      Frankel02_AdjustableEqkRupForecast.RUP_OFFSET_PARAM_NAME).setValue(
-	        new Double(5.0));
+	        Double.valueOf(5.0));
 	    // duration
 	    eqkRupForecast.getTimeSpan().setDuration(1.0);
 	    eqkRupForecast.updateForecast();

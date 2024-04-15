@@ -142,7 +142,8 @@ public class DisaggCompare {
 					for (int i=0; i<imls.size(); i++) {
 						double iml = imls.get(i);
 						String outputFileName = new File(outputDir, outNames.get(i)).getAbsolutePath();
-						Preconditions.checkState(gmpeDisagg.disaggregate(iml, site, gmpe, gmpeERF, curveCalc.getAdjustableParams()));
+						Preconditions.checkState(gmpeDisagg.disaggregate(iml, site, gmpe, gmpeERF,
+								curveCalc.getSourceFilters(), curveCalc.getAdjustableParams()));
 						gmpeDisagg.setMaxZAxisForPlot(maxZAxis);
 						String address = gmpeDisagg.getDisaggregationPlotUsingServlet("asfd");
 						DisaggregationPlotViewerWindow.saveAsPDF(

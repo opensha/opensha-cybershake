@@ -61,7 +61,7 @@ public class PeakAmpsTableModel extends AbstractTableModel {
 		
 		int count = this.amps2db.countAmps(run.getRunID(), null);
 		
-		countMap.put(run.toString(), new Integer(count));
+		countMap.put(run.toString(), Integer.valueOf(count));
 	}
 	
 	public int deleteAmps(CybershakeRun record) {

@@ -87,8 +87,8 @@ public class AttenRelSaver extends XMLSaver implements IMR_GuiBeanAPI {
 //		CY_2008_AttenRel cy08 = new CY_2008_AttenRel(new FakeParameterListener());
 //		
 //		cy08.getParameter(SigmaTruncTypeParam.NAME).setValue(SigmaTruncTypeParam.SIGMA_TRUNC_TYPE_1SIDED);
-//		cy08.getParameter(SigmaTruncLevelParam.NAME).setValue(new Double(3.0));
-//		cy08.getParameter(PeriodParam.NAME).setValue(new Double(3.0));
+//		cy08.getParameter(SigmaTruncLevelParam.NAME).setValue(Double.valueOf(3.0));
+//		cy08.getParameter(PeriodParam.NAME).setValue(Double.valueOf(3.0));
 //		
 //		
 	}

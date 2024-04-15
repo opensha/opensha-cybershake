@@ -10,16 +10,16 @@ public class ModProbConfigFactory {
 	public static final HashMap<Integer, ModProbConfig> modProbConfigs = new HashMap<Integer, ModProbConfig>();
 	
 	static {
-		modProbConfigs.put(new Integer(1), new UniformModRupConfig("Single Day", 1, 2, 1d/365d));
-		modProbConfigs.put(new Integer(3), new ScenarioBasedModProbConfig("Bombay Beach", 3, 2,
+		modProbConfigs.put(Integer.valueOf(1), new UniformModRupConfig("Single Day", 1, 2, 1d/365d));
+		modProbConfigs.put(Integer.valueOf(3), new ScenarioBasedModProbConfig("Bombay Beach", 3, 2,
 				BombayBeachHazardCurveCalc.BOMBAY_LOC, 1000, 10d, "andreas", false));
-		modProbConfigs.put(new Integer(4), new ScenarioBasedModProbConfig("Parkfield", 4, 2,
+		modProbConfigs.put(Integer.valueOf(4), new ScenarioBasedModProbConfig("Parkfield", 4, 2,
 				BombayBeachHazardCurveCalc.PARKFIELD_LOC, 1000, 10d, "andreas", false));
-		modProbConfigs.put(new Integer(5), new ScenarioBasedModProbConfig("Pico Rivera", 5, 2,
+		modProbConfigs.put(Integer.valueOf(5), new ScenarioBasedModProbConfig("Pico Rivera", 5, 2,
 				BombayBeachHazardCurveCalc.PICO_RIVERA_LOC, 1000, 10d, null, false));
-		modProbConfigs.put(new Integer(6), new ScenarioBasedModProbConfig("Yucaipa", 6, 2,
+		modProbConfigs.put(Integer.valueOf(6), new ScenarioBasedModProbConfig("Yucaipa", 6, 2,
 				BombayBeachHazardCurveCalc.YUCAIPA_LOC, 1000, 10d, null, false));
-		modProbConfigs.put(new Integer(7), new ScenarioBasedModProbConfig("Coyote Creek", 7, 2,
+		modProbConfigs.put(Integer.valueOf(7), new ScenarioBasedModProbConfig("Coyote Creek", 7, 2,
 				BombayBeachHazardCurveCalc.COYOTE_CREEK, 1000, 10d, null, false));
 	}
 	

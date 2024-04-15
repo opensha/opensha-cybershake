@@ -112,7 +112,6 @@ public class U3_U2_CurveCompare {
 			logXVals.set(Math.log(pt.getX()), 1);
 		
 		DisaggregationCalculatorAPI disaggCalc = new DisaggregationCalculator();
-		ParameterList disaggParams = DisaggregationCalculator.getDefaultParams();
 
 		// disagg plot settings
 		double minMag = 5;
@@ -194,7 +193,7 @@ public class U3_U2_CurveCompare {
 					disaggCalc.setMagRange(minMag, numMags, deltaMag);
 					disaggCalc.setNumSourcesToShow(numSourcesForDisag);
 					disaggCalc.setShowDistances(showSourceDistances);
-					boolean success = disaggCalc.disaggregate(Math.log(iml), site, gmpe, u2, disaggParams);
+					boolean success = disaggCalc.disaggregate(Math.log(iml), site, gmpe, u2, calc.getSourceFilters(), calc.getAdjustableParams());
 					if (!success)
 						throw new RuntimeException("Disagg calc failed (see errors above, if any).");
 					disaggCalc.setMaxZAxisForPlot(maxZAxis);
@@ -226,7 +225,7 @@ public class U3_U2_CurveCompare {
 					
 					System.out.println("Disaggregating U3 for prob="+disaggProb+", iml="+iml);
 					
-					success = disaggCalc.disaggregate(Math.log(iml), site, gmpe, u3, disaggParams);
+					success = disaggCalc.disaggregate(Math.log(iml), site, gmpe, u3, calc.getSourceFilters(), calc.getAdjustableParams());
 					if (!success)
 						throw new RuntimeException("Disagg calc failed (see errors above, if any).");
 					disaggCalc.setMaxZAxisForPlot(maxZAxis);

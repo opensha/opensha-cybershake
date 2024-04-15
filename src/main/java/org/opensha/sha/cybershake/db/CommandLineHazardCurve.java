@@ -294,7 +294,7 @@ public class CommandLineHazardCurve implements ParameterChangeWarningListener {
 	 */
 	private MeanUCERF2 setupERF() {
 		meanUCERF2 = new MeanUCERF2();
-		meanUCERF2.setParameter(MeanUCERF2.RUP_OFFSET_PARAM_NAME, new Double(5.0));
+		meanUCERF2.setParameter(MeanUCERF2.RUP_OFFSET_PARAM_NAME, Double.valueOf(5.0));
 		meanUCERF2.setParameter(MeanUCERF2.CYBERSHAKE_DDW_CORR_PARAM_NAME, true);
 		meanUCERF2.setParameter(UCERF2.PROB_MODEL_PARAM_NAME, UCERF2.PROB_MODEL_POISSON);
 		meanUCERF2.setParameter(UCERF2.BACK_SEIS_NAME, UCERF2.BACK_SEIS_EXCLUDE);

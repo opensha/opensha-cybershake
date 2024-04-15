@@ -77,7 +77,7 @@ public class TestSiteDebug {
 		
 		for (Parameter<?> param : gmpe.getSiteParams()) {
 			if (param.getName().equals(Vs30_Param.NAME))
-				((Parameter<Double>)param).setValue(new Double(targetVs30));
+				((Parameter<Double>)param).setValue(Double.valueOf(targetVs30));
 			if (param.getName().equals(DepthTo1pt0kmPerSecParam.NAME))
 				((Parameter<Double>)param).setValue(z10);
 			if (param.getName().equals(DepthTo2pt5kmPerSecParam.NAME))

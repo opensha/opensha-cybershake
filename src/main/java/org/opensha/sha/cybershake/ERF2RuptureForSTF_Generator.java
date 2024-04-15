@@ -234,7 +234,7 @@ public class ERF2RuptureForSTF_Generator {
     int numSources = eqkRupForecast.getNumSources();
     //creating a ArrayList to hold the rupture indices for a given site and eqkrupforecast.
     for (int sourceIndex = 0; sourceIndex < numSources; ++sourceIndex)
-      probRupIdentifierList.put(new Integer(sourceIndex), new ArrayList());
+      probRupIdentifierList.put(Integer.valueOf(sourceIndex), new ArrayList());
 
 
     //Going over each and every source in the forecast
@@ -258,7 +258,7 @@ public class ERF2RuptureForSTF_Generator {
           if (region.contains(ptLoc)) {
             ArrayList rupIndicesList = (ArrayList) probRupIdentifierList.get(new
                 Integer(sourceIndex));
-            rupIndicesList.add(new Integer(rupIndex));
+            rupIndicesList.add(Integer.valueOf(rupIndex));
             break;
           }
         }
@@ -364,7 +364,7 @@ public class ERF2RuptureForSTF_Generator {
         frankelForecast.FAULT_MODEL_STIRLING);
     frankelForecast.getAdjustableParameterList().getParameter(
       Frankel02_AdjustableEqkRupForecast.RUP_OFFSET_PARAM_NAME).setValue(
-        new Double(5.0));
+        Double.valueOf(5.0));
 
     frankelForecast.getTimeSpan().setDuration(1.0);
     frankelForecast.updateForecast();

@@ -256,7 +256,8 @@ public class DisaggBenchmarch {
 								for (double period : config.getCalcPeriods(periods)) {
 									SA_Param.setPeriodInSA_Param(gmpe.getIntensityMeasure(), period);
 									for (double iml : config.getCalcLevels(imLevels)) {
-										Preconditions.checkState(disagg.disaggregate(Math.log(iml), site, gmpe, erf, curveCalc.getAdjustableParams()));
+										Preconditions.checkState(disagg.disaggregate(Math.log(iml), site, gmpe, erf,
+												curveCalc.getSourceFilters(), curveCalc.getAdjustableParams()));
 										disagg.setMaxZAxisForPlot(maxZAxis);
 										String address = disagg.getDisaggregationPlotUsingServlet("asfd");
 										String outputFileName = tempDir.getAbsolutePath()+File.separator+"gmpe_temp.pdf";

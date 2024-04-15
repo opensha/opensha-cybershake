@@ -339,7 +339,7 @@ public class DisaggregationPlotter {
 				disaggCalc.setMagRange(minMag, numMags, deltaMag);
 				disaggCalc.setNumSourcesToShow(numSourcesForDisag);
 				disaggCalc.setShowDistances(showSourceDistances);
-				boolean success = disaggCalc.disaggregate(Math.log(iml), site, imr, erf, disaggParams);
+				boolean success = disaggCalc.disaggregate(Math.log(iml), site, imr, erf, gmpeCurveCalc.getSourceFilters(), disaggParams);
 				if (!success)
 					throw new RuntimeException("Disagg calc failed (see errors above, if any).");
 				disaggCalc.setMaxZAxisForPlot(maxZAxis);
@@ -400,7 +400,7 @@ public class DisaggregationPlotter {
 								gmpeCurve = HazardCurveSetCalculator.unLogFunction(curve, gmpeCurve);
 								iml = gmpeCurve.getFirstInterpolatedX_inLogXLogYDomain(prob);
 							}
-							success = disaggCalc.disaggregate(Math.log(iml), site, attenRel, erf, disaggParams);
+							success = disaggCalc.disaggregate(Math.log(iml), site, attenRel, erf, gmpeCurveCalc.getSourceFilters(), disaggParams);
 							if (!success)
 								throw new RuntimeException("Disagg calc failed (see errors above, if any).");
 							disaggCalc.setMaxZAxisForPlot(maxZAxis);

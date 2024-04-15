@@ -431,7 +431,7 @@ public class ObsExceedProbCalculator implements ParameterChangeWarningListener{
             frankelForecast.FAULT_MODEL_STIRLING);
     frankelForecast.getAdjustableParameterList().getParameter(
         Frankel02_AdjustableEqkRupForecast.RUP_OFFSET_PARAM_NAME).setValue(
-            new Double(5.0));
+            Double.valueOf(5.0));
 
     frankelForecast.getTimeSpan().setDuration(1.0);
     frankelForecast.updateForecast();

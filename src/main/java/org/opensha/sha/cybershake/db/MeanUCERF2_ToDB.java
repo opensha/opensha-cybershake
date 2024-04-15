@@ -80,12 +80,12 @@ public class MeanUCERF2_ToDB extends ERF2DB {
 		// Rup offset
 		eqkRupForecast.getAdjustableParameterList().getParameter(
 				MeanUCERF2.RUP_OFFSET_PARAM_NAME).setValue(
-						new Double(5.0));
+						Double.valueOf(5.0));
 
 		// Cybershake DDW(down dip correction) correction
 		eqkRupForecast.getAdjustableParameterList().getParameter(
 				MeanUCERF2.CYBERSHAKE_DDW_CORR_PARAM_NAME).setValue(
-						new Boolean(ddwAdjust));
+						Boolean.valueOf(ddwAdjust));
 
 		// Set Poisson Probability model
 		eqkRupForecast.getAdjustableParameterList().getParameter(

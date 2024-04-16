@@ -251,8 +251,7 @@ public class ObsExceedProbCalculator implements ParameterChangeWarningListener{
     if(imt.equalsIgnoreCase("SA")){
 
       try{
-        attenRel.getParameter(PeriodParam.NAME).setValue(new
-            Double(period));
+        attenRel.getParameter(PeriodParam.NAME).setValue(Double.valueOf(period));
       }
       catch (Exception e) {
         System.out.println("SA Period = "+period + " not supported by attenuation relationship " +

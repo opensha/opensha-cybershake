@@ -256,8 +256,7 @@ public class ERF2RuptureForSTF_Generator {
         while (it.hasNext()) {
           Location ptLoc = (Location) it.next();
           if (region.contains(ptLoc)) {
-            ArrayList rupIndicesList = (ArrayList) probRupIdentifierList.get(new
-                Integer(sourceIndex));
+            ArrayList rupIndicesList = (ArrayList) probRupIdentifierList.get(Integer.valueOf(sourceIndex));
             rupIndicesList.add(Integer.valueOf(rupIndex));
             break;
           }

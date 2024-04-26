@@ -20,6 +20,8 @@ import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
+import org.opensha.sha.cybershake.calc.RuptureProbabilityModifier;
+import org.opensha.sha.cybershake.calc.UCERF2_AleatoryMagVarRemovalMod;
 import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
@@ -46,6 +48,8 @@ import com.google.common.collect.Table;
 import com.google.common.primitives.Doubles;
 
 import scratch.kevin.bbp.BBP_Site;
+import scratch.kevin.cybershake.MinRupProbMod;
+import scratch.kevin.cybershake.UCERF2_A_SegmentedOnlyProbMod;
 import scratch.kevin.simCompare.IMT;
 import scratch.kevin.simCompare.MultiRupGMPE_ComparePageGen;
 import scratch.kevin.simCompare.RuptureComparison;
@@ -77,7 +81,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 	
 	public StudyGMPE_Compare(CyberShakeStudy study, AbstractERF erf, DBAccess db, File ampsCacheDir, IMT[] imts,
 			double minMag, HashSet<String> limitSiteNames, HashSet<String> highlightSiteNames, boolean doRotD,
-			Vs30_Source vs30Source) throws IOException, SQLException {
+			Vs30_Source vs30Source, RuptureProbabilityModifier modProb) throws IOException, SQLException {
 		this.study = study;
 		this.erf = erf;
 		this.vs30Source = vs30Source;
@@ -106,7 +110,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			System.out.println("Matched "+highlightSites.size()+"/"+highlightSiteNames.size()+" highlight site names to sites");
 		}
 		
-		prov = new StudyRotDProvider(study, amps2db, imts, study.getName());
+		prov = new StudyRotDProvider(study, amps2db, imts, study.getName(), modProb);
 		if (study == CyberShakeStudy.STUDY_20_5_RSQSIM_4983_SKIP65k) {
 			prov = new RSQSimSubsetStudyRotDProvider(prov, (RSQSimSectBundledERF)erf,
 					study.getRSQSimCatalog(), 65000d);
@@ -372,8 +376,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_15_4);
 //		vs30s.add(Vs30_Source.Wills2015);
 		
-		studies.add(CyberShakeStudy.STUDY_15_12);
-		vs30s.add(Vs30_Source.Simulation);
+//		studies.add(CyberShakeStudy.STUDY_15_12);
+//		vs30s.add(Vs30_Source.Simulation);
 		
 //		studies.add(CyberShakeStudy.STUDY_20_2_RSQSIM_4841);
 //		vs30s.add(Vs30_Source.Simulation);
@@ -396,8 +400,9 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_22_3_RSQSIM_5413);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-//		studies.add(CyberShakeStudy.STUDY_22_12_HF);
+		studies.add(CyberShakeStudy.STUDY_22_12_HF);
 //		vs30s.add(Vs30_Source.Simulation);
+		vs30s.add(Vs30_Source.Thompson2020);
 		
 //		studies.add(CyberShakeStudy.STUDY_22_12_LF);
 //		vs30s.add(Vs30_Source.Simulation);
@@ -415,6 +420,19 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		double[] rotDPeriods = { 3, 5, 10 };
 		double minMag = 6;
 		
+		RuptureProbabilityModifier modProb = null;
+		String modProbPrefix = null;
+		
+//		Preconditions.checkState(studies.size() == 1);
+//		RuptureProbabilityModifier modProb = new UCERF2_AleatoryMagVarRemovalMod(studies.get(0).getERF());
+//		String modProbPrefix = "_no_aleatory";
+		
+//		Preconditions.checkState(studies.size() == 1);
+//		RuptureProbabilityModifier modProb = new MinRupProbMod(
+//				new UCERF2_AleatoryMagVarRemovalMod(studies.get(0).getERF()),
+//				new UCERF2_A_SegmentedOnlyProbMod(studies.get(0).getERF()));
+//		String modProbPrefix = "a_seg_only_no_aleatory";
+		
 //		AttenRelRef primaryGMPE = AttenRelRef.AFSHARI_STEWART_2016; // this one will include highlight sites
 //		AttenRelRef[] gmpeRefs = { primaryGMPE };
 //		
@@ -423,14 +441,15 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		double minMag = 6;
 		
 		boolean doGMPE = true;
-		boolean doRotD = false;
+		boolean doRotD = modProb == null && false;
 		boolean doNonErgodicMaps = false;
+		boolean doRakeBinned = false;
 		
 		boolean limitToHighlight = false;
 		
-		boolean replotScatters = true;
-		boolean replotZScores = true;
-		boolean replotCurves = true;
+		boolean replotScatters = false;
+		boolean replotZScores = false;
+		boolean replotCurves = false;
 		boolean replotResiduals = true;
 		
 		IMT[] rotDIMTs = null;
@@ -529,11 +548,12 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 			
 			try {
 				StudyGMPE_Compare comp = new StudyGMPE_Compare(study, erf, db, ampsCacheDir, calcIMTs,
-						minMag, limitSiteNames, highlightSiteNames, doRotD, vs30Source);
+						minMag, limitSiteNames, highlightSiteNames, doRotD, vs30Source, modProb);
 				comp.setReplotCurves(replotCurves);
 				comp.setReplotResiduals(replotResiduals);
 				comp.setReplotScatters(replotScatters);
 				comp.setReplotZScores(replotZScores);
+				comp.setDoRakeBinned(doRakeBinned);
 				
 				List<Site> vs500_sites = new ArrayList<>();
 				Map<String, Site> siteNamesMap = new HashMap<>();
@@ -565,8 +585,11 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 					comp.addSiteBundle(grid10kmSites, "10km Grid Sites");
 				
 				HashSet<CSRupture> allRups = new HashSet<>();
-				for (Site site : comp.sites)
+				for (int i=0; i<comp.sites.size(); i++) {
+					Site site = comp.sites.get(i);
+					System.out.println("Getting ruptures for site "+i+"/"+comp.sites.size());
 					allRups.addAll(comp.prov.getRupturesForSite(site));
+				}
 				Table<String, CSRupture, Double> sourceContribFracts =
 						StudySiteHazardCurvePageGen.getSourceContribFracts(
 								study.getERF(), allRups, study.getRSQSimCatalog(), true);
@@ -588,7 +611,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 					}
 					
 					if (doGMPE) {
-						File catalogGMPEDir = new File(studyDir, "gmpe_comparisons_"+gmpeRef.getShortName()+"_Vs30"+vs30Source.name());
+						String dirName = "gmpe_comparisons_"+gmpeRef.getShortName()+"_Vs30"+vs30Source.name();
+						if (modProb != null)
+							dirName += "_"+modProbPrefix;
+						File catalogGMPEDir = new File(studyDir, dirName);
 						Preconditions.checkState(catalogGMPEDir.exists() || catalogGMPEDir.mkdir());
 						comp.generateGMPE_page(catalogGMPEDir, gmpeRef, imts, comps);
 					}
@@ -620,6 +646,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 						}
 						
 						String dirname = "gmpe_non_ergodic_maps_"+gmpeRef.getShortName()+"_Vs30"+vs30Source.name();
+						if (modProb != null)
+							dirname += "_"+modProbPrefix;
 						File catalogGMPEDir = new File(studyDir, dirname);
 						Preconditions.checkState(catalogGMPEDir.exists() || catalogGMPEDir.mkdir());
 						

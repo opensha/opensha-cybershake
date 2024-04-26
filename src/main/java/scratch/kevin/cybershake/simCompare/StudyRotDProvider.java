@@ -25,6 +25,7 @@ import org.opensha.commons.data.function.LightFixedXFunc;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
+import org.opensha.sha.cybershake.calc.RuptureProbabilityModifier;
 import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
@@ -84,7 +85,13 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 	
 	private File spectraCacheDir;
 
-	public StudyRotDProvider(CyberShakeStudy study, CachedPeakAmplitudesFromDB amps2db, IMT[] imts, String name) {
+	public StudyRotDProvider(CyberShakeStudy study, CachedPeakAmplitudesFromDB amps2db, IMT[] imts,
+			String name) {
+		this(study, amps2db, imts, name, null);
+	}
+
+	public StudyRotDProvider(CyberShakeStudy study, CachedPeakAmplitudesFromDB amps2db, IMT[] imts,
+			String name, RuptureProbabilityModifier rupProbMod) {
 		this(study.getERF(), new CacheLoader<Site, CybershakeRun>() {
 
 			@Override
@@ -98,11 +105,11 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 				return runs.get(0);
 			}
 			
-		}, amps2db, imts, name);
+		}, amps2db, imts, name, rupProbMod);
 	}
 
 	public StudyRotDProvider(AbstractERF erf, CacheLoader<Site, CybershakeRun> runCacheLoader, CachedPeakAmplitudesFromDB amps2db,
-			IMT[] imts, String name) {
+			IMT[] imts, String name, RuptureProbabilityModifier rupProbMod) {
 		this.amps2db = amps2db;
 		this.erf2db = new ERF2DB(amps2db.getDBAccess());
 		this.imts = imts;
@@ -180,6 +187,10 @@ public class StudyRotDProvider implements SimulationRotDProvider<CSRupture> {
 					if (allAmps[sourceID] != null) {
 						for (int rupID=0; rupID<allAmps[sourceID].length; rupID++) {
 							if (allAmps[sourceID][rupID] != null) {
+								if (rupProbMod != null && rupProbMod.getModifiedProb(sourceID, rupID,
+										erf.getRupture(sourceID, rupID).getProbability()) == 0d)
+									// skipped by the rupture probability modifier
+									continue;
 								int numRVs = allAmps[sourceID][rupID].length;
 								siteRups.add(getCSRupture(sourceID, rupID, run.getERFID(), run.getRupVarScenID(), numRVs));
 							}

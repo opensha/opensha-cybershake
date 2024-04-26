@@ -847,6 +847,11 @@ public enum CyberShakeStudy {
 				String gmpeName = name.substring("gmpe_comparisons_".length());
 				gmpeName = gmpeName.substring(0, gmpeName.indexOf("_Vs30"));
 				String vs30Name = name.substring(name.indexOf("_Vs30")+5);
+				if (vs30Name.contains("_")) {
+					String suffix = vs30Name.substring(vs30Name.indexOf("_")+1);
+					gmpeName += ", "+suffix;
+					vs30Name = vs30Name.substring(0, vs30Name.indexOf("_"));
+				}
 				Vs30_Source vs30 = Vs30_Source.valueOf(vs30Name);
 				Preconditions.checkNotNull(vs30);
 				

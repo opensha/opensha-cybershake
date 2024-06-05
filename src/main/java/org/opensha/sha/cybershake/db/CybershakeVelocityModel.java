@@ -18,7 +18,9 @@ public class CybershakeVelocityModel {
 		CCA_1D(9, "CCA 1D", "1.0"),
 		CCA_06(10, "CCA", "iteration 6"),
 		STUDY_18_8(12, "Study 18.8 Stitched", ""),
-		CVM_S4_26_M01_TAPER(13, "CVM-S4.26-M01, Tapered", "4.26-M01-T");
+		CVM_S4_26_M01_TAPER(13, "CVM-S4.26-M01, Tapered", "4.26-M01-T"),
+		USGS_SFCVM_21_1(14, "USGS SFCVM", "21.1"),
+		STUDY_24_6(15, "Study 24.6 Stitched", "");
 		
 		private CybershakeVelocityModel model;
 		private Models(int id, String name, String version) {

@@ -19,6 +19,7 @@ import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
 import org.opensha.commons.data.siteData.impl.ConstantValueDataProvider;
 import org.opensha.commons.data.siteData.impl.ThompsonVs30_2020;
 import org.opensha.commons.data.siteData.impl.USGSBayAreaBasinDepth;
+import org.opensha.commons.data.siteData.impl.USGS_SFBay_BasinDepth_v21p1;
 import org.opensha.commons.data.siteData.impl.WaldAllenGlobalVs30;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.geo.Location;
@@ -404,6 +405,21 @@ public class CyberShakeSiteBuilder {
 				/*		CVM4i26 Depth to 1.0					 */
 				try {
 					providers.add(new CachedSiteDataWrapper<Double>(new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_1_0)));
+				} catch (IOException e) {
+					ExceptionUtils.throwAsRuntimeException(e);
+				}
+			} else if (velModelID == CybershakeVelocityModel.Models.USGS_SFCVM_21_1.getID()
+					|| velModelID == CybershakeVelocityModel.Models.STUDY_24_6.getID()) {
+				/*		USGS SF 21.1 Depth to 2.5					 */
+				try {
+					providers.add(new CachedSiteDataWrapper<Double>(new USGS_SFBay_BasinDepth_v21p1(SiteData.TYPE_DEPTH_TO_2_5)));
+				} catch (IOException e) {
+					ExceptionUtils.throwAsRuntimeException(e);
+				}
+
+				/*		USGS SF 21.1 Depth to 1.0					 */
+				try {
+					providers.add(new CachedSiteDataWrapper<Double>(new USGS_SFBay_BasinDepth_v21p1(SiteData.TYPE_DEPTH_TO_1_0)));
 				} catch (IOException e) {
 					ExceptionUtils.throwAsRuntimeException(e);
 				}

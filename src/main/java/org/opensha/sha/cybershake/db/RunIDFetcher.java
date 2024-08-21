@@ -198,16 +198,22 @@ public class RunIDFetcher {
 	public List<CybershakeRun> fetch() {
 		String sql = buildSelectSQL();
 		
+		System.out.println(sql);
+		
 		List<CybershakeRun> runs = new ArrayList<>();
 		
 		HashSet<Integer> runIDs = new HashSet<>();
 		
+		// for some reason, sqlite joins won't prepend the R. column name
+		String prefix = db.isSQLite() ? "" : "R.";
+		
+		ResultSet rs = null;
 		try {
-			ResultSet rs = db.selectData(sql);
+			rs = db.selectData(sql);
 			boolean valid = rs.next();
 			
 			while (valid) {
-				CybershakeRun run = CybershakeRun.fromResultSet(rs, "R.");
+				CybershakeRun run = CybershakeRun.fromResultSet(rs, prefix);
 				Preconditions.checkState(!runIDs.contains(run.getRunID()), "Duplicate runID=%s. SQL:%s", run.getRunID(), sql);
 				runs.add(run);
 				runIDs.add(run.getRunID());

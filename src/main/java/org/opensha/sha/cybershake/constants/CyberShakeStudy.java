@@ -601,6 +601,23 @@ public enum CyberShakeStudy {
 					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 //					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasHazardCurves();
 		}
+	},
+	STUDY_24_8_TESTS(cal(2024, 8), 121, "August 2024 Experiments", "study_24_8_tests",
+			"Test calculations",
+			64, 15,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return MeanUCERF2_ToDB.createUCERF2ERF();
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			// TODO require Vsitop?
+			return new RunIDFetcher(this.getDB()).noTestSites().unique(false)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+//					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasHazardCurves();
+		}
 	};
 	
 	public RSQSimCatalog getRSQSimCatalog() {
@@ -722,6 +739,11 @@ public enum CyberShakeStudy {
 	
 	public GregorianCalendar getDate() {
 		return date;
+	}
+	
+	public synchronized DBAccess getSQLiteDB(File sqLiteFile) throws IOException {
+		db = Cybershake_OpenSHA_DBApplication.getSQLiteDB(sqLiteFile);
+		return db;
 	}
 	
 	public synchronized DBAccess getDB() {

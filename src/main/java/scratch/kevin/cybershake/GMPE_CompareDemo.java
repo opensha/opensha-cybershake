@@ -26,7 +26,7 @@ import com.google.common.base.Preconditions;
 public class GMPE_CompareDemo {
 	
 	public static void main(String[] args) throws IOException {
-		CyberShakeStudy study = CyberShakeStudy.STUDY_15_4;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_HF;
 		
 		File outputDir = new File("/tmp/cs_gmpe_compare");
 		Preconditions.checkState(outputDir.exists() || outputDir.mkdir());
@@ -41,7 +41,8 @@ public class GMPE_CompareDemo {
 		
 		// set to SA
 		gmpe.setIntensityMeasure(SA_Param.NAME);
-		double[] periods = {2d, 3d, 5d, 10d};
+//		double[] periods = {2d, 3d, 5d, 10d};
+		double[] periods = {1d, 0.5, 0.2, 0.1, 0.05};
 		
 		// get cybershake run IDs for study
 		List<CybershakeRun> runs = study.runFetcher().fetch();

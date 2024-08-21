@@ -139,9 +139,11 @@ public class HazardCurve2DB {
 		}
 		
 		try {
-			rs.next();
+			boolean valid = rs.next();
+			if (!valid)
+				return null;
 			while (!rs.isAfterLast()) {
-				int id = rs.getInt("Hazard_Curve_ID");
+				int id = rs.getInt(1);
 				boolean skip = false;
 				for (int oldID : ids) {
 					if (oldID == id) {
@@ -358,7 +360,7 @@ public class HazardCurve2DB {
 			rs.next();
 			if (rs.isAfterLast())
 				return -1;
-			id = rs.getInt("Run_ID");
+			id = rs.getInt(1);
 			rs.close();
 		} catch (SQLException e) {
 //			e.printStackTrace();
@@ -425,8 +427,8 @@ public class HazardCurve2DB {
 			while (rs.next()) {
 				if (hazardFunc == null)
 					hazardFunc = new ArbitrarilyDiscretizedFunc();
-				double x = rs.getDouble("X_Value");
-				double y = rs.getDouble("Y_Value");
+				double x = rs.getDouble(1);
+				double y = rs.getDouble(2);
 				hazardFunc.set(x, y);
 			}
 			rs.close();

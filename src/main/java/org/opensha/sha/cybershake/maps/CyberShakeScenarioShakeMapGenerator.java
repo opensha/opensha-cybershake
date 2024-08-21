@@ -44,6 +44,7 @@ import org.opensha.commons.util.cpt.CPT;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
+import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
@@ -99,6 +100,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 	private boolean noPlot;
 	
 	private List<Site> gmpeSites;
+	
+	private boolean calcGMPEatCS;
 	
 	private static final double SP_CORR_SIGMA_DEFAULT = 0.6;
 	private int numRandomFields = 0;
@@ -218,6 +221,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 		} else { 
 			region = study.getRegion();
 		}
+		
+		calcGMPEatCS = cmd.hasOption("calc-gmpe-at-cs-sites");
 	}
 	
 	private double[] cbLimitParse(String str) {
@@ -236,6 +241,12 @@ public class CyberShakeScenarioShakeMapGenerator {
 		GeoDataSet[] csXYZs = customIntensities != null ? customIntensities : calcCyberShake();
 		
 		GeoDataSet[] gmpeXYZs = gmpe == null ? null : calcGMPE();
+		
+		GeoDataSet[] gmpeXYZsAtCS = null;
+		if (calcGMPEatCS) {
+			Preconditions.checkState(gmpe != null, "GMPE is null but option to calculate GMPE at CS sites was selected?");
+			gmpeXYZsAtCS = calcGMPEatCS();
+		}
 		
 		GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
 		InterpDiffMapType[] typesToPlot;
@@ -271,6 +282,9 @@ public class CyberShakeScenarioShakeMapGenerator {
 			
 			if (gmpe != null)
 				ArbDiscrGeoDataSet.writeXYZFile(gmpeXYZs[p], new File(outputDir, prefix+"_gmpe_amps.txt"));
+			
+			if (gmpeXYZsAtCS != null)
+				ArbDiscrGeoDataSet.writeXYZFile(gmpeXYZsAtCS[p], new File(outputDir, prefix+"_gmpe_amps_at_cs_sites.txt"));
 			
 			if (noPlot)
 				continue;
@@ -739,6 +753,40 @@ public class CyberShakeScenarioShakeMapGenerator {
 		return xyz;
 	}
 	
+	private GeoDataSet[] calcGMPEatCS() throws IOException {
+		System.out.println("Calculating GMPE at CS sites");
+		
+		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study, vsSource, runs);
+		
+		GeoDataSet[] xyz = new GeoDataSet[periods.length];
+		for (int p=0; p<xyz.length; p++)
+			xyz[p] = new ArbDiscrGeoDataSet(false);
+		
+		gmpe.setParamDefaults();
+		ProbEqkRupture rup = study.getERF().getSource(sourceID).getRupture(rupID);
+		
+		gmpe.setEqkRupture(rup);
+		
+		for (CyberShakeSiteRun site : sites) {
+			gmpe.setSite(site);
+			for (int p=0; p<periods.length; p++) {
+				if (periods[p] > 0) {
+					gmpe.setIntensityMeasure(SA_Param.NAME);
+					SA_Param saParam = (SA_Param)gmpe.getIntensityMeasure();
+					SA_Param.setPeriodInSA_Param(saParam, periods[p]);
+				} else if (periods[p] == 0d) {
+					gmpe.setIntensityMeasure(PGA_Param.NAME);
+				} else if (periods[p] == -1d) {
+					gmpe.setIntensityMeasure(PGV_Param.NAME);
+				}
+				double value = Math.exp(gmpe.getMean());
+				xyz[p].set(site.getLocation(), value);
+			}
+		}
+		
+		return xyz;
+	}
+	
 	private static String getStudyList() {
 		List<String> names = new ArrayList<>();
 		for (CyberShakeStudy study : CyberShakeStudy.values())
@@ -820,6 +868,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 				"Optional path to GMPE sites CSV file (to avoid hitting the site data server over and over again)");
 		gmpeSitesOp.setRequired(false);
 		ops.addOption(gmpeSitesOp);
+		
+		ops.addOption(null, "calc-gmpe-at-cs-sites", false, "Optional flag to calculate and write out GMPE ground motions exactly at the CyberShake sites.");
 		
 		Option noPlotOp = new Option("np", "no-plot", false, "Skip plotting and only write out data files");
 		noPlotOp.setRequired(false);
@@ -911,7 +961,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 //			String argz = "--study STUDY_22_12_HF --source-id 231 --rupture-id 66 --rupture-var-id 41"
 //					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/palos-verdes"
 			String argz = "--study STUDY_22_12_HF --source-id 215 --rupture-id 35 --rupture-var-id 0"
-					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/newport-inglewood"
+//					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/newport-inglewood"
+					+ " --output-dir /tmp/cs_test"
 //					+ "-spatialVal --spatial-corr-fields 1"
 //					+ " --spacing 0.01"
 					+ " --spacing 0.005"
@@ -921,7 +972,9 @@ public class CyberShakeScenarioShakeMapGenerator {
 //					+ " --period 0.01,0.3,1"
 //					+ " --colorbar-max 0.5,1.0,0.7"
 					+ " --region "+studyRegFile.getAbsolutePath()
-					+ " --download-interpolated";
+					+ " --download-interpolated"
+					+ " --calc-gmpe-at-cs-sites"
+					;
 			
 //			String argz = "--help";
 			args = argz.split(" ");

@@ -33,6 +33,7 @@ public class HazardCurveFetcher {
 	
 	DBAccess db;
 	HazardCurve2DB curve2db;
+	HazardCurve2DB curvePointsDB;
 	CybershakeSiteInfo2DB site2db;
 	
 	List<Integer> curveIDs;
@@ -64,7 +65,11 @@ public class HazardCurveFetcher {
 	}
 	
 	public HazardCurveFetcher(DBAccess db, List<CybershakeRun> runs, int[] datasetIDs, int imTypeID) {
-		this.initDBConnections(db);
+		this(db, runs, datasetIDs, imTypeID, null);
+	}
+	
+	public HazardCurveFetcher(DBAccess db, List<CybershakeRun> runs, int[] datasetIDs, int imTypeID, DBAccess customCurvesDB) {
+		this.initDBConnections(db, customCurvesDB);
 		List<Integer> curveIDs = new ArrayList<>();
 		for (int datasetID : datasetIDs) {
 			for (CybershakeRun run : runs) {
@@ -100,7 +105,7 @@ public class HazardCurveFetcher {
 				siteIDs.add(siteID);
 			}
 			sites.add(site2db.getSiteFromDB(siteID));
-			DiscretizedFunc curve = curve2db.getHazardCurve(id);
+			DiscretizedFunc curve = curvePointsDB.getHazardCurve(id);
 			Preconditions.checkNotNull(curve, "Curve is null? Curve ID=%s, site ID=%s", id, siteID);
 			funcs.add(curve);
 			runIDs.add(curve2db.getRunIDForCurve(id));
@@ -142,8 +147,16 @@ public class HazardCurveFetcher {
 	}
 	
 	private void initDBConnections(DBAccess db) {
+		initDBConnections(db, null);
+	}
+	
+	private void initDBConnections(DBAccess db, DBAccess customCurvesDB) {
 		this.db = db;
 		curve2db = new HazardCurve2DB(db);
+		if (customCurvesDB == null)
+			curvePointsDB = curve2db;
+		else
+			curvePointsDB = new HazardCurve2DB(customCurvesDB);
 		site2db = new CybershakeSiteInfo2DB(db);
 	}
 	

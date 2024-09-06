@@ -9,6 +9,8 @@ import org.opensha.commons.util.cpt.CPT;
 
 public class InterpDiffMap extends GMT_Map {
 	
+	public static final String INTERP_DIFF_XYZ_FILE_NAME = "map_data_interpolated_differences.txt";
+	
 	public enum InterpDiffMapType {
 		BASEMAP("basemap", "GMPE Basemap", null),
 		INTERP_NOMARKS("interpolated", "Interpolated CyberShake Map", null),

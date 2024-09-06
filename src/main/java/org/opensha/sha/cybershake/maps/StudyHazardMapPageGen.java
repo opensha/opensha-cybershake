@@ -31,6 +31,7 @@ import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.data.xyz.AbstractGeoDataSet;
 import org.opensha.commons.data.xyz.ArbDiscrGeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSet;
+import org.opensha.commons.data.xyz.GriddedGeoDataSet;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.Region;
 import org.opensha.commons.gui.plot.HeadlessGraphPanel;
@@ -71,7 +72,7 @@ import scratch.kevin.cybershake.BatchBaseMapPlot;
 
 public class StudyHazardMapPageGen {
 	
-	private static final boolean LOCAL_MAPGEN = true;
+	private static final boolean LOCAL_MAPGEN = false;
 
 	public static void main(String[] args) throws IOException {
 		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
@@ -79,12 +80,12 @@ public class StudyHazardMapPageGen {
 		int vmOverride = -1;
 		CyberShakeStudy compStudy = null;
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
-		double[] periods = { 2d, 3d, 5d, 10d };
-		compStudy = CyberShakeStudy.STUDY_15_4;
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_HF;
-//		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
-//		compStudy = CyberShakeStudy.STUDY_15_12;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
+//		double[] periods = { 2d, 3d, 5d, 10d };
+//		compStudy = CyberShakeStudy.STUDY_15_4;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_HF;
+		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
+		compStudy = CyberShakeStudy.STUDY_15_12;
 //		vmOverride = 5;
 //		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
@@ -381,11 +382,15 @@ public class StudyHazardMapPageGen {
 									typesToPlot.add(type);
 							}
 							
+							File interpDiffsFile = new File(resourcesDir, prefix+"_interpolated_differences.txt");
+							File interpMapFile = new File(resourcesDir, prefix+"_interpolated.txt");
+							
 							GeoDataSet scatterData = null;
+							boolean saveInterp = typesToPlot.contains(InterpDiffMapType.INTERP_NOMARKS);
+							GeoDataSet baseMap = null;
 							if (!typesToPlot.isEmpty()) {
 								System.out.println("Plotting "+typesToPlot.size()+" maps");
 								
-								GeoDataSet baseMap = null;
 								if (baseMapGMPE != null) {
 									// load the basemap
 									System.out.println("Loading basemap");
@@ -426,6 +431,7 @@ public class StudyHazardMapPageGen {
 								map.setXyzFileName("base_map.xyz");
 								map.setCustomScaleMin(0d);
 								map.setCustomScaleMax(cptMax);
+								map.getInterpSettings().setSaveInterpSurface(saveInterp);
 								
 								String metadata = "isProbAt_IML: " + isProbAt_IML + "\n" +
 												"val: " + probLevel + "\n" +
@@ -443,6 +449,7 @@ public class StudyHazardMapPageGen {
 								for (InterpDiffMapType type : typesToPlot) {
 									File pngFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".png");
 									File psFile = new File(resourcesDir, prefix+"_"+type.getPrefix()+".ps");
+									File interpOutFile = baseMapGMPE == null ? interpMapFile : interpDiffsFile;
 									if (LOCAL_MAPGEN) {
 										File inFile = new File(addr, type.getPrefix()+".150.png");
 										Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
@@ -452,12 +459,19 @@ public class StudyHazardMapPageGen {
 											Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
 											Files.copy(inFile, psFile);
 										}
+										if (saveInterp && type == InterpDiffMapType.INTERP_NOMARKS) {
+											inFile = new File(addr, "map_data_interpolated.txt");
+											Preconditions.checkState(inFile.exists(), "Interpolated file doesn't exist: %s", inFile.getAbsolutePath());
+											Files.copy(inFile, interpOutFile);
+										}
 									} else {
 										if (!addr.endsWith("/"))
 											addr += "/";
 										FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
 										if (psSaveTypes.contains(type))
 											FileUtils.downloadURL(addr+type.getPrefix()+".ps", psFile);
+										if (saveInterp && type == InterpDiffMapType.INTERP_NOMARKS)
+											FileUtils.downloadURL(addr+"map_data_interpolated.txt", interpOutFile);
 									}
 								}
 							}
@@ -471,6 +485,33 @@ public class StudyHazardMapPageGen {
 							else
 								lines.add(myHeading+" Zoomed "+title);
 							lines.add(topLink); lines.add("");
+							
+							if (saveInterp) {
+								if (baseMapGMPE == null) {
+									// don't need to add to basemap
+									Preconditions.checkState(interpMapFile.exists());
+								} else {
+									// need to add to basemap
+									Preconditions.checkState(interpDiffsFile.exists());
+									System.out.println("Loading interpolated difference data from "+interpDiffsFile.getAbsolutePath());
+									GriddedGeoDataSet interpDiff = GriddedGeoDataSet.loadXYZFile(interpDiffsFile, false);
+									System.out.println("Loaded "+interpDiff.size()+" interpolated points");
+									Preconditions.checkNotNull(baseMap);
+									GeoDataSet interpXYZ = baseMap.copy();
+									System.out.println("Interpolating differences on top of base map with "+interpXYZ.size()+" points");
+									for (int j=0; j<interpXYZ.size(); j++) {
+										Location loc = interpXYZ.getLocation(j);
+										double diff = interpDiff.bilinearInterpolation(loc);
+										if (!Double.isFinite(diff))
+											diff = interpDiff.get(loc);
+										interpXYZ.set(j, Math.max(0d, interpXYZ.get(j)+diff));
+									}
+									System.out.println("Writing final interpolated differences map to "+interpMapFile.getAbsolutePath());
+									ArbDiscrGeoDataSet.writeXYZFile(interpXYZ, interpMapFile);
+								}
+								lines.add("[Download Interpolated Map](resources/"+interpMapFile.getName()+")");
+								lines.add("");
+							}
 							
 							TableBuilder table = MarkdownUtils.tableBuilder();
 							for (InterpDiffMapType[] row : typeTable) {

@@ -170,13 +170,6 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 		double maxLon = map.getRegion().getMaxLon();
 		double minLat = map.getRegion().getMinLat();
 		double maxLat = map.getRegion().getMaxLat();
-		if (map.getGriddedData() != null) {
-			GeoDataSet gridData = map.getGriddedData();
-			minLon = gridData.getMinLon();
-			maxLon = gridData.getMaxLon();
-			minLat = gridData.getMinLat();
-			maxLat = gridData.getMaxLat();
-		}
 		
 		gmtCommandLines.add("#!/bin/bash");
 		gmtCommandLines.add("");

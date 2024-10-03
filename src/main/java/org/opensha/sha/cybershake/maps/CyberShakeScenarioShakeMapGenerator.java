@@ -27,8 +27,10 @@ import org.opensha.commons.data.xyz.GeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSetMath;
 import org.opensha.commons.data.xyz.GriddedGeoDataSet;
 import org.opensha.commons.exceptions.GMT_MapException;
+import org.opensha.commons.geo.BorderType;
 import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
+import org.opensha.commons.geo.LocationList;
 import org.opensha.commons.geo.Region;
 import org.opensha.commons.geo.json.Feature;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
@@ -220,6 +222,16 @@ public class CyberShakeScenarioShakeMapGenerator {
 			}
 		} else { 
 			region = study.getRegion();
+			// snap the region to the grid
+			GriddedRegion superReg = new GriddedRegion(new Location(region.getMinLat()-0.1, region.getMinLon()-0.1),
+					new Location(region.getMinLat()+0.1, region.getMinLon()+0.1), spacing, GriddedRegion.ANCHOR_0_0);
+			LocationList border = new LocationList();
+			for (Location loc : region.getBorder()) {
+				int index = superReg.indexForLocation(loc);
+				Preconditions.checkState(index >= 0);
+				border.add(superReg.getLocation(index));
+			}
+			region = new Region(border, BorderType.MERCATOR_LINEAR);
 		}
 		
 		calcGMPEatCS = cmd.hasOption("calc-gmpe-at-cs-sites");
@@ -687,7 +699,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 	private GeoDataSet[] calcGMPE() throws IOException {
 		System.out.println("Calculating GMPE");
 		
-		GriddedRegion region = new GriddedRegion(this.region, spacing, null);
+		GriddedRegion region = new GriddedRegion(this.region, spacing, GriddedRegion.ANCHOR_0_0);
 		
 		GeoDataSet[] xyz = new GeoDataSet[periods.length];
 		for (int p=0; p<xyz.length; p++)
@@ -924,7 +936,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 
 	public static void main(String[] args) {
 		if (args.length == 1 && args[0].equals("--hardcoded")) {
-			LOCAL_MAPGEN = true;
+//			LOCAL_MAPGEN = true;
 			System.out.println("HARDCODED");
 //			String argz = "--study STUDY_15_4 --period 2,3,5,10 --source-id 69 --rupture-id 6 --rupture-var-id 14 --output-dir /tmp/cs_shakemap "
 //					+ "--gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()+" --spatial-corr-fields 20 --spacing 0.02 --spatial-corr-debug";
@@ -964,8 +976,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 //					+ " --output-dir /home/kevin/CyberShake/caloes_shakemaps/newport-inglewood"
 					+ " --output-dir /tmp/cs_test"
 //					+ "-spatialVal --spatial-corr-fields 1"
-//					+ " --spacing 0.01"
-					+ " --spacing 0.005"
+					+ " --spacing 0.01"
+//					+ " --spacing 0.005"
 					+ " --gmpe "+AttenRelRef.NGAWest_2014_AVG_NOIDRISS.name()
 					+ " --period -1,0,0.3,1,3"
 					+ " --colorbar-max 80,1.0,1.0,0.7,0.5"

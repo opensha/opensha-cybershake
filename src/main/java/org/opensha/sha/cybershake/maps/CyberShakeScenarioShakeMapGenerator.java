@@ -223,8 +223,8 @@ public class CyberShakeScenarioShakeMapGenerator {
 		} else { 
 			region = study.getRegion();
 			// snap the region to the grid
-			GriddedRegion superReg = new GriddedRegion(new Location(region.getMinLat()-0.1, region.getMinLon()-0.1),
-					new Location(region.getMinLat()+0.1, region.getMinLon()+0.1), spacing, GriddedRegion.ANCHOR_0_0);
+			GriddedRegion superReg = new GriddedRegion(new Location(region.getMinLat()-1, region.getMinLon()-1),
+					new Location(region.getMaxLat()+1, region.getMaxLon()+1), spacing, GriddedRegion.ANCHOR_0_0);
 			LocationList border = new LocationList();
 			for (Location loc : region.getBorder()) {
 				int index = superReg.indexForLocation(loc);

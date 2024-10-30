@@ -69,7 +69,7 @@ public class CyberShakeBaseMapGen {
 		if (args.length < 9 || args.length > 11) {
 			System.out.println("USAGE: "+ClassUtils.getClassNameWithoutPackage(CyberShakeBaseMapGen.class)
 					+" <IMRs> <SA period> <spacing> <CVM4/CVMH/CVMHnGTL/BBP/CVM4i26/CCAi6/CCA1D/CS18_8/null> <constrainBasinMin>"
-					+" <jobName> <minutes> <nodes> <queue> [<LA/CCA/CA/BAY> OR minLat/minLon/maxLat/maxLon]"
+					+" <jobName> <minutes> <nodes> <queue> [<LA/CCA/CA/BAY/BAYSM> OR minLat/minLon/maxLat/maxLon]"
 					+ "['Include'/'Exclude' background, or RSQSim catalog dir]");
 			System.exit(2);
 		}
@@ -98,6 +98,8 @@ public class CyberShakeBaseMapGen {
 				region = new CaliforniaRegions.CYBERSHAKE_CCA_MAP_GRIDDED(spacing);
 			else if (regName.equals("bay"))
 				region = new GriddedRegion(new CaliforniaRegions.CYBERSHAKE_BAY_AREA_MAP_REGION(), spacing, null);
+			else if (regName.equals("baysm"))
+				region = new GriddedRegion(new CaliforniaRegions.CYBERSHAKE_BAY_AREA_SMALL_MAP_REGION(), spacing, null);
 			else if (regName.equals("ca"))
 				region = new CaliforniaRegions.RELM_TESTING_GRIDDED(spacing);
 			else if (regName.split("/").length == 4) {

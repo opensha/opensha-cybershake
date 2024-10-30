@@ -400,9 +400,13 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_22_3_RSQSIM_5413);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-		studies.add(CyberShakeStudy.STUDY_22_12_HF);
-//		vs30s.add(Vs30_Source.Simulation);
-		vs30s.add(Vs30_Source.Thompson2020);
+//		studies.add(CyberShakeStudy.STUDY_22_12_HF);
+////		vs30s.add(Vs30_Source.Simulation);
+//		vs30s.add(Vs30_Source.Thompson2020);
+		
+		studies.add(CyberShakeStudy.STUDY_24_8_LF);
+		vs30s.add(Vs30_Source.Simulation);
+//		vs30s.add(Vs30_Source.Thompson2020);
 		
 //		studies.add(CyberShakeStudy.STUDY_22_12_LF);
 //		vs30s.add(Vs30_Source.Simulation);
@@ -414,9 +418,9 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 		
-//		IMT[] imts = { IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
+		IMT[] imts = { IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 //		IMT[] imts = { IMT.PGV, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
-		IMT[] imts = { IMT.SA0P1, IMT.SA0P2, IMT.SA0P5, IMT.SA1P0, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
+//		IMT[] imts = { IMT.SA0P1, IMT.SA0P2, IMT.SA0P5, IMT.SA1P0, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 		double[] rotDPeriods = { 3, 5, 10 };
 		double minMag = 6;
 		

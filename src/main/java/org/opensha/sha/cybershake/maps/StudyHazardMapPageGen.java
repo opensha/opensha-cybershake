@@ -76,26 +76,46 @@ public class StudyHazardMapPageGen {
 
 	public static void main(String[] args) throws IOException {
 		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
-		
+
 		int vmOverride = -1;
+		int erfOverride = -1;
 		CyberShakeStudy compStudy = null;
+		Region basemapRegion = null;
+		double baseMapRes = 0.005;
 		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
-//		double[] periods = { 2d, 3d, 5d, 10d };
-//		compStudy = CyberShakeStudy.STUDY_15_4;
-		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_HF;
-		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
-		compStudy = CyberShakeStudy.STUDY_15_12;
+////		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
+////		double[] periods = { 2d, 3d, 5d, 10d };
+////		compStudy = CyberShakeStudy.STUDY_15_4;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_HF;
+//		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
+//		compStudy = CyberShakeStudy.STUDY_15_12;
 //		vmOverride = 5;
 //		CyberShakeComponent[] components = { CyberShakeComponent.GEOM_MEAN };
 //		ScalarIMR baseMapGMPE = AttenRelRef.NGA_2008_4AVG.instance(null);
+//		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
+//		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
+////		ScalarIMR baseMapGMPE = null;
+////		ScalarIMR backgroundGMPE = baseMapGMPE;
+//		ScalarIMR backgroundGMPE = null;
+//		SiteData<?>[] siteDatas = { new ThompsonVs30_2020(), new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+//				new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+//		Region zoomRegion = null;
+		
+		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_LF;
+		double[] periods = { 2d, 3d, 5d, 10d };
+		compStudy = CyberShakeStudy.STUDY_18_8;
 		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
 		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
 //		ScalarIMR baseMapGMPE = null;
 //		ScalarIMR backgroundGMPE = baseMapGMPE;
 		ScalarIMR backgroundGMPE = null;
-		SiteData<?>[] siteDatas = { new ThompsonVs30_2020(), new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
-				new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+		// TODO
+		vmOverride = compStudy.getVelocityModelID();
+		erfOverride = compStudy.getERF_ID();
+		SiteData<?>[] siteDatas = { new ThompsonVs30_2020(), new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+				new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+//		basemapRegion = compStudy.getRegion();
+//		baseMapRes = 0.02;
 		Region zoomRegion = null;
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
@@ -269,7 +289,6 @@ public class StudyHazardMapPageGen {
 		String topLink = "*[(top)](#table-of-contents)*";
 		
 		Region region = study.getRegion();
-		double baseMapRes = 0.005;
 		InterpDiffMapType[] mapTypes;
 		InterpDiffMapType[][] typeTable;
 		if (backgroundGMPE != null) {
@@ -394,10 +413,12 @@ public class StudyHazardMapPageGen {
 								if (baseMapGMPE != null) {
 									// load the basemap
 									System.out.println("Loading basemap");
-									int vmID = vmOverride > 0 ? vmOverride : study.getVelocityModelID();;
+									int vmID = vmOverride > 0 ? vmOverride : study.getVelocityModelID();
+									int erfID = erfOverride > 0 ? erfOverride : study.getERF_ID();
+									Region reg = basemapRegion == null ? region : basemapRegion;
 									baseMap = HardCodedInterpDiffMapCreator.loadBaseMap(
-											baseMapGMPE, isProbAt_IML, probLevel, study.getERF_ID(),
-											vmID, im.getID(), region);
+											baseMapGMPE, isProbAt_IML, probLevel, erfID,
+											vmID, im.getID(), reg);
 								}
 								if (fetch == null) {
 									fetch = new HazardCurveFetcher(study.getDB(), runs, dsIDs, im.getID());

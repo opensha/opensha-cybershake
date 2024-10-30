@@ -24,6 +24,9 @@ import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.function.EvenlyDiscretizedFunc;
 import org.opensha.commons.data.region.CaliforniaRegions;
 import org.opensha.commons.eq.MagUtils;
+import org.opensha.commons.geo.BorderType;
+import org.opensha.commons.geo.Location;
+import org.opensha.commons.geo.LocationList;
 import org.opensha.commons.geo.Region;
 import org.opensha.commons.geo.json.Feature;
 import org.opensha.commons.geo.json.FeatureCollection;
@@ -618,6 +621,33 @@ public enum CyberShakeStudy {
 					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 //					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasHazardCurves();
 		}
+	},
+	STUDY_24_8_LF(cal(2024, 8), 121, "Study 24.8 LF", "study_24_8_lf",
+            "Northern California with the Graves and Pitarka (2022) rupture generator (0-1 Hz).",
+            64, 15,
+			new CaliforniaRegions.CYBERSHAKE_BAY_AREA_MAP_REGION(),
+//			new Region(LocationList.of(
+////					new Location(36.96, -122.39),
+////					new Location(38.41, -123.32),
+////					new Location(38.82, -122.29),
+////					new Location(37.36, -121.38)),
+////					new Location(37, -122.4),
+////					new Location(38.4, -123.3),
+////					new Location(38.8, -122.3),
+////					new Location(37.4, -121.4)),
+//					BorderType.MERCATOR_LINEAR),
+			"localhost") {
+		@Override
+		public AbstractERF buildNewERF() {
+			return MeanUCERF2_ToDB.createUCERF2ERF();
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			// TODO require Vsitop?
+			return new RunIDFetcher(this.getDB()).noTestSites().unique(false)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+//					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasHazardCurves();
+		}
 	};
 	
 	public RSQSimCatalog getRSQSimCatalog() {
@@ -812,7 +842,8 @@ public enum CyberShakeStudy {
 		builder.addLine("**Region**", regStr);
 		builder.addLine("**Description**", getDescription());
 		CybershakeVelocityModel vm = getVelocityModel();
-		builder.addLine("**Velocity Model**", vm.getName()+", "+vm.getVersion());
+		if (vm != null)
+			builder.addLine("**Velocity Model**", vm.getName()+", "+vm.getVersion());
 		return builder.build();
 	}
 	

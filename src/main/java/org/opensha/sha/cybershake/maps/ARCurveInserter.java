@@ -155,12 +155,16 @@ public class ARCurveInserter {
 //		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-0p5sec"; double period = 0.5;
 //		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-1sec"; double period = 1d;
 //		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-2sec"; double period = 2d;
-		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-3sec"; double period = 3d;
+//		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-3sec"; double period = 3d;
 //		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-5sec"; double period = 5d;
 //		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-10sec"; double period = 10d;
+//		String dirName = "2024_10_30-study_24_8-cs-nga2-2sec"; double period = 2d;
+//		String dirName = "2024_10_30-study_24_8-cs-nga2-3sec"; double period = 3d;
+//		String dirName = "2024_10_30-study_24_8-cs-nga2-5sec"; double period = 5d;
+		String dirName = "2024_10_30-study_24_8-cs-nga2-10sec"; double period = 10d;
 
 		Calendar cal = GregorianCalendar.getInstance();
-		cal.set(2023, 2, 28); // month is 0-based, 3=April
+		cal.set(2024, 9, 30); // month is 0-based, 3=April
 		
 		// UPDATE ERF ID and VM ID !!!!!!!
 		boolean deleteOld = true;
@@ -183,9 +187,10 @@ public class ARCurveInserter {
 		imr.setParamDefaults();
 		setTruncation(imr, 3d);
 		/*		UPDATE THESE		*/
-		int erfID = 36;
+//		int erfID = 36;
 //		int erfID = 63;
-		int velModelID = CybershakeVelocityModel.Models.CVM_S4_26_M01_TAPER.instance().getID();
+		int erfID = 64;
+		int velModelID = CybershakeVelocityModel.Models.STUDY_24_8.instance().getID();
 		int imTypeID = CybershakeIM.getSA(CyberShakeComponent.RotD50, period).getID();
 //		int velModelID = -1; // Vs30 only
 		/*		END UPDATE THESE	*/

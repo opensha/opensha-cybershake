@@ -625,17 +625,32 @@ public enum CyberShakeStudy {
 	STUDY_24_8_LF(cal(2024, 8), 121, "Study 24.8 LF", "study_24_8_lf",
             "Northern California with the Graves and Pitarka (2022) rupture generator (0-1 Hz).",
             64, 15,
-			new CaliforniaRegions.CYBERSHAKE_BAY_AREA_MAP_REGION(),
+//			new CaliforniaRegions.CYBERSHAKE_BAY_AREA_MAP_REGION(),
+            new CaliforniaRegions.CYBERSHAKE_BAY_AREA_SMALL_MAP_REGION(),
 //			new Region(LocationList.of(
+//            // original
 ////					new Location(36.96, -122.39),
 ////					new Location(38.41, -123.32),
 ////					new Location(38.82, -122.29),
 ////					new Location(37.36, -121.38)),
+//			// reordered
+//					new Location(37.36, -121.38),
+//					new Location(38.82, -122.29),
+//					new Location(38.41, -123.32),
+//					new Location(36.96, -122.39),
+//					new Location(37.36, -121.38)),
+//            // rounded 1
 ////					new Location(37, -122.4),
 ////					new Location(38.4, -123.3),
 ////					new Location(38.8, -122.3),
 ////					new Location(37.4, -121.4)),
+//            // rounded 2
+////					new Location(36.9, -122.4),
+////					new Location(38.4, -123.4),
+////					new Location(38.8, -122.3),
+////					new Location(37.4, -121.3)),
 //					BorderType.MERCATOR_LINEAR),
+//            new Region(new Location(36.9, -122.4), new Location(38.9, -121.3)),
 			"localhost") {
 		@Override
 		public AbstractERF buildNewERF() {

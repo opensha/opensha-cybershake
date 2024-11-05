@@ -236,6 +236,8 @@ public class CyberShakeSiteBuilder {
 			sites.add(site);
 		}
 		
+		System.out.println("Built "+sites.size()+" sites for Vs30 model "+vs30Source+"; used Z maps? "+(mapBasinVals != null));
+		
 		return sites;
 	}
 	

@@ -127,6 +127,8 @@ public class MultiStudyHazardMapPageGen {
 			HardCodedInterpDiffMapCreator.setTruncation(baseMapIMR, 3.0);
 		}
 		
+		GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
+		
 		Region combinedRegion = null;
 		
 		System.out.println("Building combined region");
@@ -203,7 +205,7 @@ public class MultiStudyHazardMapPageGen {
 
 							System.out.println("Plotting ratio");
 							String prefix = study1.getDirName()+"_"+study2.getDirName()+"_"+imtPrefix;
-							plotIntersectionRatio(scatter1, scatter2, intersection, resourcesDir, name1, name2, imtLabel, prefix);
+							plotIntersectionRatio(scatter1, scatter2, intersection, resourcesDir, name1, name2, imtLabel, prefix, interpSettings);
 						}
 					}
 				}
@@ -264,13 +266,13 @@ public class MultiStudyHazardMapPageGen {
 	}
 	
 	static void plotIntersectionRatio(GeoDataSet scatter1, GeoDataSet scatter2, Region intersection,
-			File outputDir, String name1, String name2, String imtLabel, String imtPrefix)
+			File outputDir, String name1, String name2, String imtLabel, String imtPrefix, GMT_InterpolationSettings interpSettings)
 					throws FileNotFoundException, ClassNotFoundException, IOException, GMT_MapException, SQLException {
 		boolean logPlot = false;
 		boolean tightCPTs = false;
 		String label = imtLabel+" "+name1+" vs "+name2;
 		String[] addrs = HardCodedInterpDiffMapCreator.getCompareMap(
-				logPlot, scatter1, scatter2, label, tightCPTs, intersection);
+				logPlot, scatter1, scatter2, label, tightCPTs, intersection, interpSettings);
 		
 		String diff = addrs[0];
 		String ratio = addrs[1];

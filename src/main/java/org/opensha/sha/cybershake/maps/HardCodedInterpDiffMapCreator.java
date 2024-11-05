@@ -711,8 +711,16 @@ public class HardCodedInterpDiffMapCreator {
 	public static String[] getCompareMap(boolean logPlot, GeoDataSet scatterData1, GeoDataSet scatterData2,
 			String customLabel, boolean tightCPTs, Region region) throws FileNotFoundException,
 			IOException, ClassNotFoundException, GMT_MapException, SQLException {
-		System.out.println("Creating map instance...");
 		GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
+		return getCompareMap(logPlot, scatterData1, scatterData2, customLabel, tightCPTs, region, interpSettings);
+	}
+	
+	public static String[] getCompareMap(boolean logPlot, GeoDataSet scatterData1, GeoDataSet scatterData2,
+			String customLabel, boolean tightCPTs, Region region, GMT_InterpolationSettings interpSettings)
+					throws FileNotFoundException,
+			IOException, ClassNotFoundException, GMT_MapException, SQLException {
+		System.out.println("Creating map instance...");
+		
 		
 		InterpDiffMapType[] mapTypes = gainPlotTypes;
 		

@@ -89,7 +89,7 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		this.erf2db = new ERF2DB(db);
 		
 		csRuns = study.runFetcher().fetch();
-		System.out.println("Loaded "+csRuns.size()+" runs for "+study.getName()+" (dataset "+study.getDatasetIDs()+")");
+		System.out.println("Loaded "+csRuns.size()+" runs for "+study.getName()+" (dataset "+Arrays.toString(study.getDatasetIDs())+")");
 		
 		sites = CyberShakeSiteBuilder.buildSites(study, vs30Source, csRuns);
 		
@@ -404,12 +404,12 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 ////		vs30s.add(Vs30_Source.Simulation);
 //		vs30s.add(Vs30_Source.Thompson2020);
 		
-		studies.add(CyberShakeStudy.STUDY_24_8_LF);
-		vs30s.add(Vs30_Source.Simulation);
-//		vs30s.add(Vs30_Source.Thompson2020);
-		
 //		studies.add(CyberShakeStudy.STUDY_22_12_LF);
 //		vs30s.add(Vs30_Source.Simulation);
+		
+		studies.add(CyberShakeStudy.STUDY_24_8_LF);
+//		vs30s.add(Vs30_Source.Simulation);
+		vs30s.add(Vs30_Source.Thompson2020);
 		
 		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014; // this one will include highlight sites
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,

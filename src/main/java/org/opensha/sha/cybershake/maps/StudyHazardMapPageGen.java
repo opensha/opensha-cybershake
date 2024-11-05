@@ -22,6 +22,7 @@ import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.function.XY_DataSet;
 import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.impl.CS_Study18_8_BasinDepth;
+import org.opensha.commons.data.siteData.impl.CS_Study24_8_BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM4i26_M01_TaperBasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
@@ -82,6 +83,7 @@ public class StudyHazardMapPageGen {
 		CyberShakeStudy compStudy = null;
 		Region basemapRegion = null;
 		double baseMapRes = 0.005;
+		GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
 		
 ////		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
 ////		double[] periods = { 2d, 3d, 5d, 10d };
@@ -109,13 +111,14 @@ public class StudyHazardMapPageGen {
 //		ScalarIMR baseMapGMPE = null;
 //		ScalarIMR backgroundGMPE = baseMapGMPE;
 		ScalarIMR backgroundGMPE = null;
-		// TODO
-		vmOverride = compStudy.getVelocityModelID();
-		erfOverride = compStudy.getERF_ID();
-		SiteData<?>[] siteDatas = { new ThompsonVs30_2020(), new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
-				new CS_Study18_8_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
+//		vmOverride = compStudy.getVelocityModelID();
+//		erfOverride = compStudy.getERF_ID();
+		SiteData<?>[] siteDatas = { new ThompsonVs30_2020(), new CS_Study24_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0),
+				new CS_Study24_8_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 //		basemapRegion = compStudy.getRegion();
 //		baseMapRes = 0.02;
+		// for some reason the upsampling step is failing for this region, this disables it
+		interpSettings.setInterpSpacing(baseMapRes);
 		Region zoomRegion = null;
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
@@ -429,7 +432,6 @@ public class StudyHazardMapPageGen {
 										isProbAt_IML, probLevel, fetch, im.getID(), null);
 								
 								System.out.println("Creating map instance...");
-								GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
 								
 								double cptMax;
 								if (period >= 10d)
@@ -736,7 +738,7 @@ public class StudyHazardMapPageGen {
 								lines.add("");
 								
 								MultiStudyHazardMapPageGen.plotIntersectionRatio(scatterData, compScatterData, region,
-										resourcesDir, study.getName(), compStudy.getName(), title, "comp_"+prefix);
+										resourcesDir, study.getName(), compStudy.getName(), title, "comp_"+prefix, interpSettings);
 								
 								table.addLine("![Difference]("+resourcesDir.getName()+"/diff_comp_"+prefix+".png)",
 										"![Ratio]("+resourcesDir.getName()+"/ratio_comp_"+prefix+".png)");

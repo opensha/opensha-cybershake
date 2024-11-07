@@ -3,6 +3,7 @@ package scratch.kevin.cybershake.simCompare;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -350,6 +351,8 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		List<CyberShakeStudy> studies = new ArrayList<>();
 		List<Vs30_Source> vs30s = new ArrayList<>();
 		
+		// if non-null, subsets will be include below and above this split
+		Double vs30Split = null;
 		ZScoreHistPlot.D = true;
 		
 //		studies.add(CyberShakeStudy.STUDY_18_9_RSQSIM_2740);
@@ -409,9 +412,12 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 		studies.add(CyberShakeStudy.STUDY_24_8_LF);
 //		vs30s.add(Vs30_Source.Simulation);
-		vs30s.add(Vs30_Source.Thompson2020);
+		vs30s.add(Vs30_Source.Thompson2020); vs30Split = 400d;
 		
-		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014; // this one will include highlight sites
+		// this one will include highlight sites
+//		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014;
+//		AttenRelRef primaryGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS;
+		AttenRelRef primaryGMPE = null;
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014,
 //				AttenRelRef.BSSA_2014, AttenRelRef.CB_2014, AttenRelRef.CY_2014 };
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS, AttenRelRef.ASK_2014 };
@@ -455,6 +461,11 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		boolean replotZScores = false;
 		boolean replotCurves = false;
 		boolean replotResiduals = true;
+		
+//		boolean replotScatters = false;
+//		boolean replotZScores = true;
+//		boolean replotCurves = false;
+//		boolean replotResiduals = false;
 		
 		IMT[] rotDIMTs = null;
 		if (rotDPeriods != null) {
@@ -561,14 +572,31 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 				
 				List<Site> vs500_sites = new ArrayList<>();
 				Map<String, Site> siteNamesMap = new HashMap<>();
+				List<Site> belowSplitSites = vs30Split == null ? null : new ArrayList<>();
+				List<Site> aboveSplitSites = vs30Split == null ? null : new ArrayList<>();
 				for (Site site : comp.sites) {
 					siteNamesMap.put(site.getName(), site);
 					double vs30 = site.getParameter(Double.class, Vs30_Param.NAME).getValue();
 					if ((float)vs30 == 500f)
 						vs500_sites.add(site);
+					if (vs30Split != null) {
+						if ((float)vs30 <= vs30Split.floatValue())
+							belowSplitSites.add(site);
+						else
+							aboveSplitSites.add(site);
+					}
 				}
 				if (!vs500_sites.isEmpty())
 					comp.addSiteBundle(vs500_sites, "Vs30=500");
+				if (vs30Split != null) {
+					System.out.println("Found "+belowSplitSites.size()+" sites below and "+aboveSplitSites.size()
+							+" sites above Vs30Split="+vs30Split);
+					if (!belowSplitSites.isEmpty() && !aboveSplitSites.isEmpty()) {
+						DecimalFormat oDF = new DecimalFormat("0.#");
+						comp.addSiteBundle(belowSplitSites, "Vs30<="+oDF.format(vs30Split));
+						comp.addSiteBundle(aboveSplitSites, "Vs30>"+oDF.format(vs30Split));
+					}
+				}
 //				List<BBP_Site> csLABBPsites = RSQSimBBP_Config.getCyberShakeVs500LASites();
 //				List<Site> csLAsites = new ArrayList<>();
 //				for (BBP_Site b : csLABBPsites)

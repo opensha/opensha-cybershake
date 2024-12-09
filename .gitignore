@@ -10,5 +10,4 @@ Scratch*.java
 .DS_Store
 gmt.history
 build.date
-build.githash
-build.gitbranch
+build.git*

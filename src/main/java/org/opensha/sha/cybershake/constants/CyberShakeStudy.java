@@ -623,34 +623,9 @@ public enum CyberShakeStudy {
 		}
 	},
 	STUDY_24_8_LF(cal(2024, 8), 121, "Study 24.8 LF", "study_24_8_lf",
-            "Northern California with the Graves and Pitarka (2022) rupture generator (0-1 Hz).",
-            64, 15,
-//			new CaliforniaRegions.CYBERSHAKE_BAY_AREA_MAP_REGION(),
+			"Northern California with the Graves and Pitarka (2022) rupture generator (0-1 Hz).",
+			64, 15,
             new CaliforniaRegions.CYBERSHAKE_BAY_AREA_SMALL_MAP_REGION(),
-//			new Region(LocationList.of(
-//            // original
-////					new Location(36.96, -122.39),
-////					new Location(38.41, -123.32),
-////					new Location(38.82, -122.29),
-////					new Location(37.36, -121.38)),
-//			// reordered
-//					new Location(37.36, -121.38),
-//					new Location(38.82, -122.29),
-//					new Location(38.41, -123.32),
-//					new Location(36.96, -122.39),
-//					new Location(37.36, -121.38)),
-//            // rounded 1
-////					new Location(37, -122.4),
-////					new Location(38.4, -123.3),
-////					new Location(38.8, -122.3),
-////					new Location(37.4, -121.4)),
-//            // rounded 2
-////					new Location(36.9, -122.4),
-////					new Location(38.4, -123.4),
-////					new Location(38.8, -122.3),
-////					new Location(37.4, -121.3)),
-//					BorderType.MERCATOR_LINEAR),
-//            new Region(new Location(36.9, -122.4), new Location(38.9, -121.3)),
 			"localhost") {
 		@Override
 		public AbstractERF buildNewERF() {
@@ -662,6 +637,37 @@ public enum CyberShakeStudy {
 			return new RunIDFetcher(this.getDB()).noTestSites().unique(false)
 					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
 //					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasHazardCurves();
+		}
+	},
+	STUDY_24_8_BB(cal(2024, 8), 122, "Study 24.8 BB", "study_24_8_bb",
+			"Northern California with the Graves and Pitarka (2022) rupture generator (0-50 Hz).",
+			64, 15,
+            new CaliforniaRegions.CYBERSHAKE_BAY_AREA_SMALL_MAP_REGION(),
+			"localhost") {
+		@Override
+		public AbstractERF buildNewERF() {
+			return MeanUCERF2_ToDB.createUCERF2ERF();
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			// TODO require Vsitop?
+			return new RunIDFetcher(this.getDB()).noTestSites().unique(false)
+					.hasHazardCurves(this.getDatasetIDs()).forStatus(Status.VERIFIED);
+//					.hasHazardCurves(this.getDatasetIDs()).hasAmplitudes(null).hasHazardCurves();
+		}
+	},
+	BBP_VALIDATION(cal(2022, 12), 105, "2022 CS BBP VALIDATION", "2022_cs_bbp_validation",
+            "CyberShake validation using BBP events.",
+            60, 5,
+			new CaliforniaRegions.CYBERSHAKE_MAP_REGION(),
+			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+		@Override
+		public AbstractERF buildNewERF() {
+			return null;
+		}
+		@Override
+		public RunIDFetcher runFetcher() {
+			return new RunIDFetcher(this.getDB()).forERF(this.getERF_ID()).hasAmplitudes(null);
 		}
 	};
 	
@@ -1479,6 +1485,9 @@ public enum CyberShakeStudy {
 	public abstract RunIDFetcher runFetcher();
 	
 	public static void main(String[] args) throws IOException {
+//		List<CybershakeRun> runs = BBP_VALIDATION.runFetcher().fetch();
+//		System.out.println("Found "+runs.size()+" runs");
+//		System.out.println(runs);
 		File gitDir = new File("/home/kevin/markdown/cybershake-analysis");
 		
 		boolean replot = false;

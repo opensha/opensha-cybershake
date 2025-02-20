@@ -111,6 +111,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 	private Random spatialCorrRand = new Random();
 	private File spatialCorrCache;
 	private boolean spatialCorrDebug = false;
+	private boolean spatialCorrPlot = false;
 	
 	private boolean downloadInterpolated = false;
 	
@@ -210,6 +211,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 				Preconditions.checkState(spatialCorrCache.exists() || spatialCorrCache.mkdir());
 			}
 			spatialCorrDebug = cmd.hasOption("spatial-corr-debug");
+			spatialCorrPlot = cmd.hasOption("spatial-corr-plot-individual");
 		}
 		
 		downloadInterpolated = cmd.hasOption("download-interpolated");
@@ -482,22 +484,24 @@ public class CyberShakeScenarioShakeMapGenerator {
 //					System.out.println("Plotting field "+n);
 //					FaultBasedMapGen.plotMap(outputDir, prefix+"_rand"+n, false, randMap);
 					
-					map.setGriddedData(randShakeMap);
-					map.setScatter(null);
-					map.setCustomLabel(title+", Random "+n);
-					
-					InterpDiffMapType[] randTypes = { InterpDiffMapType.BASEMAP };
-					map.setMapTypes(randTypes);
-					
-					System.out.println("Making map...");
-					String addr2 = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
-					
-					System.out.println("Done, downloading");
-					
-					File pngFile = new File(outputDir, prefix+"_rand"+n+".png");
-					if (!addr2.endsWith("/"))
-						addr2 += "/";
-					FileUtils.downloadURL(addr2+InterpDiffMapType.BASEMAP.getPrefix()+".150.png", pngFile);
+					if (spatialCorrPlot) {
+						map.setGriddedData(randShakeMap);
+						map.setScatter(null);
+						map.setCustomLabel(title+", Random "+n);
+						
+						InterpDiffMapType[] randTypes = { InterpDiffMapType.BASEMAP };
+						map.setMapTypes(randTypes);
+						
+						System.out.println("Making map...");
+						String addr2 = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
+						
+						System.out.println("Done, downloading");
+						
+						File pngFile = new File(outputDir, prefix+"_rand"+n+".png");
+						if (!addr2.endsWith("/"))
+							addr2 += "/";
+						FileUtils.downloadURL(addr2+InterpDiffMapType.BASEMAP.getPrefix()+".150.png", pngFile);
+					}
 					
 					if (spatialCorrDebug && p == 0) {
 						File csvFile = new File(outputDir, "sp_corr_S_"+n+".csv");
@@ -908,6 +912,11 @@ public class CyberShakeScenarioShakeMapGenerator {
 				"Random seed for spatially correlated random fields, otherwise unique each time.");
 		spatCorrRandOp.setRequired(false);
 		ops.addOption(spatCorrRandOp);
+		
+		Option spatCorrPlotOp = new Option(null, "spatial-corr-plot-individual", false,
+				"Enables plotting of each individual random spatial field.");
+		spatCorrPlotOp.setRequired(false);
+		ops.addOption(spatCorrPlotOp);
 		
 		Option spatCorrDebugOp = new Option("scd", "spatial-corr-debug", false,
 				"Enables spatial correlation debugging to output mean and other info.");

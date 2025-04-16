@@ -18,10 +18,8 @@ import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
 import com.google.common.base.Joiner;
 
 /**
- * This project will add support to multiply rupture direction probability by a
- * specified bias. We will modify Cybershake OpenSHA to support unequal
- * probabilities of specified rupture directivity. Users will provide a CSV file
- * with the probabilities to this newly created CLT.
+ * Command Line Tool handles user-provided CSV of rupture variations for
+ * HazardCurve calculations with preferred rupture directivity.
  */
 public class HazardCurvePrefRupCalculator implements RuptureVariationProbabilityModifier {
 

@@ -75,7 +75,7 @@ public class HazardCurvePrefRupCalculator implements RuptureVariationProbability
 	 * @param csvFile
 	 * @return
 	 */
-	private static Map<Integer, Double> getRupVarBiases(File csvFile) {
+	private static Map<Integer, Double> readRupVarCSV(File csvFile) {
 		Map<Integer, Double> biasMap = new HashMap<>();
 		try (CSVReader reader = new CSVReader(new FileInputStream(csvFile))) {
 			// Validate headers

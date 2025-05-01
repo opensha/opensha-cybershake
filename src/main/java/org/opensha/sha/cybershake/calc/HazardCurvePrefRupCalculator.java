@@ -21,6 +21,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.opensha.commons.util.ClassUtils;
+import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.data.CSVReader;
 import org.opensha.commons.data.CSVReader.Row;
@@ -44,14 +45,14 @@ import com.google.common.base.Preconditions;
 public class HazardCurvePrefRupCalculator implements RuptureVariationProbabilityModifier {
 
 
-	// Maps a <Source_ID + Rupture_ID> composite key to a Set of <Rup_Var_ID + Probability>
+	// Maps a <Source_ID + Rupture_ID> composite key to a Map of Rup_Var_ID to Probability
 	// Rupture variations are not globally unique, but are unique to a given source and rupture.
 	// Each rupture variation from the CSV has a provided probability.
 	//
 	// Not all variations for a rupture may be specified, in which case they are dynamically
 	// calculated inside getVariationProbs. This means there will be realtime validation
 	// beyond the validation of CSV variationProbs.
-	private Map<ImmutablePair<Integer, Integer>, Set<ImmutablePair<Integer, Double>>> variationProbs;
+	private Map<ImmutablePair<Integer, Integer>, Map<Integer, Double>> variationProbs;
 
 	private PeakAmplitudesFromDBAPI peakAmplitudes;
 	
@@ -108,13 +109,95 @@ public class HazardCurvePrefRupCalculator implements RuptureVariationProbability
 	@Override
 	public List<Double> getVariationProbs(int sourceID, int rupID, double originalProb, CybershakeRun run,
 			CybershakeIM im) {
-		// TODO Copy over from RupVarProbModifierTest but override rupVar probs
+		// Get rupture variations from CSV for this source rupture.
+		Map<Integer, Double> rupVarBiases =
+				variationProbs.getOrDefault(ImmutablePair.of(sourceID, rupID), null);
+		// get the number of amps from DB (may be greater than in CSV)
+		int numAmps;
 		try {
-			System.out.println(peakAmplitudes.getIM_Values(run.getRunID(), sourceID, rupID, im));
+			numAmps = peakAmplitudes.getIM_Values(run.getRunID(), sourceID, rupID, im).size();
 		} catch (SQLException e) {
 			throw ExceptionUtils.asRuntimeException(e);
 		}
-		return null;
+
+		// Validation of provided rupture variation biases for this source+rupture
+		double rupVarBiasesProbSum = 0;
+		double rupVarBiasesCount = 0;
+		if (rupVarBiases != null) {
+			rupVarBiasesCount = rupVarBiases.size();
+			// All variations are recorded on database, so we must have less in CSV
+			Preconditions.checkState(rupVarBiasesCount <= numAmps);
+			// The sum of probabilities of our custom rupture variation biases
+			// must be less than or equal to the original probability for the rupture
+			rupVarBiasesProbSum = rupVarBiases.values()
+					.stream()
+					.mapToDouble(Double::doubleValue)
+					.sum();
+			final double TOLERANCE = 1E-7;
+			Preconditions.checkState(rupVarBiasesProbSum <= originalProb + TOLERANCE);
+		}
+
+		double bundleFactor = 0.01d;
+		int ampsPerBundle = (int)(bundleFactor * (double)numAmps + 0.5);
+		if (ampsPerBundle < 1)
+			ampsPerBundle = 1;
+		
+		// double probPerRV = originalProb / (double)numAmps;
+
+		// The probability per rupture variation is the remaining probability
+		// divided by remaining total variations.
+		double defaultProbPerRV = (numAmps == rupVarBiasesCount)
+				? 0
+				: (originalProb - rupVarBiasesProbSum) / (double)(numAmps - rupVarBiasesCount);
+		Preconditions.checkState(defaultProbPerRV >= 0);
+		double perturb_scale = originalProb * 0.0000001;
+		
+		Map<Double, List<Integer>> ret = new HashMap<>();
+		
+		int index = 0;
+		while (index < numAmps) {
+			List<Integer> indexes = new ArrayList<>();
+			double prob = 0;
+			for (int i=0; i<ampsPerBundle && index<numAmps; i++) {
+				indexes.add(index++);
+				prob += rupVarBiases.getOrDefault(index, defaultProbPerRV);
+			}
+			// now randomly perturb
+			double perturb = perturb_scale*(Math.random()-0.5);
+			prob += perturb;
+			
+			Preconditions.checkState(!ret.containsKey(prob));
+			
+			ret.put(prob, indexes);
+		}
+		
+		double totalProb = 0d;
+		int runningCount = 0;
+		
+		for (double prob : ret.keySet()) {
+			totalProb += prob;
+			runningCount += ret.get(prob).size();
+		}
+		
+//		System.out.println("Num Amps: "+numAmps);
+		
+		Preconditions.checkState(runningCount == numAmps);
+		Preconditions.checkState(DataUtils.getPercentDiff(totalProb, originalProb) < 0.01);
+		
+		// convert back to list of probabilities
+		List<Double> rvProbs = new ArrayList<>();
+		for (int i=0; i<numAmps; i++)
+			rvProbs.add(0d);
+		
+		for (Double prob : ret.keySet()) {
+			List<Integer> indexes = ret.get(prob);
+			double probPer = prob/(double)indexes.size();
+			for (int rvIndex : indexes)
+				rvProbs.set(rvIndex, probPer);
+		}
+		
+		System.out.println(rvProbs);
+		return rvProbs;
 	}
 	
 	private static String getStudyList() {
@@ -149,14 +232,11 @@ public class HazardCurvePrefRupCalculator implements RuptureVariationProbability
 				Preconditions.checkArgument(row.columns()==4, "Must have four columns in CSV map");
 				ImmutablePair<Integer, Integer> compositeKey =
 						ImmutablePair.of(row.getInt(0), row.getInt(1)); 
-				ImmutablePair<Integer, Double> variationProb =
-						ImmutablePair.of(row.getInt(2), row.getDouble(3));
 
 				if (!variationProbs.containsKey(compositeKey)) {
-					variationProbs.put(compositeKey,
-							new HashSet<ImmutablePair<Integer, Double>>());
+					variationProbs.put(compositeKey, new HashMap<Integer, Double>());
 				}
-				variationProbs.get(compositeKey).add(variationProb);
+				variationProbs.get(compositeKey).put(row.getInt(2), row.getDouble(3));
 			}
 		} catch (FileNotFoundException e) {
 			System.err.println("CSV File not found.");

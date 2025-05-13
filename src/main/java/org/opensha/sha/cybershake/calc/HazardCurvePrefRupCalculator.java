@@ -1,5 +1,6 @@
 package org.opensha.sha.cybershake.calc;
 
+import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -18,6 +19,7 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.MissingOptionException;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.apache.commons.cli.ParseException;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.opensha.commons.util.ClassUtils;
@@ -25,15 +27,20 @@ import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.data.CSVReader;
 import org.opensha.commons.data.CSVReader.Row;
-
+import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeRun;
+import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.PeakAmplitudesFromDBAPI;
+import org.opensha.sha.cybershake.db.Runs2DB;
+import org.opensha.sha.cybershake.db.SiteInfo2DB;
+import org.opensha.sha.cybershake.db.SiteInfo2DBAPI;
 import org.opensha.sha.cybershake.plot.HazardCurvePlotter;
+import org.opensha.sha.gui.infoTools.IMT_Info;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -55,6 +62,11 @@ public class HazardCurvePrefRupCalculator implements RuptureVariationProbability
 	private Map<ImmutablePair<Integer, Integer>, Map<Integer, Double>> variationProbs;
 
 	private PeakAmplitudesFromDBAPI peakAmplitudes;
+	private DBAccess db;
+	private CyberShakeStudy study;
+	private CybershakeRun run;
+	private CybershakeSite site;
+	private double[] periods; // TODO: Make a plotter that uses this
 	
 	private static final boolean D = true;
 
@@ -62,13 +74,9 @@ public class HazardCurvePrefRupCalculator implements RuptureVariationProbability
 	 * Constructor parses command line parameters from main method and initializes
 	 * local parameters for use in HazardCurve computation.
 	 * @param cmd - Arguments received from user input at CommandLine
-	 * @param peakAmplitudes - Needed to get earthquake ruptures from database
 	 * @throws MissingOptionException 
 	 */
-	public HazardCurvePrefRupCalculator(CommandLine cmd, PeakAmplitudesFromDBAPI peakAmplitudes)
-			throws MissingOptionException {
-		
-		this.peakAmplitudes = peakAmplitudes;
+	public HazardCurvePrefRupCalculator(CommandLine cmd) throws MissingOptionException, ParseException {
 		
 		// One of run-id, site-name, or site-id is required.
 		if (!(cmd.hasOption("run-id")
@@ -81,18 +89,91 @@ public class HazardCurvePrefRupCalculator implements RuptureVariationProbability
 		if (!cmd.hasOption("rv-probs-csv")) {
 			throw new MissingOptionException("Missing option rv-probs-csv (Rupture Variations CSV Input File)");
 		}
-		// TODO: Finish parsing the rest of the parameters
+		
+		// The study is used to determine which database to use
+		if (!cmd.hasOption("study")) {
+			// TODO: Should we throw a runtime exception, or is this acceptable?
+			System.err.println("Missing option study. Using default DBAccess for CyberShake Production.");
+			db = Cybershake_OpenSHA_DBApplication.getDB();
+			peakAmplitudes = new PeakAmplitudesFromDB(db);
+		} else {
+			study = CyberShakeStudy.valueOf(cmd.getOptionValue("study"));
+			db = study.getDB();
+			peakAmplitudes = new PeakAmplitudesFromDB(study.getDB());
+		}
 
-		// TODO: Work on input probabilties validation
-		// TODO: Update the rupVarProbs Map to utilize residual probabilities
+		if (!cmd.hasOption("period")) {
+			throw new MissingOptionException("Missing option period(s).");
+		}
+		String periodStr = cmd.getOptionValue("period");
+		if (periodStr.contains(",")) {
+			String[] periodSplit = periodStr.split(",");
+			periods = new double[periodSplit.length];
+			for (int p=0; p<periods.length; p++)
+				periods[p] = Double.parseDouble(periodSplit[p]);
+		} else {
+			periods = new double[] { Double.parseDouble(periodStr) };
+		}
+		
+		// TODO: Finish parsing the rest of the parameters (ie output dir)
+		
+		//  [--run-id <run id> OR --site-name <site short name> OR --site-id <site id>]
+	
+		// Invocation requires xVals from IMT.
+		
+		// TODO: Is this correct? 
+		// Should we invoke `computeHazardCurve` with a unique set of xVals for each period supplied?
+
+		// TODO: Get xVals for each period to plot
+		
+		List<List<Double>> xSeries = new ArrayList<>(); // xValues for each plotting
+		IMT_Info hazardCurve = new IMT_Info();
+		for (double period : periods) {
+			List<Double> xVals = new ArrayList<Double>();
+			ArbitrarilyDiscretizedFunc func;
+			if (period == 0) {
+				func = hazardCurve.getDefaultHazardCurve("PGA");
+			} else if (period == -1) {
+				func = hazardCurve.getDefaultHazardCurve("PGV");
+			} else {
+				throw new ParseException("Invalid period: `" + period + "`");
+			}
+			for (Point2D pt : func) {
+				xVals.add(pt.getX());
+			}
+			xSeries.add(xVals);
+			
+		}
+//		ArrayList<Double> xVals = Lists.newArrayList();
+//		for (Point2D pt : IMT_Info.getUSGS_SA_Function())
+//			xVals.add(pt.getX());
+
+		
+		// TODO: Get runDB and siteDB for computeHazardCurve invocation
+
+		Runs2DB runsDB = new Runs2DB(db);
+		SiteInfo2DBAPI siteDB = new SiteInfo2DB(db);
+		if (cmd.hasOption("run-id")) {
+			int run = Integer.parseInt(cmd.getOptionValue("run-id"));
+		}
+		//		CybershakeIM im = new HazardCurve2DB(db).getIMFromID(21);
+		else if (cmd.hasOption("site-id")) {
+			site = siteDB.getSiteFromDB(Integer.parseInt(cmd.getOptionValue("site-id")));
+		} else if (cmd.hasOption("site-name")) {
+			site = siteDB.getSiteFromDB(cmd.getOptionValue("site-name"));
+		}
+		// read output directory
 
 		readRupVarCSV(new File(cmd.getOptionValue("rv-probs-csv")));
-		// TODO: Verify if the supplied probabilities are viable
-		//		* Do the sum of variation probabilties provided exceed the rupture probability? (read from DB)
-		// TODO: Calculate residual probabilities for non-specified rupVars
-		//		* (1 - probability-sum-from-csv) / (count-vars-from-db - variations-in-mapping-for-this-rupture)
-		// TODO: Move the peakAmplitudes reading into dedicated method for
-		//       populating the rupVarProbs mapping.
+
+
+		HazardCurveComputation hazardCurveCalc = new HazardCurveComputation(db);
+		// Update the probability of each individual rupture variation
+		hazardCurveCalc.setRupVarProbModifier(this);
+		
+		
+		// TODO: Invoke hazardCurveCalc computeHazardCurve for each period
+
 	}
 
 	/**
@@ -137,10 +218,10 @@ public class HazardCurvePrefRupCalculator implements RuptureVariationProbability
 			Preconditions.checkState(rupVarBiasesProbSum <= originalProb + TOLERANCE);
 		}
 
-		double bundleFactor = 0.01d;
-		int ampsPerBundle = (int)(bundleFactor * (double)numAmps + 0.5);
-		if (ampsPerBundle < 1)
-			ampsPerBundle = 1;
+//		double bundleFactor = 0.01d;
+//		int ampsPerBundle = (int)(bundleFactor * (double)numAmps + 0.5);
+//		if (ampsPerBundle < 1)
+//			ampsPerBundle = 1;
 		
 		// double probPerRV = originalProb / (double)numAmps;
 
@@ -150,53 +231,56 @@ public class HazardCurvePrefRupCalculator implements RuptureVariationProbability
 				? 0
 				: (originalProb - rupVarBiasesProbSum) / (double)(numAmps - rupVarBiasesCount);
 		Preconditions.checkState(defaultProbPerRV >= 0);
-		double perturb_scale = originalProb * 0.0000001;
+//		double perturb_scale = originalProb * 0.0000001;
 		
-		Map<Double, List<Integer>> ret = new HashMap<>();
+//		Map<Double, List<Integer>> ret = new HashMap<>();
 		
-		int index = 0;
-		while (index < numAmps) {
-			List<Integer> indexes = new ArrayList<>();
-			double prob = 0;
-			for (int i=0; i<ampsPerBundle && index<numAmps; i++) {
-				indexes.add(index++);
-				prob += rupVarBiases.getOrDefault(index, defaultProbPerRV);
-			}
-			// now randomly perturb
-			double perturb = perturb_scale*(Math.random()-0.5);
-			prob += perturb;
-			
-			Preconditions.checkState(!ret.containsKey(prob));
-			
-			ret.put(prob, indexes);
-		}
+//		int index = 0;
+//		while (index < numAmps) {
+//			List<Integer> indexes = new ArrayList<>();
+//			double prob = 0;
+//			for (int i=0; i<ampsPerBundle && index<numAmps; i++) {
+//				indexes.add(index++);
+//				prob += rupVarBiases.getOrDefault(index, defaultProbPerRV);
+//			}
+//			// now randomly perturb
+//			double perturb = perturb_scale*(Math.random()-0.5);
+//			prob += perturb;
+//			
+//			Preconditions.checkState(!ret.containsKey(prob));
+//			
+//			ret.put(prob, indexes);
+//		}
 		
-		double totalProb = 0d;
-		int runningCount = 0;
-		
-		for (double prob : ret.keySet()) {
-			totalProb += prob;
-			runningCount += ret.get(prob).size();
-		}
-		
-//		System.out.println("Num Amps: "+numAmps);
-		
-		Preconditions.checkState(runningCount == numAmps);
-		Preconditions.checkState(DataUtils.getPercentDiff(totalProb, originalProb) < 0.01);
-		
-		// convert back to list of probabilities
+//		double totalProb = 0d;
+//		int runningCount = 0;
+//		
+//		for (double prob : ret.keySet()) {
+//			totalProb += prob;
+//			runningCount += ret.get(prob).size();
+//		}
+//		
+////		System.out.println("Num Amps: "+numAmps);
+//		
+//		Preconditions.checkState(runningCount == numAmps);
+//		Preconditions.checkState(DataUtils.getPercentDiff(totalProb, originalProb) < 0.01);
+//		
+//		// convert back to list of probabilities
 		List<Double> rvProbs = new ArrayList<>();
-		for (int i=0; i<numAmps; i++)
-			rvProbs.add(0d);
-		
-		for (Double prob : ret.keySet()) {
-			List<Integer> indexes = ret.get(prob);
-			double probPer = prob/(double)indexes.size();
-			for (int rvIndex : indexes)
-				rvProbs.set(rvIndex, probPer);
+		for (int i = 0; i < numAmps; i++) {
+			rvProbs.add(rupVarBiases.getOrDefault(i, defaultProbPerRV));
 		}
-		
-		System.out.println(rvProbs);
+//		for (int i=0; i<numAmps; i++)
+//			rvProbs.add(0d);
+//		
+//		for (Double prob : ret.keySet()) {
+//			List<Integer> indexes = ret.get(prob);
+//			double probPer = prob/(double)indexes.size();
+//			for (int rvIndex : indexes)
+//				rvProbs.set(rvIndex, probPer);
+//		}
+//		
+//		System.out.println(rvProbs);
 		return rvProbs;
 	}
 	
@@ -334,20 +418,14 @@ public class HazardCurvePrefRupCalculator implements RuptureVariationProbability
 				}
 
 
-				DBAccess db = Cybershake_OpenSHA_DBApplication.getDB();
-				PeakAmplitudesFromDBAPI peakAmplitudes = new PeakAmplitudesFromDB(db);
+//				DBAccess db = Cybershake_OpenSHA_DBApplication.getDB();
+//				PeakAmplitudesFromDBAPI peakAmplitudes = new PeakAmplitudesFromDB(db);
 
 				// This calculator implements the RuptureVariationProbabilityModifier
 				// interface and acts as both the CLT and modification logic to the 
 				// HazardCurveComputation.
 				RuptureVariationProbabilityModifier rupVarModifier =
-						new HazardCurvePrefRupCalculator(cmd, peakAmplitudes);
-
-				HazardCurveComputation hazardCurveCalc = new HazardCurveComputation(db);
-				// Update the probability of each individual rupture variation
-				hazardCurveCalc.setRupVarProbModifier(rupVarModifier);
-				
-				// TODO: Invoke hazardCurveCalc computeHazardCurve
+						new HazardCurvePrefRupCalculator(cmd);
 
 			} catch (MissingOptionException e) {
 				System.err.println(e.getMessage());

@@ -1,0 +1,68 @@
+package scratch.kevin.cybershake;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.opensha.commons.data.CSVFile;
+import org.opensha.commons.data.Site;
+import org.opensha.sha.earthquake.EqkRupture;
+import org.opensha.sha.faultSurface.CompoundSurface;
+import org.opensha.sha.faultSurface.RuptureSurface;
+import org.opensha.sha.imr.AttenRelRef;
+import org.opensha.sha.imr.ScalarIMR;
+import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
+
+import scratch.kevin.bbp.BBP_Site;
+import scratch.kevin.bbp.BBP_SourceFile;
+
+public class MultiFaultGMPE_Compare {
+
+	public static void main(String[] args) throws IOException {
+		ScalarIMR gmpe = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.get();
+		File dir = new File("/home/kevin/CyberShake/landers_multifault_calcs");
+		List<BBP_SourceFile> segments = List.of(
+				BBP_SourceFile.readFile(new File(dir, "landers_v16_08_1_seg1.src")),
+				BBP_SourceFile.readFile(new File(dir, "landers_v16_08_1_seg2.src")),
+				BBP_SourceFile.readFile(new File(dir, "landers_v16_08_1_seg3.src")));
+		List<BBP_Site> bbpSites = BBP_Site.readFile(new File(dir, "landers_v19_06_2.stl"));
+		double mag = 7.22;
+		double rake = segments.get(0).getFocalMechanism().getRake();
+		
+		List<RuptureSurface> segSurfaces = new ArrayList<>();
+		for (BBP_SourceFile segment : segments)
+			segSurfaces.add(segment.getSurface().getQuadSurface());
+		
+		CompoundSurface fullSurf = new CompoundSurface(segSurfaces);
+		EqkRupture rup = new EqkRupture(mag, rake, fullSurf, null);
+		
+		gmpe.setIntensityMeasure(SA_Param.NAME);
+		gmpe.setEqkRupture(rup);
+		double[] periods = {0.01, 0.02, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 7.5, 10.0};
+		
+		List<Site> sites = new ArrayList<>();
+		for (BBP_Site site : bbpSites)
+			sites.add(site.buildGMPE_Site(null));
+		
+		for (double period : periods) {
+			SA_Param.setPeriodInSA_Param(gmpe.getIntensityMeasure(), period);
+			File outputFile = new File(dir, "gmpe_results_"+(float)period+"s.csv");
+			CSVFile<String> csv = new CSVFile<>(true);
+			csv.addLine("Site Name", "Latitude", "Longitude", "GMPE ln mean", "GMPE sigma");
+			for (Site site : sites) {
+				gmpe.setSite(site);
+				List<String> line = new ArrayList<>(csv.getNumCols());
+				line.add(site.getName());
+				line.add((float)site.getLocation().lat+"");
+				line.add((float)site.getLocation().lon+"");
+				line.add((float)gmpe.getMean()+"");
+				line.add((float)gmpe.getStdDev()+"");
+				csv.addLine(line);
+			}
+			
+			csv.writeToFile(outputFile);
+		}
+	}
+
+}

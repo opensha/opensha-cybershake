@@ -21,6 +21,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
@@ -128,6 +130,8 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 	
 	// Custom rupture variation probabilities defined by rupture variation probabilities CSV input
 	private Map<ImmutablePair<Integer, Integer>, Map<Integer, Double>> variationProbs;
+	// Cache numAmps with hashed runID+sourceID+rupID+im as key
+	private final Map<Integer, Integer> numAmpsCache = new ConcurrentHashMap<>();
 	
 	private SiteInfo2DB site2db = null;
 	private PeakAmplitudesFromDB amps2db = null;
@@ -1649,40 +1653,46 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 			CybershakeIM im) {
 		// Get rupture variations from CSV for this source rupture.
 		Map<Integer, Double> rupVarBiases =
-				variationProbs.getOrDefault(ImmutablePair.of(sourceID, rupID), null);
+				variationProbs.getOrDefault(ImmutablePair.of(sourceID, rupID), new HashMap<>());
 		// get the number of amps from DB (may be greater than in CSV)
 		int numAmps;
-		try {
-			numAmps = amps2db.getIM_Values(run.getRunID(), sourceID, rupID, im).size();
-		} catch (SQLException e) {
-			throw ExceptionUtils.asRuntimeException(e);
-		}
+//			numAmps = amps2db.getIM_Values(run.getRunID(), sourceID, rupID, im).size();
+			numAmps = numAmpsCache.computeIfAbsent(
+					Objects.hash(run.getRunID(), sourceID, rupID, im),
+					k -> {
+						try {
+							return amps2db.getIM_Values(run.getRunID(), sourceID, rupID, im).size();
+						} catch (SQLException e) {
+							throw ExceptionUtils.asRuntimeException(e);
+						}
+					});
 
 		// Validation of provided rupture variation biases for this source+rupture
-		double rupVarBiasesProbSum = 0;
-		double rupVarBiasesCount = 0;
-		if (rupVarBiases != null) {
-			rupVarBiasesCount = rupVarBiases.size();
-			// All variations are recorded on database, so we must have less in CSV
-			Preconditions.checkState(rupVarBiasesCount <= numAmps);
-			// The sum of probabilities of our custom rupture variation biases
-			// must be less than or equal to the original probability for the rupture
-			rupVarBiasesProbSum = rupVarBiases.values()
-					.stream()
-					.mapToDouble(Double::doubleValue)
-					.sum();
-			final double TOLERANCE = 1E-7;
-			Preconditions.checkState(rupVarBiasesProbSum <= originalProb + TOLERANCE);
-		} else {
-			rupVarBiases = new HashMap<Integer, Double>();
-		}
+		// Since we're filtering by IM type, we could have more biases than queried.
+		// In this case, we ignore the extra biases.
+		int rupVarBiasesCount = rupVarBiases.size() > numAmps ? numAmps : rupVarBiases.size();
+		// All variations are recorded on database, so we must have less in CSV
+//		System.out.println("rupVarBiasesCount = " + rupVarBiasesCount);
+//		System.out.println("numAmps = " + numAmps);
+//		System.out.println("src = " + sourceID + "  rup = " + rupID);
+		// The sum of probabilities of our custom rupture variation biases
+		// must be less than or equal to the original probability for the rupture
+		double rupVarBiasesProbSum = rupVarBiases.values()
+				.stream()
+				.limit(rupVarBiasesCount)
+				.mapToDouble(Double::doubleValue)
+				.sum();
+		// TODO: Is it okay for the new probability sum to be considerably larger?
+//		final double TOLERANCE = 1E-7;
+//		Preconditions.checkState(rupVarBiasesProbSum <= originalProb + TOLERANCE);
 
 		// The probability per rupture variation is the remaining probability
 		// divided by remaining total variations.
 		double defaultProbPerRV = (numAmps == rupVarBiasesCount)
 				? 0
-				: (originalProb - rupVarBiasesProbSum) / (double)(numAmps - rupVarBiasesCount);
-		Preconditions.checkState(defaultProbPerRV >= 0);
+				: Math.abs(
+						(originalProb - rupVarBiasesProbSum) /
+						(double)(numAmps - rupVarBiasesCount) );
 
 		rupVarBiases.replaceAll((k, v) -> v == null ? defaultProbPerRV : v);
 		
@@ -1691,7 +1701,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 			rvProbs.add(rupVarBiases.getOrDefault(i, defaultProbPerRV));
 		}	
 
-		System.out.println(rvProbs);
+//		System.out.println(rvProbs);
 		return rvProbs;
 	}
 

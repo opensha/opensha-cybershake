@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.HeadlessException;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -11,10 +12,12 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
+import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -28,11 +31,14 @@ import org.apache.commons.cli.MissingOptionException;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.dom4j.DocumentException;
 import org.jfree.chart.ChartUtils;
 import org.jfree.chart.plot.DatasetRenderingOrder;
 import org.jfree.data.Range;
 import org.jfree.chart.ui.RectangleEdge;
+import org.opensha.commons.data.CSVReader;
+import org.opensha.commons.data.CSVReader.Row;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
@@ -54,6 +60,7 @@ import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
+import org.opensha.sha.cybershake.calc.RuptureVariationProbabilityModifier;
 import org.opensha.sha.cybershake.db.CybershakeHazardCurveRecord;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
@@ -90,7 +97,7 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 
 
-public class HazardCurvePlotter {
+public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 	
 	public static final PlotType PLOT_TYPE_DEFAULT = PlotType.PDF;
 	
@@ -118,6 +125,9 @@ public class HazardCurvePlotter {
 	
 	private AbstractERF erf = null;
 	private ArrayList<AttenuationRelationship> attenRels = new ArrayList<AttenuationRelationship>();
+	
+	// Custom rupture variation probabilities defined by rupture variation probabilities CSV input
+	private Map<ImmutablePair<Integer, Integer>, Map<Integer, Double>> variationProbs;
 	
 	private SiteInfo2DB site2db = null;
 	private PeakAmplitudesFromDB amps2db = null;
@@ -188,7 +198,7 @@ public class HazardCurvePlotter {
 		gp.setBackgroundColor(null);
 		gp.setRenderingOrder(DatasetRenderingOrder.REVERSE);
 		
-		runs2db = new Runs2DB(db);
+		runs2db = new Runs2DB(this.db);
 		curve2db = new HazardCurve2DB(this.db);
 		
 		calc = new HazardCurveCalculator();
@@ -390,7 +400,7 @@ public class HazardCurvePlotter {
 //			if (optStr == null)
 //				optStr = "Options: ";
 //			else
-//				optStr += ", ";
+//		optStr += ", ";
 //			optStr += opt.getArgName() + " ("+opt.getValue()+")";
 //		}
 //		System.out.println("optStr");
@@ -551,12 +561,15 @@ public class HazardCurvePlotter {
 		boolean forceAdd = cmd.hasOption("f");
 		boolean noAdd = cmd.hasOption("n");
 		boolean forceRecalc = cmd.hasOption("benchmark-test-recalc");
+		boolean hasRupVarProbModifier = cmd.hasOption("rv-probs-csv");
 		
 		DiscretizedFunc curve;
 		Date date;
 		
 		// if no curveID exists, or the curve has 0 points
-		if (curveID < 0 || numPoints < 1 || forceRecalc) {
+		// we also force compute if using modified RupVar probabilities
+		// TODO: Don't prompt for insertion or insert if using modified probabilities
+		if (hasRupVarProbModifier || curveID < 0 || numPoints < 1 || forceRecalc) {
 			if (!forceAdd && !noAdd && !db.isSQLite()) {
 				// lets ask the user what they want to do
 				if (curveID >= 0)
@@ -592,11 +605,21 @@ public class HazardCurvePlotter {
 			int count = amps2db.countAmps(run.getRunID(), im);
 			System.out.println(count + " amps in DB");
 			Preconditions.checkState(count >= 0, "No Peak Amps for: %s period=%s run=%s",
-					run.getSiteID(), im.getVal(), run.getRunID());
+					run.getSiteID(), im.getVal(), run.getRunID());	
 			
 			// calculate the curve
-			if (curveCalc == null)
+			if (curveCalc == null) {
 				curveCalc = new HazardCurveComputation(db);
+			}
+			
+			// use csv rupture variation probabilities if provided
+			if (hasRupVarProbModifier) {
+				System.out.println("Using Rupture Variations Input CSV");
+				if (variationProbs == null || variationProbs.isEmpty()) {
+					readRupVarCSV(new File(cmd.getOptionValue("rv-probs-csv")));
+				}
+				curveCalc.setRupVarProbModifier(this);
+			}
 			
 			ArbitrarilyDiscretizedFunc func = plotChars.getHazardFunc();
 			ArrayList<Double> imVals = new ArrayList<Double>();
@@ -1145,7 +1168,7 @@ public class HazardCurvePlotter {
 			double maxSourceDistance) {
 		return getCurveParametersInfoAsHTML(imr, erf, site, maxSourceDistance).replace("<br>", "\n");
 	}
-
+ 
 	public static String getCurveParametersInfoAsHTML(AttenuationRelationship imr, AbstractERF erf, Site site,
 			double maxSourceDistance) {
 		ListIterator<Parameter<?>> imrIt = imr.getOtherParamsIterator();
@@ -1533,6 +1556,9 @@ public class HazardCurvePlotter {
 				+ "the original curves are plotted.");
 		ops.addOption(benchRecalc);
 		
+		Option rvOp = new Option("rv", "rv-probs-csv", true, "Rupture Variation input CSV");
+		ops.addOption(rvOp);
+		
 		return ops;
 	}
 	
@@ -1558,6 +1584,115 @@ public class HazardCurvePlotter {
 			System.out.println("Took "+(float)mins+" mins");
 		else
 			System.out.println("Took "+seconds+" seconds");
+	}
+	
+	/**
+	 * Populates maps by reading CSV file
+	 * CSV Headers: Source_ID,Rupture_ID,Rup_Var_ID,Probability
+	 * @param csvFile
+	 */
+	private void readRupVarCSV(File csvFile) {
+		variationProbs = new HashMap<>();
+		try (CSVReader reader = new CSVReader(new FileInputStream(csvFile))) {
+			// Validate headers
+			Row headers = reader.read();
+			Preconditions.checkArgument(headers.columns()==4, "Must have two columns in CSV map");
+			Preconditions.checkArgument(headers.get(0).equals("Source_ID"),
+					"First column header must be named `Source_ID`");
+			Preconditions.checkArgument(headers.get(1).equals("Rupture_ID"),
+					"Second column header must be named `Rupture_ID`");
+			Preconditions.checkArgument(headers.get(2).equals("Rup_Var_ID"),
+					"Third column header must be named `Rup_Var_ID`");
+			Preconditions.checkArgument(headers.get(3).equals("Probability"),
+					"Fourth column header must be named `Probability`");
+			// Read data line by line into map
+			for (Row row : reader) {
+				Preconditions.checkArgument(row.columns()==4, "Must have four columns in CSV map");
+				ImmutablePair<Integer, Integer> compositeKey =
+						ImmutablePair.of(row.getInt(0), row.getInt(1)); 
+
+				if (!variationProbs.containsKey(compositeKey)) {
+					variationProbs.put(compositeKey, new HashMap<Integer, Double>());
+				}
+				variationProbs.get(compositeKey).put(row.getInt(2), row.getDouble(3));
+			}
+		} catch (FileNotFoundException e) {
+			System.err.println("CSV File not found.");
+			e.printStackTrace();
+		} catch (NumberFormatException e) {
+			System.err.println("First column must be of type `Integer` and second column must be of type `Double`");
+			e.printStackTrace();
+		} catch (IOException e) {
+			System.err.println("Rupture variation biases CSV File encountered an IO exception.");
+			e.printStackTrace();
+		}
+//		if (D) {
+//			for (var key : variationProbs.keySet()) {
+//				System.out.println(key + " has " + variationProbs.get(key).size() + " variations");
+//			}
+//		}
+	}
+
+	/**
+	 * Gets the probabilities of the rupture variations for the supplied rupture ID.
+	 * This takes into account the CSV file with overriden variation probabilities.
+	 * 
+	 * HazardCurve calc gets originalProb from DB.
+	 * Provided probabilities are validated to ensure they can sum to the originalProb 
+	 * with the remainder divided over the residual unspecified variations.
+	 * (Unless all variations were specified, in which case they must simply sum to the originalProb)
+	 * Otherwise we return a Runtime Exception.
+	 *
+	 */
+	@Override
+	public List<Double> getVariationProbs(int sourceID, int rupID, double originalProb, CybershakeRun run,
+			CybershakeIM im) {
+		// Get rupture variations from CSV for this source rupture.
+		Map<Integer, Double> rupVarBiases =
+				variationProbs.getOrDefault(ImmutablePair.of(sourceID, rupID), null);
+		// get the number of amps from DB (may be greater than in CSV)
+		int numAmps;
+		try {
+			numAmps = amps2db.getIM_Values(run.getRunID(), sourceID, rupID, im).size();
+		} catch (SQLException e) {
+			throw ExceptionUtils.asRuntimeException(e);
+		}
+
+		// Validation of provided rupture variation biases for this source+rupture
+		double rupVarBiasesProbSum = 0;
+		double rupVarBiasesCount = 0;
+		if (rupVarBiases != null) {
+			rupVarBiasesCount = rupVarBiases.size();
+			// All variations are recorded on database, so we must have less in CSV
+			Preconditions.checkState(rupVarBiasesCount <= numAmps);
+			// The sum of probabilities of our custom rupture variation biases
+			// must be less than or equal to the original probability for the rupture
+			rupVarBiasesProbSum = rupVarBiases.values()
+					.stream()
+					.mapToDouble(Double::doubleValue)
+					.sum();
+			final double TOLERANCE = 1E-7;
+			Preconditions.checkState(rupVarBiasesProbSum <= originalProb + TOLERANCE);
+		} else {
+			rupVarBiases = new HashMap<Integer, Double>();
+		}
+
+		// The probability per rupture variation is the remaining probability
+		// divided by remaining total variations.
+		double defaultProbPerRV = (numAmps == rupVarBiasesCount)
+				? 0
+				: (originalProb - rupVarBiasesProbSum) / (double)(numAmps - rupVarBiasesCount);
+		Preconditions.checkState(defaultProbPerRV >= 0);
+
+		rupVarBiases.replaceAll((k, v) -> v == null ? defaultProbPerRV : v);
+		
+		List<Double> rvProbs = new ArrayList<>();
+		for (int i = 0; i < numAmps; i++) {
+			rvProbs.add(rupVarBiases.getOrDefault(i, defaultProbPerRV));
+		}	
+
+		System.out.println(rvProbs);
+		return rvProbs;
 	}
 
 	public static void main(String args[]) throws DocumentException, InvocationTargetException {
@@ -1598,7 +1733,7 @@ public class HazardCurvePlotter {
 			}
 			
 			try {
-				CommandLine cmd = parser.parse( options, args);
+				CommandLine cmd = parser.parse(options, args);
 				
 				if (cmd.hasOption("help") || cmd.hasOption("?")) {
 					printHelp(options, appName);
@@ -1613,7 +1748,6 @@ public class HazardCurvePlotter {
 					System.exit(1);
 				}
 			} catch (MissingOptionException e) {
-				// TODO Auto-generated catch block
 				Options helpOps = new Options();
 				helpOps.addOption(new Option("h", "help", false, "Display this message"));
 				try {

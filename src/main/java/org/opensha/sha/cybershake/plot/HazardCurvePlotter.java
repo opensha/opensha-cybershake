@@ -131,7 +131,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 	// Custom rupture variation probabilities defined by rupture variation probabilities CSV input
 	private Map<ImmutablePair<Integer, Integer>, Map<Integer, Double>> variationProbs;
 	// Cache numAmps with hashed runID+sourceID+rupID+im as key
-	private final Map<Integer, Integer> numAmpsCache = new ConcurrentHashMap<>();
+	// private final Map<Integer, Integer> numAmpsCache = new ConcurrentHashMap<>();
 	
 	private SiteInfo2DB site2db = null;
 	private PeakAmplitudesFromDB amps2db = null;
@@ -562,17 +562,17 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 		
 		System.out.println("Num points: " + numPoints);
 		
-		boolean forceAdd = cmd.hasOption("f");
-		boolean noAdd = cmd.hasOption("n");
-		boolean forceRecalc = cmd.hasOption("benchmark-test-recalc");
 		boolean hasRupVarProbModifier = cmd.hasOption("rv-probs-csv");
+		boolean forceAdd = cmd.hasOption("f");
+		// Don't prompt for db insertion if option n or using modified rupvars
+		boolean noAdd = cmd.hasOption("n") || hasRupVarProbModifier;
+		boolean forceRecalc = cmd.hasOption("benchmark-test-recalc");
 		
 		DiscretizedFunc curve;
 		Date date;
 		
 		// if no curveID exists, or the curve has 0 points
 		// we also force compute if using modified RupVar probabilities
-		// TODO: Don't prompt for insertion or insert if using modified probabilities
 		if (hasRupVarProbModifier || curveID < 0 || numPoints < 1 || forceRecalc) {
 			if (!forceAdd && !noAdd && !db.isSQLite()) {
 				// lets ask the user what they want to do
@@ -661,7 +661,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 								}
 							} else {
 								try {
-									UserAuthDialog auth = new UserAuthDialog(null, true);
+									UserAuthDialog auth = new UserAuthDialog(null, false);
 									auth.setVisible(true);
 									if (auth.isCanceled()) {
 										noAdd = true;
@@ -737,6 +737,8 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 //			watch.stop();
 //			System.out.println("Curve took "+watch.elapsed(TimeUnit.SECONDS)+" s");
 //		}
+		
+		System.out.println(curve);
 		
 		return new AnnotatedCurve(curveID, date, run, im, curve);
 	}
@@ -1656,16 +1658,20 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 				variationProbs.getOrDefault(ImmutablePair.of(sourceID, rupID), new HashMap<>());
 		// get the number of amps from DB (may be greater than in CSV)
 		int numAmps;
-//			numAmps = amps2db.getIM_Values(run.getRunID(), sourceID, rupID, im).size();
-			numAmps = numAmpsCache.computeIfAbsent(
-					Objects.hash(run.getRunID(), sourceID, rupID, im),
-					k -> {
-						try {
-							return amps2db.getIM_Values(run.getRunID(), sourceID, rupID, im).size();
-						} catch (SQLException e) {
-							throw ExceptionUtils.asRuntimeException(e);
-						}
-					});
+		try {
+			numAmps = amps2db.getIM_Values(run.getRunID(), sourceID, rupID, im).size();
+		} catch (SQLException e) {
+			throw ExceptionUtils.asRuntimeException(e);
+		}
+//		int numAmps = numAmpsCache.computeIfAbsent(
+//				Objects.hash(run.getRunID(), sourceID, rupID, im),
+//				k -> {
+//					try {
+//						return amps2db.getIM_Values(run.getRunID(), sourceID, rupID, im).size();
+//					} catch (SQLException e) {
+//						throw ExceptionUtils.asRuntimeException(e);
+//					}
+//				});
 
 		// Validation of provided rupture variation biases for this source+rupture
 		// Since we're filtering by IM type, we could have more biases than queried.
@@ -1697,9 +1703,14 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 		rupVarBiases.replaceAll((k, v) -> v == null ? defaultProbPerRV : v);
 		
 		List<Double> rvProbs = new ArrayList<>();
-		for (int i = 0; i < numAmps; i++) {
+		for (int i = 0; i < rupVarBiasesCount; i++) {
 			rvProbs.add(rupVarBiases.getOrDefault(i, defaultProbPerRV));
 		}	
+		if (rupVarBiasesCount < numAmps) {
+			for (int i = rupVarBiasesCount; i < numAmps; i++) {
+				rvProbs.add(defaultProbPerRV);
+			}
+		}
 
 //		System.out.println(rvProbs);
 		return rvProbs;

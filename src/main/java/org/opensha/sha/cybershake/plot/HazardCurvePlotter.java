@@ -1675,23 +1675,38 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 
 		// Validation of provided rupture variation biases for this source+rupture
 		// Since we're filtering by IM type, we could have more biases than queried.
-		// In this case, we ignore the extra biases.
-		int rupVarBiasesCount = rupVarBiases.size() > numAmps ? numAmps : rupVarBiases.size();
+		int rupVarBiasesCount = rupVarBiases.size();
+
 		// All variations are recorded on database, so we must have less in CSV
-//		System.out.println("rupVarBiasesCount = " + rupVarBiasesCount);
-//		System.out.println("numAmps = " + numAmps);
-//		System.out.println("src = " + sourceID + "  rup = " + rupID);
+		if (rupVarBiasesCount != 0) { // TODO: DEBUG
+			System.out.println("run = " + run.getRunID());
+			System.out.println("rupVarBiasesCount = " + rupVarBiasesCount);
+			System.out.println("numAmps = " + numAmps);
+			System.out.println("src = " + sourceID + "  rup = " + rupID);
+		}
+
+		// Expected behavior if incorrect CSV for run specified
+		// CSV gave N variation, but fetched M variations
+		Preconditions.checkState(rupVarBiasesCount <= numAmps,
+				"We have more biases specified than found in database. " +
+				"Check if the specified run-id is appropriate for the input CSV."); 
+
 		// The sum of probabilities of our custom rupture variation biases
 		// must be less than or equal to the original probability for the rupture
 		double rupVarBiasesProbSum = rupVarBiases.values()
 				.stream()
-				.limit(rupVarBiasesCount)
+//				.limit(rupVarBiasesCount) // TODO: Remove this
 				.mapToDouble(Double::doubleValue)
 				.sum();
-		// TODO: Is it okay for the new probability sum to be considerably larger?
-//		final double TOLERANCE = 1E-7;
-//		Preconditions.checkState(rupVarBiasesProbSum <= originalProb + TOLERANCE);
 
+		final double TOLERANCE = 1E-7;
+		Preconditions.checkState(rupVarBiasesProbSum <= originalProb + TOLERANCE,
+				"Mod Rup must be <= original. " + rupVarBiasesProbSum + " not <= " + originalProb + TOLERANCE);
+
+		Preconditions.checkState(rupVarBiasesCount != numAmps
+				|| rupVarBiasesProbSum >= originalProb - TOLERANCE,
+				"If all variations are specified, the Mod Rup must equal original.");
+		
 		// The probability per rupture variation is the remaining probability
 		// divided by remaining total variations.
 		double defaultProbPerRV = (numAmps == rupVarBiasesCount)
@@ -1712,7 +1727,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 			}
 		}
 
-//		System.out.println(rvProbs);
+//		System.out.println(rvProbs );
 		return rvProbs;
 	}
 

@@ -19,6 +19,7 @@ import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.calc.RuptureVariationProbabilityModifier;
+import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeRun;

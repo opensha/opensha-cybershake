@@ -45,12 +45,13 @@ public class SiteGMPEParamsWriter {
 		
 		List<CybershakeRun> runs = null;
 		
-//		String[] siteNames = {
+		String[] siteNames = {
 //				"LADT", "PAS", "CCP", "STNI", "STG", "SBSM", "WNGC"
-//		};
-//		runs = study.runFetcher().forSiteNames(siteNames).fetch();
+				"CHN"
+		};
+		runs = study.runFetcher().forSiteNames(siteNames).fetch();
 		
-		runs = study.runFetcher().fetch();
+//		runs = study.runFetcher().fetch();
 		
 //		WillsMap2015 wills = new WillsMap2015();
 		ThompsonVs30_2020 thompson = new ThompsonVs30_2020();

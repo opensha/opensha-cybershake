@@ -3,10 +3,13 @@ package org.opensha.sha.cybershake.maps;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.swing.JOptionPane;
@@ -158,10 +161,20 @@ public class ARCurveInserter {
 //		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-3sec"; double period = 3d;
 //		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-5sec"; double period = 5d;
 //		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-10sec"; double period = 10d;
-//		String dirName = "2024_10_30-study_24_8-cs-nga2-2sec"; double period = 2d;
-//		String dirName = "2024_10_30-study_24_8-cs-nga2-3sec"; double period = 3d;
-//		String dirName = "2024_10_30-study_24_8-cs-nga2-5sec"; double period = 5d;
-		String dirName = "2024_10_30-study_24_8-cs-nga2-10sec"; double period = 10d;
+		List<File> dirs = new ArrayList<>();
+		List<Double> periods = new ArrayList<>();
+		String prefix = "2024_10_30-study_24_8-cs-nga2";
+		DecimalFormat oDF = new DecimalFormat("0.###");
+		for (double period : new double[] { 0.1, 0.2, 0.5, 1, 2, 3, 5, 10 }) {
+			String perStr = oDF.format(period).replace('.', 'p');
+			String dirName = prefix+"-"+perStr+"sec";
+			System.out.println("Period "+(float)period+" -> "+dirName);
+			File dir = new File(baseDir, dirName);
+			Preconditions.checkState(dir.exists(), "Directory doesn't exist: %s", dir.getAbsolutePath());
+			
+			dirs.add(dir);
+			periods.add(period);
+		}
 
 		Calendar cal = GregorianCalendar.getInstance();
 		cal.set(2024, 9, 30); // month is 0-based, 3=April
@@ -171,14 +184,6 @@ public class ARCurveInserter {
 		
 		ScalarIMR imr = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
 		String curveFileName = "NGAWest_2014_NoIdr/curves/imrs1.bin";
-		
-		File dir = new File(baseDir, dirName);
-		System.out.println("Directory: "+dir.getAbsolutePath());
-		Preconditions.checkState(dir.exists(), "Directory doesn't exist: %s", dir.getAbsolutePath());
-		
-		File curveFile = new File(dir, curveFileName);
-		System.out.println("Curve file: "+curveFile.getAbsolutePath());
-		Preconditions.checkState(curveFile.exists(), "Curve file doesn't exist: %s", curveFile.getAbsolutePath());
 		
 //		ScalarIMR imr = AttenRelRef.ASK_2014.instance(null);
 //		ScalarIMR imr = AttenRelRef.BSSA_2014.instance(null);
@@ -191,20 +196,17 @@ public class ARCurveInserter {
 //		int erfID = 63;
 		int erfID = 64;
 		int velModelID = CybershakeVelocityModel.Models.STUDY_24_8.instance().getID();
-		int imTypeID = CybershakeIM.getSA(CyberShakeComponent.RotD50, period).getID();
+		CyberShakeComponent component = CyberShakeComponent.RotD50;
 //		int velModelID = -1; // Vs30 only
 		/*		END UPDATE THESE	*/
 		int probModelID = 1;
 		int timeSpanID = 1;
-		String dbHostName = Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME;
+//		String dbHostName = Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME;
+		String dbHostName = "localhost";
 		Date calcDate = cal.getTime();
 		Date timeSpanDate = null;
 		// for small insert tests
 //		MAX_CURVES_TO_INSERT = 0;
-		
-		// load the curves
-		Map<Location, ArbitrarilyDiscretizedFunc> curves = loadCurves(curveFile);
-		System.out.println("Loaded "+curves.size()+" curves");
 		
 		DBAccess db = Cybershake_OpenSHA_DBApplication.getAuthenticatedDBAccess(true, true, dbHostName);
 		
@@ -222,45 +224,71 @@ public class ARCurveInserter {
 //			}
 //		System.exit(0);
 		
+		
+		
 		try {
-			int arID = ar2db.getAttenRelID(imr);
-			if (arID < 0)
-				throw new RuntimeException("AR not found!");
-			
-			int datasetID = arDataSets2DB.getDataSetID(arID, erfID, velModelID, probModelID, timeSpanID, timeSpanDate);
-			if (datasetID < 0) {
-				int ret = JOptionPane.showConfirmDialog(null, "Add new Dataset ID?", "Dataset ID not found", JOptionPane.YES_NO_OPTION);
-				if (ret == JOptionPane.YES_OPTION) {
-					double gridSpacing = Double.POSITIVE_INFINITY;
-					MinMaxAveTracker latTrack = new MinMaxAveTracker();
-					MinMaxAveTracker lonTrack = new MinMaxAveTracker();
-					Location prevLoc = null;
-					for (Location loc : curves.keySet()) {
-						double lat = loc.getLatitude();
-						double lon = loc.getLongitude();
-						latTrack.addValue(lat);
-						lonTrack.addValue(lon);
-						if (prevLoc != null) {
-							double diff = Math.abs(lon - prevLoc.getLongitude());
-							if (diff < gridSpacing && (float)diff > 0f)
-								gridSpacing = diff;
+			for (int d=0; d<dirs.size(); d++) {
+				File dir = dirs.get(d);
+				double period = periods.get(d);
+				
+				System.out.println("Directory: "+dir.getAbsolutePath());
+				Preconditions.checkState(dir.exists(), "Directory doesn't exist: %s", dir.getAbsolutePath());
+				
+				File curveFile = new File(dir, curveFileName);
+				System.out.println("Curve file: "+curveFile.getAbsolutePath());
+				Preconditions.checkState(curveFile.exists(), "Curve file doesn't exist: %s", curveFile.getAbsolutePath());
+				
+				int imTypeID = CybershakeIM.getSA(component, period).getID();
+				
+				// load the curves
+				Map<Location, ArbitrarilyDiscretizedFunc> curves = loadCurves(curveFile);
+				System.out.println("Loaded "+curves.size()+" curves");
+				
+				int arID = ar2db.getAttenRelID(imr);
+				if (arID < 0)
+					throw new RuntimeException("AR not found!");
+				
+				System.out.println("Starting with P="+(float)period+", IM="+imTypeID+"\n");
+				
+				int datasetID = arDataSets2DB.getDataSetID(arID, erfID, velModelID, probModelID, timeSpanID, timeSpanDate);
+				if (datasetID < 0) {
+					int ret = JOptionPane.showConfirmDialog(null, "Add new Dataset ID?", "Dataset ID not found", JOptionPane.YES_NO_OPTION);
+					if (ret == JOptionPane.YES_OPTION) {
+						double gridSpacing = Double.POSITIVE_INFINITY;
+						MinMaxAveTracker latTrack = new MinMaxAveTracker();
+						MinMaxAveTracker lonTrack = new MinMaxAveTracker();
+						Location prevLoc = null;
+						for (Location loc : curves.keySet()) {
+							double lat = loc.getLatitude();
+							double lon = loc.getLongitude();
+							latTrack.addValue(lat);
+							lonTrack.addValue(lon);
+							if (prevLoc != null) {
+								double diff = Math.abs(lon - prevLoc.getLongitude());
+								if (diff < gridSpacing && (float)diff > 0f)
+									gridSpacing = diff;
+							}
+							
+							prevLoc = loc;
 						}
-						
-						prevLoc = loc;
+						datasetID = arDataSets2DB.addDataSetID(arID, erfID, velModelID, probModelID, timeSpanID, timeSpanDate,
+								latTrack.getMin(), latTrack.getMax(), lonTrack.getMin(), lonTrack.getMax(), gridSpacing);
+					} else {
+						System.exit(1);
 					}
-					datasetID = arDataSets2DB.addDataSetID(arID, erfID, velModelID, probModelID, timeSpanID, timeSpanDate,
-							latTrack.getMin(), latTrack.getMax(), lonTrack.getMin(), lonTrack.getMax(), gridSpacing);
-				} else {
-					System.exit(1);
+				} else if (deleteOld) {
+					arCurves2DB.deleteAllCurvesFromDataset(datasetID, imTypeID);
 				}
-			} else if (deleteOld) {
-				arCurves2DB.deleteAllCurvesFromDataset(datasetID, imTypeID);
+				
+				arCurves2DB.insertARCurves(calcDate, datasetID, imTypeID, curves);
+				
+				System.out.println("DONE with P="+(float)period+", IM="+imTypeID+"\n");
 			}
-			
-			arCurves2DB.insertARCurves(calcDate, datasetID, imTypeID, curves);
+			System.out.println("DONE");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		
 		db.destroy();
 		System.exit(0);
 	}

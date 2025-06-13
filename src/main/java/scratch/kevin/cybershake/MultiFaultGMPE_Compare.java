@@ -26,13 +26,23 @@ public class MultiFaultGMPE_Compare {
 				AttenRelRef.CB_2014.get(),
 				AttenRelRef.CY_2014.get()
 		};
-		File dir = new File("/home/kevin/CyberShake/landers_multifault_calcs");
+//		File dir = new File("/home/kevin/CyberShake/multifault_gmpe_calcs/landers");
+//		List<BBP_SourceFile> segments = List.of(
+//				BBP_SourceFile.readFile(new File(dir, "landers_v16_08_1_seg1.src")),
+//				BBP_SourceFile.readFile(new File(dir, "landers_v16_08_1_seg2.src")),
+//				BBP_SourceFile.readFile(new File(dir, "landers_v16_08_1_seg3.src")));
+//		List<BBP_Site> bbpSites = BBP_Site.readFile(new File(dir, "landers_v19_06_2.stl"));
+//		double mag = 7.22;
+		
+		File dir = new File("/home/kevin/CyberShake/multifault_gmpe_calcs/ridgecrest");
 		List<BBP_SourceFile> segments = List.of(
-				BBP_SourceFile.readFile(new File(dir, "landers_v16_08_1_seg1.src")),
-				BBP_SourceFile.readFile(new File(dir, "landers_v16_08_1_seg2.src")),
-				BBP_SourceFile.readFile(new File(dir, "landers_v16_08_1_seg3.src")));
-		List<BBP_Site> bbpSites = BBP_Site.readFile(new File(dir, "landers_v19_06_2.stl"));
-		double mag = 7.22;
+				BBP_SourceFile.readFile(new File(dir, "ridgecrest-c_v20_09_1_seg1.src")),
+				BBP_SourceFile.readFile(new File(dir, "ridgecrest-c_v20_09_1_seg2.src")),
+				BBP_SourceFile.readFile(new File(dir, "ridgecrest-c_v20_09_1_seg3.src")));
+		List<BBP_Site> bbpSites = BBP_Site.readFile(new File(dir, "ridgecrest_c_v20_08_1.stl"));
+		double mag = 7.08;
+		
+		
 		double rake = segments.get(0).getFocalMechanism().getRake();
 		
 		List<RuptureSurface> segSurfaces = new ArrayList<>();
@@ -51,6 +61,9 @@ public class MultiFaultGMPE_Compare {
 		List<Site> sites = new ArrayList<>();
 		for (BBP_Site site : bbpSites)
 			sites.add(site.buildGMPE_Site(null));
+		
+		for (Site site : sites)
+			System.out.println(site.getName()+"\t"+site.getLocation()+"\n"+site.getParameterListMetadataString());
 		
 		for (double period : periods) {
 			for (ScalarIMR gmpe : gmpes)

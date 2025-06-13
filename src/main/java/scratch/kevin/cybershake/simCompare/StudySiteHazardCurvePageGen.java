@@ -395,9 +395,9 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 		/*
 		 * For regular studies
 		 */
-		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_TESTS;
-		Vs30_Source vs30Source = Vs30_Source.Thompson2020;
-//		Vs30_Source vs30Source = Vs30_Source.Simulation;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_18_8;
+//		Vs30_Source vs30Source = Vs30_Source.Thompson2020;
+		Vs30_Source vs30Source = Vs30_Source.Simulation;
 		CyberShakeStudy[] compStudies = { };
 		
 		RSQSimCatalog catalog = null;
@@ -421,8 +421,8 @@ public class StudySiteHazardCurvePageGen extends SiteHazardCurveComarePageGen<CS
 //		String[] siteNames = { "PAS" };
 //		String[] siteNames = { "GAVI", "LBP", "PAS" };
 //		String[] siteNames = { "LBP" };
-//		String[] siteNames = { "s3446", "s3430", "SJO" };
-		String[] siteNames = { "LVMR" };
+		String[] siteNames = { "s3446", "s3430", "SJO" };
+//		String[] siteNames = { "LVMR" };
 		
 		if (args.length > 0) {
 			System.out.println("assuming command line arguments are site names");

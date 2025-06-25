@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.GnuParser;
+import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.MissingOptionException;
 import org.apache.commons.cli.Option;
@@ -1731,7 +1731,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 		return rvProbs;
 	}
 
-	public static void main(String args[]) throws DocumentException, InvocationTargetException {
+	public static int run(String args[]) throws DocumentException, InvocationTargetException {
 		if (args.length == 1 && args[0].equals("--hardcoded")) {
 			String confDir = "src/org/opensha/sha/cybershake/conf/";
 			File outputDir = new File("/tmp/cs_test");
@@ -1762,7 +1762,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 			
 			String appName = ClassUtils.getClassNameWithoutPackage(HazardCurvePlotter.class);
 			
-			CommandLineParser parser = new GnuParser();
+			CommandLineParser parser = new DefaultParser();
 			
 			if (args.length == 0) {
 				printUsage(options, appName);
@@ -1781,7 +1781,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 				
 				if (!success) {
 					System.out.println("FAIL!");
-					System.exit(1);
+					return 1;
 				}
 			} catch (MissingOptionException e) {
 				Options helpOps = new Options();
@@ -1806,12 +1806,16 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 			System.out.println("Done!");
 			watch.stop();
 			printTime(watch);
-			System.exit(0);
+			return 0;
 		} catch (Exception e) {
 			e.printStackTrace();
 			watch.stop();
 			printTime(watch);
-			System.exit(1);
+			return 1;
 		}
+	}
+	
+	public static void main(String args[]) throws DocumentException, InvocationTargetException {
+		System.exit(run(args));
 	}
 }

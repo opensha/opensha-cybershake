@@ -12,6 +12,8 @@ import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Test;
 
+// Completing all tests should take approximately 25 minutes
+// Each computation with CSV probabilities isn't cached and takes around 5 mins.
 public class HazardCurvePlotterTest {
 	
 	final String RUN_ID = "9306";
@@ -357,13 +359,13 @@ public class HazardCurvePlotterTest {
 	public void differentCurvesWithModifiedRupVarProb() {
 		Path modDir = Paths.get(OUTPUT_DIR + "/modprob/1");
 		assertTrue(Files.exists(modDir));
-		Path refDir = Paths.get(OUTPUT_DIR + "/fetchdb/1");
-		assertTrue(Files.exists(refDir));
+		Path fetchDir = Paths.get(OUTPUT_DIR + "/fetchdb/1");
+		assertTrue(Files.exists(fetchDir));
 
 		String[] args = getArgsWithOutputDir(MOD_ARGS, modDir);
 		try {
 			HazardCurvePlotter.run(args);
-			args = getArgsWithOutputDir(REF_ARGS, refDir);
+			args = getArgsWithOutputDir(FETCH_ARGS, fetchDir);
 			HazardCurvePlotter.run(args);
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -371,8 +373,8 @@ public class HazardCurvePlotterTest {
 
 		Path res1 = modDir.resolve(
 				"USC_ERF36_Run9306_SA_3sec_RotD50_" + todayFmt + ".txt");
-		Path res2 = refDir.resolve(
-				"USC_ERF36_Run9306_SA_3sec_RotD50_" + todayFmt + ".txt");
+		Path res2 = fetchDir.resolve(
+				"USC_ERF36_Run9306_SA_3sec_RotD50_2022_12_21.txt");
 		assertTrue(Files.exists(res1));
 		assertTrue(Files.exists(res2));
 		try {

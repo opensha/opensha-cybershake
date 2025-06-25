@@ -1678,7 +1678,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 		int rupVarBiasesCount = rupVarBiases.size();
 
 		// All variations are recorded on database, so we must have less in CSV
-		if (rupVarBiasesCount != 0) { // TODO: DEBUG
+		if (rupVarBiasesCount != 0) {
 			System.out.println("run = " + run.getRunID());
 			System.out.println("rupVarBiasesCount = " + rupVarBiasesCount);
 			System.out.println("numAmps = " + numAmps);
@@ -1695,7 +1695,6 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 		// must be less than or equal to the original probability for the rupture
 		double rupVarBiasesProbSum = rupVarBiases.values()
 				.stream()
-//				.limit(rupVarBiasesCount) // TODO: Remove this
 				.mapToDouble(Double::doubleValue)
 				.sum();
 
@@ -1727,7 +1726,6 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 			}
 		}
 
-//		System.out.println(rvProbs );
 		return rvProbs;
 	}
 

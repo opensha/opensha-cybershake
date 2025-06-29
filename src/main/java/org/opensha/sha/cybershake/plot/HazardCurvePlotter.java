@@ -132,6 +132,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 	private Map<ImmutablePair<Integer, Integer>, Map<Integer, Double>> variationProbs;
 	// Cache numAmps with hashed runID+sourceID+rupID+im as key
 	// private final Map<Integer, Integer> numAmpsCache = new ConcurrentHashMap<>();
+	private File rupVarProbsCSV = null;
 	
 	private SiteInfo2DB site2db = null;
 	private PeakAmplitudesFromDB amps2db = null;
@@ -571,6 +572,9 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 		DiscretizedFunc curve;
 		Date date;
 		
+		if (hasRupVarProbModifier) {
+			rupVarProbsCSV = new File(cmd.getOptionValue("rv-probs-csv"));
+		}
 		// if no curveID exists, or the curve has 0 points
 		// we also force compute if using modified RupVar probabilities
 		if (hasRupVarProbModifier || curveID < 0 || numPoints < 1 || forceRecalc) {
@@ -620,7 +624,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 			if (hasRupVarProbModifier) {
 				System.out.println("Using Rupture Variations Input CSV");
 				if (variationProbs == null || variationProbs.isEmpty()) {
-					readRupVarCSV(new File(cmd.getOptionValue("rv-probs-csv")));
+					readRupVarCSV(rupVarProbsCSV);
 				}
 				curveCalc.setRupVarProbModifier(this);
 			}
@@ -977,7 +981,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 						compSymbol, plotChars.getLineWidth()*4f, compCurveColor));
 				CybershakeVelocityModel velModel = runs2db.getVelocityModel(compRun.getVelModelID());
 				compCurve.setInfo(getCyberShakeCurveInfo(compCurveID, site2db.getSiteFromDB(compRun.getSiteID()),
-						compRun, velModel, im, compCurveColor, compCurveLineType, compSymbol));
+						compRun, velModel, im, compCurveColor, compCurveLineType, compSymbol, rupVarProbsCSV));
 			}
 		}
 		
@@ -1024,7 +1028,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 		}
 		
 		CybershakeVelocityModel velModel = runs2db.getVelocityModel(run.getVelModelID());
-		curve.setInfo(getCyberShakeCurveInfo(annotatedCurve.curveID, csSite, run, velModel, im, curveColor, curveLineType, curveSymbol));
+		curve.setInfo(getCyberShakeCurveInfo(annotatedCurve.curveID, csSite, run, velModel, im, curveColor, curveLineType, curveSymbol, rupVarProbsCSV));
 		
 		// old version
 //		String title = HazardCurvePlotCharacteristics.getReplacedTitle(plotChars.getTitle(), csSite);
@@ -1145,7 +1149,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 			curve = this.unLogFunction(curve, logHazFunction);
 			curve = getScaledCurveForComponent(attenRel, im, curve);
 			curve.setName(attenRel.getShortName());
-			curve.setInfo(this.getCurveParametersInfoAsString(attenRel, erf, site, maxSourceDistance));
+			curve.setInfo(getCurveParametersInfoAsString(attenRel, erf, site, maxSourceDistance));
 			System.out.println("done!");
 			curves.add(curve);
 			i++;
@@ -1154,7 +1158,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 	
 	public static String getCyberShakeCurveInfo(int curveID, CybershakeSite site, CybershakeRun run,
 			CybershakeVelocityModel velModel, CybershakeIM im,
-			Color color,PlotLineType lineType, PlotSymbol symbol) {
+			Color color,PlotLineType lineType, PlotSymbol symbol, File modifiedProbs) {
 		String infoString = "Site: "+ site.getFormattedName() + ";\n";
 		if (lineType != null || symbol != null) {
 			infoString += "Plot Type: Line: "+lineType+" Symbol: "+symbol+" Color: "+
@@ -1166,6 +1170,9 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 			infoString += "Velocity Model: "+velModel.toString()+";\n";
 		infoString += "SA Period: " + im.getVal() + ";\n";
 		infoString += "Hazard_Curve_ID: "+curveID+";\n";
+		
+		if (modifiedProbs != null)
+			infoString += "Generated using modified probabilities ("+modifiedProbs.toString()+");\n";
 		
 		return infoString;
 	}

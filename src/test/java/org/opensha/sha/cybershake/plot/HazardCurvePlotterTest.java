@@ -3,7 +3,6 @@ package org.opensha.sha.cybershake.plot;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
-//import java.io.File;
 import java.nio.file.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -28,8 +27,6 @@ public class HazardCurvePlotterTest {
 	LocalDate today = LocalDate.now();
     String todayFmt = today.format(DateTimeFormatter.ofPattern("yyyy_MM_dd"));
 
-//	HazardCurvePlotter plotter;
-	
 	final String[] FETCH_ARGS = {
 //			"--output-dir", OUTPUT_DIR + "/fetchdb",
 			"--run-id", RUN_ID,

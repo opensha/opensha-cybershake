@@ -18,6 +18,7 @@ import org.opensha.sha.calc.hazardMap.HazardDataSetLoader;
 import org.opensha.sha.util.component.ComponentTranslation;
 
 import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 public class AttenRelCurves2DB {
@@ -286,7 +287,10 @@ public class AttenRelCurves2DB {
 			new HashMap<Location, ArbitrarilyDiscretizedFunc>();
 		
 		for (Location loc : ids.keySet()) {
-			map.put(loc, curves.get(ids.get(loc)));
+			int id = ids.get(loc);
+			ArbitrarilyDiscretizedFunc curve = curves.get(id);
+			Preconditions.checkNotNull(curve, "No curve found for id=%s, loc=%s", id, loc);
+			map.put(loc, curve);
 		}
 		
 		return map;
@@ -331,6 +335,8 @@ public class AttenRelCurves2DB {
 		
 		for (Location loc : curves.keySet()) {
 			DiscretizedFunc curve = curves.get(loc);
+			Preconditions.checkNotNull(curve, "Curve is null for location %s; contains=%s. Have %s curves for %s input ids.",
+					loc, curves.containsKey(loc), curves.size(), ids.size());
 //			System.out.println("Orig curve: "+curve);
 			if (trans != null) {
 				curve = trans.convertCurve(curve, period);

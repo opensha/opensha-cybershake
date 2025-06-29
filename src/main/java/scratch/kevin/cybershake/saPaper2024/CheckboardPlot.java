@@ -42,6 +42,14 @@ public class CheckboardPlot {
 		titles.add(" ");
 		outPeriods.add(new double[] {2, 3, 5, 10});
 		
+		refDirs.add(new File("/home/kevin/markdown/cybershake-analysis/study_22_12_hf/gmpe_comparisons_NGAWest_2014_NoIdr_Vs30Thompson2020_no_aleatory/resources"));
+		prefixes.add("detrend_residuals");
+		outPrefixes.add("residuals_ngaw2_lf_no_aleatory");
+		stdDevs.add(false);
+		doIndvs.add(false);
+		titles.add(" ");
+		outPeriods.add(new double[] {2, 3, 5, 10});
+		
 		refDirs.add(new File("/home/kevin/markdown/cybershake-analysis/study_22_12_hf/gmpe_comparisons_NGAWest_2014_NoIdr_Vs30Thompson2020/resources"));
 		prefixes.add("detrend_residuals");
 		outPrefixes.add("residuals_ngaw2_hf");
@@ -50,9 +58,18 @@ public class CheckboardPlot {
 		titles.add(" ");
 		outPeriods.add(new double[] {0.1, 0.2, 0.5, 1});
 		
+		refDirs.add(new File("/home/kevin/markdown/cybershake-analysis/study_22_12_hf/gmpe_comparisons_NGAWest_2014_NoIdr_Vs30Thompson2020_no_aleatory/resources"));
+		prefixes.add("detrend_residuals");
+		outPrefixes.add("residuals_ngaw2_hf_no_aleatory");
+		stdDevs.add(false);
+		doIndvs.add(false);
+		titles.add(" ");
+		outPeriods.add(new double[] {0.1, 0.2, 0.5, 1});
+		
 		File outputDir = new File("/home/kevin/Documents/papers/2024_CyberShake_22_12/figures");
 		
-		CPT residualCPT = GMT_CPT_Files.GMT_POLAR.instance().rescale(-1.5, 1.5);
+//		CPT residualCPT = GMT_CPT_Files.GMT_POLAR.instance().rescale(-1.5, 1.5);
+		CPT residualCPT = GMT_CPT_Files.DIVERGING_VIK_UNIFORM.instance().rescale(-1.5, 1.5);
 		residualCPT.setNanColor(Color.WHITE);
 		CPT stdDevCPT = GMT_CPT_Files.BLACK_RED_YELLOW_UNIFORM.instance().reverse().rescale(0, 1d);
 		stdDevCPT.setNanColor(Color.WHITE);

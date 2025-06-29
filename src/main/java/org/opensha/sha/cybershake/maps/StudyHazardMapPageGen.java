@@ -84,6 +84,7 @@ public class StudyHazardMapPageGen {
 		Region basemapRegion = null;
 		double baseMapRes = 0.005;
 		GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
+		HardCodedInterpDiffMapCreator.gmpe_db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
 		
 ////		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
 ////		double[] periods = { 2d, 3d, 5d, 10d };
@@ -103,9 +104,11 @@ public class StudyHazardMapPageGen {
 //				new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 //		Region zoomRegion = null;
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_LF;
-		double[] periods = { 2d, 3d, 5d, 10d };
-		compStudy = CyberShakeStudy.STUDY_18_8;
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_LF;
+//		double[] periods = { 2d, 3d, 5d, 10d };
+//		compStudy = CyberShakeStudy.STUDY_18_8;
+		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_BB;
+		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
 		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
 		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
 //		ScalarIMR baseMapGMPE = null;
@@ -120,6 +123,7 @@ public class StudyHazardMapPageGen {
 		// for some reason the upsampling step is failing for this region, this disables it
 		interpSettings.setInterpSpacing(baseMapRes);
 		Region zoomRegion = null;
+		HardCodedInterpDiffMapCreator.gmpe_db = study.getDB();
 		
 //		CyberShakeStudy study = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
 ////		CyberShakeStudy study = CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz;
@@ -316,7 +320,6 @@ public class StudyHazardMapPageGen {
 		psSaveTypes.add(InterpDiffMapType.INTERP_NOMARKS);
 		
 		HardCodedInterpDiffMapCreator.cs_db = study.getDB();
-		HardCodedInterpDiffMapCreator.gmpe_db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
 //		HardCodedInterpDiffMapCreator.gmpe_db = study.getDB();
 		
 		int exitCode = 0;

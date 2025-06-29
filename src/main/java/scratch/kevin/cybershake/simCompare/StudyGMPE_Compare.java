@@ -351,6 +351,11 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		List<CyberShakeStudy> studies = new ArrayList<>();
 		List<Vs30_Source> vs30s = new ArrayList<>();
 		
+		boolean replotScatters = false;
+		boolean replotZScores = false;
+		boolean replotCurves = false;
+		boolean replotResiduals = false;
+		
 		// if non-null, subsets will be include below and above this split
 		Double vs30Split = null;
 		ZScoreHistPlot.D = true;
@@ -403,16 +408,19 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 //		studies.add(CyberShakeStudy.STUDY_22_3_RSQSIM_5413);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-//		studies.add(CyberShakeStudy.STUDY_22_12_HF);
-////		vs30s.add(Vs30_Source.Simulation);
-//		vs30s.add(Vs30_Source.Thompson2020);
+		studies.add(CyberShakeStudy.STUDY_22_12_HF);
+//		vs30s.add(Vs30_Source.Simulation);
+		vs30s.add(Vs30_Source.Thompson2020);
 		
 //		studies.add(CyberShakeStudy.STUDY_22_12_LF);
 //		vs30s.add(Vs30_Source.Simulation);
 		
-		studies.add(CyberShakeStudy.STUDY_24_8_LF);
+//		studies.add(CyberShakeStudy.STUDY_24_8_LF);
 //		vs30s.add(Vs30_Source.Simulation);
-		vs30s.add(Vs30_Source.Thompson2020); vs30Split = 400d;
+////		vs30s.add(Vs30_Source.Thompson2020); vs30Split = 400d;
+		
+//		studies.add(CyberShakeStudy.STUDY_24_8_BB);
+//		vs30s.add(Vs30_Source.Thompson2020);
 		
 		// this one will include highlight sites
 //		AttenRelRef primaryGMPE = AttenRelRef.ASK_2014;
@@ -424,18 +432,18 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		AttenRelRef[] gmpeRefs = { AttenRelRef.NGAWest_2014_AVG_NOIDRISS };
 //		AttenRelRef[] gmpeRefs = { AttenRelRef.ASK_2014 };
 		
-		IMT[] imts = { IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
+//		IMT[] imts = { IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 //		IMT[] imts = { IMT.PGV, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
-//		IMT[] imts = { IMT.SA0P1, IMT.SA0P2, IMT.SA0P5, IMT.SA1P0, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
+		IMT[] imts = { IMT.SA0P1, IMT.SA0P2, IMT.SA0P5, IMT.SA1P0, IMT.SA2P0, IMT.SA3P0, IMT.SA5P0, IMT.SA10P0 };
 		double[] rotDPeriods = { 3, 5, 10 };
 		double minMag = 6;
 		
-		RuptureProbabilityModifier modProb = null;
-		String modProbPrefix = null;
+//		RuptureProbabilityModifier modProb = null;
+//		String modProbPrefix = null;
 		
-//		Preconditions.checkState(studies.size() == 1);
-//		RuptureProbabilityModifier modProb = new UCERF2_AleatoryMagVarRemovalMod(studies.get(0).getERF());
-//		String modProbPrefix = "_no_aleatory";
+		Preconditions.checkState(studies.size() == 1);
+		RuptureProbabilityModifier modProb = new UCERF2_AleatoryMagVarRemovalMod(studies.get(0).getERF());
+		String modProbPrefix = "no_aleatory";
 		
 //		Preconditions.checkState(studies.size() == 1);
 //		RuptureProbabilityModifier modProb = new MinRupProbMod(
@@ -457,15 +465,10 @@ public class StudyGMPE_Compare extends MultiRupGMPE_ComparePageGen<CSRupture> {
 		
 		boolean limitToHighlight = false;
 		
-		boolean replotScatters = false;
-		boolean replotZScores = false;
-		boolean replotCurves = false;
-		boolean replotResiduals = true;
-		
-//		boolean replotScatters = false;
-//		boolean replotZScores = true;
-//		boolean replotCurves = false;
-//		boolean replotResiduals = false;
+		replotScatters = true;
+		replotZScores = true;
+		replotCurves = true;
+		replotResiduals = true;
 		
 		IMT[] rotDIMTs = null;
 		if (rotDPeriods != null) {

@@ -55,7 +55,8 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 //	private Table<Integer, CybershakeIM, double[][][]> cache;
 	private LoadingCache<CacheKey, double[][][]> cache;
 	public static int MAX_CACHE_SIZE = 20;
-	private ERF erf;
+	private ERF erf; // used for source and rupture counts
+	private ERF2DB erf2db; // used if erf is null
 	
 	private SiteInfo2DB sites2db;
 	private Runs2DB runs2db;
@@ -116,12 +117,23 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 		
 	}
 
+	public CachedPeakAmplitudesFromDB(DBAccess dbaccess) {
+		this(dbaccess, null, null);
+	}
+
+
+	public CachedPeakAmplitudesFromDB(DBAccess dbaccess, File cacheDir) {
+		this(dbaccess, cacheDir, null);
+	}
+
 	public CachedPeakAmplitudesFromDB(DBAccess dbaccess, File cacheDir, ERF erf) {
 		super(dbaccess);
 		
 		this.cacheDir = cacheDir;
 		cache = CacheBuilder.newBuilder().maximumSize(MAX_CACHE_SIZE).build(new CustomLoader());
 		this.erf = erf;
+		if (erf == null)
+			erf2db = new ERF2DB(dbaccess);
 		
 		sites2db = new SiteInfo2DB(dbaccess);
 		runs2db = new Runs2DB(dbaccess);
@@ -212,11 +224,26 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 		if (D)
 			watch = Stopwatch.createStarted();
 		
-		double[][][] vals = new double[erf.getNumSources()][][];
+		int[] sourceRupCounts;
+		
+		if (erf == null) {
+			// get them from the DB
+			int erfID = runs2db.getRun(runID).getERFID();
+			int numSources = erf2db.getNumSources(erfID);
+			sourceRupCounts = new int[numSources];
+			for (int sourceID=0; sourceID<numSources; sourceID++)
+				sourceRupCounts[sourceID] = erf2db.getNumRuptures(erfID, sourceID);
+		} else {
+			int numSources = erf.getNumSources();
+			sourceRupCounts = new int[numSources];
+			for (int sourceID=0; sourceID<numSources; sourceID++)
+				sourceRupCounts[sourceID] = erf.getNumRuptures(sourceID);
+		}
+		double[][][] vals = new double[sourceRupCounts.length][][];
 		
 		if (dbaccess.isSQLite()) {
 			// fetch all at once
-			fillInAmpsFromDB(runID, im, null, vals);
+			fillInAmpsFromDB(runID, sourceRupCounts, im, null, vals);
 		} else {
 			// bundle so as not to hit packet size limits
 			if (D) System.out.println("Getting source list");
@@ -237,7 +264,7 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 					Preconditions.checkState(sourceID<vals.length);
 					Preconditions.checkState(sourceID>prevSourceID);
 					prevSourceID = sourceID;
-					numRups += erf.getNumRuptures(sourceID);
+					numRups += sourceRupCounts[sourceID];
 					sources.add(sourceID);
 				}
 //				if (D) System.out.println("Getting amps for "+sources.size()+" sources ("+numRups+" rups)");
@@ -248,7 +275,7 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 					where = "Source_ID="+minSourceID;
 				else
 					where = "Source_ID>="+minSourceID+" AND Source_ID<="+maxSourceID;
-				fillInAmpsFromDB(runID, im, where, vals);
+				fillInAmpsFromDB(runID, sourceRupCounts, im, where, vals);
 				for (int sourceID : sources)
 					Preconditions.checkState(vals[sourceID] != null,
 					"Amps not filled in for run="+runID+", im="+im.getID()+", source="+sourceID+". Amps table incomplete?");
@@ -272,7 +299,7 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 	private DecimalFormat twoDigits = new DecimalFormat("0.00");
 	
 	private static final Joiner commaJoin = Joiner.on(",");
-	private void fillInAmpsFromDB(int runID, CybershakeIM im, String sourceWhere, double[][][] vals)
+	private void fillInAmpsFromDB(int runID, int[] sourceRupCounts, CybershakeIM im, String sourceWhere, double[][][] vals)
 			throws SQLException {
 		String sql;
 		if (dbaccess.isSQLite())
@@ -329,7 +356,7 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 			if (prevSourceID != sourceID) {
 				// new source
 				Preconditions.checkState(vals[sourceID] == null, "duplicate source?");
-				vals[sourceID] = new double[erf.getNumRuptures(sourceID)][];
+				vals[sourceID] = new double[sourceRupCounts[sourceID]][];
 				Preconditions.checkState(sourceID >= prevSourceID, "Source IDs not sorted?");
 			}
 			
@@ -339,7 +366,7 @@ public class CachedPeakAmplitudesFromDB extends PeakAmplitudesFromDB {
 				if (curIMs != null) {
 					Preconditions.checkState(vals[prevSourceID].length > prevRupID,
 							"srcID=%s, prevSrcID=%s, rupID=%s, prevRupID=%s, vals[src].length=%s, erf.getNumRuptures(srcID)=%s",
-							sourceID, prevSourceID, rupID, prevRupID, vals[prevSourceID].length, erf.getNumRuptures(prevSourceID));
+							sourceID, prevSourceID, rupID, prevRupID, vals[prevSourceID].length, sourceRupCounts[prevSourceID]);
 					Preconditions.checkState(vals[prevSourceID][prevRupID] == null, "duplicate rup");
 					vals[prevSourceID][prevRupID] = Doubles.toArray(curIMs);
 				}

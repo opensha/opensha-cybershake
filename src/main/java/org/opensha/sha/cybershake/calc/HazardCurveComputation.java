@@ -41,7 +41,11 @@ public class HazardCurveComputation {
 	//	private ArrayList<ProgressListener> progressListeners = new ArrayList<ProgressListener>();
 
 	public HazardCurveComputation(DBAccess db){
-		peakAmplitudes = new PeakAmplitudesFromDB(db);
+		this(db, new PeakAmplitudesFromDB(db));
+	}
+
+	public HazardCurveComputation(DBAccess db, PeakAmplitudesFromDB peakAmplitudes){
+		this.peakAmplitudes = peakAmplitudes;
 		erfDB = new ERF2DB(db);
 		siteDB = new SiteInfo2DB(db);
 		runs2db = new Runs2DB(db);

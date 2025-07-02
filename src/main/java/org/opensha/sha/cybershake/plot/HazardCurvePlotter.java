@@ -54,6 +54,7 @@ import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
+import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeHazardCurveRecord;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
@@ -596,7 +597,7 @@ public class HazardCurvePlotter {
 			
 			// calculate the curve
 			if (curveCalc == null)
-				curveCalc = new HazardCurveComputation(db);
+				curveCalc = new HazardCurveComputation(db, getAmps2DB());
 			
 			ArbitrarilyDiscretizedFunc func = plotChars.getHazardFunc();
 			ArrayList<Double> imVals = new ArrayList<Double>();
@@ -1343,7 +1344,8 @@ public class HazardCurvePlotter {
 	
 	public PeakAmplitudesFromDB getAmps2DB() {
 		if (amps2db == null)
-			amps2db = new PeakAmplitudesFromDB(db);
+//			amps2db = new PeakAmplitudesFromDB(db);
+			amps2db = new CachedPeakAmplitudesFromDB(db);
 		
 		return amps2db;
 	}

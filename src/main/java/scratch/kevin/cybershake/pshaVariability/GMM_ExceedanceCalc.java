@@ -46,10 +46,12 @@ import org.opensha.sha.earthquake.param.IncludeBackgroundOption;
 import org.opensha.sha.earthquake.param.IncludeBackgroundParam;
 import org.opensha.sha.earthquake.param.ProbabilityModelOptions;
 import org.opensha.sha.earthquake.param.ProbabilityModelParam;
+import org.opensha.sha.earthquake.rupForecastImpl.PointSourceNshm;
 import org.opensha.sha.earthquake.rupForecastImpl.nshm23.logicTree.NSHM23_DeclusteringAlgorithms;
 import org.opensha.sha.earthquake.rupForecastImpl.nshm23.logicTree.NSHM23_SeisSmoothingAlgorithms;
 import org.opensha.sha.earthquake.rupForecastImpl.nshm23.util.NSHM23_RegionLoader.SeismicityRegions;
 import org.opensha.sha.faultSurface.PointSurface;
+import org.opensha.sha.faultSurface.RuptureSurface;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
 import org.opensha.sha.imr.attenRelImpl.ngaw2.NGAW2_WrapperFullParam;
@@ -61,6 +63,7 @@ import org.opensha.sha.magdist.GutenbergRichterMagFreqDist;
 import org.opensha.sha.magdist.IncrementalMagFreqDist;
 import org.opensha.sha.simulators.RSQSimEvent;
 import org.opensha.sha.simulators.utils.RSQSimUtils;
+import org.opensha.sha.util.FocalMech;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -192,16 +195,7 @@ public class GMM_ExceedanceCalc {
 			
 			ObsEqkRupture rup = new ObsEqkRupture(id, timeMillis, loc, mag);
 			rup.setAveRake(0d);
-			PointSurface surf = new PointSurface(loc);
-			surf.setAveStrike(0d);
-			surf.setAveDip(90d);
-			if (mag > 6.5d) {
-				surf.setAveWidth(12d);
-				surf.setDepth(0d);
-			} else {
-				surf.setAveWidth(5d);
-				surf.setDepth(5d);
-			}
+			RuptureSurface surf = PointSourceNshm.SURF_BUILDER_DEFAULT.getSurface(loc, mag, FocalMech.STRIKE_SLIP, 0);
 			rup.setRuptureSurface(surf);
 			
 			obsRups.add(rup);

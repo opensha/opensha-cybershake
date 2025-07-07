@@ -328,7 +328,6 @@ public class HazardCurveComputation {
 		ArbDiscrEmpiricalDistFunc function = new ArbDiscrEmpiricalDistFunc();
 		for (int i=0; i<modProbs.size(); i++) {
 			double prob = modProbs.get(i);
-			System.out.println("prob: " + prob);
 			double imVal = imVals.get(i);
 			Preconditions.checkState(Doubles.isFinite(prob) && prob >= 0);
 			if (prob == 0)

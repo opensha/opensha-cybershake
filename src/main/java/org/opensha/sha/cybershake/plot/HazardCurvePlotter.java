@@ -743,7 +743,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 //			System.out.println("Curve took "+watch.elapsed(TimeUnit.SECONDS)+" s");
 //		}
 		
-		System.out.println(curve);
+//		System.out.println(curve);
 		
 		return new AnnotatedCurve(curveID, date, run, im, curve);
 	}
@@ -1685,14 +1685,6 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 		// Validation of provided rupture variation biases for this source+rupture
 		// Since we're filtering by IM type, we could have more biases than queried.
 		int rupVarBiasesCount = rupVarBiases.size();
-
-		// All variations are recorded on database, so we must have less in CSV
-		if (rupVarBiasesCount != 0) {
-			System.out.println("run = " + run.getRunID());
-			System.out.println("rupVarBiasesCount = " + rupVarBiasesCount);
-			System.out.println("numAmps = " + numAmps);
-			System.out.println("src = " + sourceID + "  rup = " + rupID);
-		}
 
 		// Expected behavior if incorrect CSV for run specified
 		// CSV gave N variation, but fetched M variations

@@ -11,8 +11,6 @@ import org.apache.commons.io.FileUtils;
 import org.junit.Before;
 import org.junit.Test;
 
-// Completing all tests should take approximately 25 minutes
-// Each computation with CSV probabilities isn't cached and takes around 5 mins.
 public class HazardCurvePlotterTest {
 	
 	final String RUN_ID = "9306";

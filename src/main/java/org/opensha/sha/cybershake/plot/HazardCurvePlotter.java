@@ -63,6 +63,7 @@ import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
 import org.opensha.sha.cybershake.calc.RuptureVariationProbabilityModifier;
+import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeHazardCurveRecord;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
@@ -617,7 +618,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 			
 			// calculate the curve
 			if (curveCalc == null) {
-				curveCalc = new HazardCurveComputation(db);
+				curveCalc = new HazardCurveComputation(db, getAmps2DB());
 			}
 			
 			// use csv rupture variation probabilities if provided
@@ -1379,7 +1380,8 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 	
 	public PeakAmplitudesFromDB getAmps2DB() {
 		if (amps2db == null)
-			amps2db = new PeakAmplitudesFromDB(db);
+//			amps2db = new PeakAmplitudesFromDB(db);
+			amps2db = new CachedPeakAmplitudesFromDB(db);
 		
 		return amps2db;
 	}

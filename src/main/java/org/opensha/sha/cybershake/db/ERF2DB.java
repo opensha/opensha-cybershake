@@ -432,6 +432,56 @@ public  class ERF2DB implements ERF2DBAPI{
 		return;
 	}
 
+	/**
+	 * @param erfID
+	 * @return the number of sources for this ERF, determined as the max Source_ID+1
+	 */
+	public int getNumSources(int erfID) {
+		String sql = "SELECT max(Source_ID) from Ruptures WHERE ERF_ID=" + erfID;
+		//		System.out.println(sql);
+		ResultSet rs = null;
+		try {
+			rs = dbaccess.selectData(sql);
+		} catch (SQLException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		try {
+			rs.next();
+			int maxID = rs.getInt(1);
+			rs.close();
+			return maxID+1;
+		} catch (SQLException e) {
+			throw ExceptionUtils.asRuntimeException(e);
+		}
+	}
+
+	/**
+	 * @param erfID
+	 * @param sourceID
+	 * @return the number of ruptures in the given source for this ERF, determined as the max Rupture_ID+1
+	 */
+	public int getNumRuptures(int erfID, int sourceID) {
+		String sql = "SELECT max(Rupture_ID) from Ruptures WHERE ERF_ID=" + erfID+" AND Source_ID="+sourceID;
+		//		System.out.println(sql);
+		ResultSet rs = null;
+		try {
+			rs = dbaccess.selectData(sql);
+		} catch (SQLException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		try {
+			rs.next();
+			int maxID = rs.getInt(1);
+			rs.close();
+			return maxID+1;
+		} catch (SQLException e) {
+			// this one can return 0 if a source is missing from the DB (e.g., outside of the study region).
+			return 0;
+		}
+	}
+
 	public void loadSourceList(int erfID, ArrayList<Integer> ids, ArrayList<String> names) {
 		String sql = "SELECT distinct Source_ID,Source_Name from Ruptures WHERE ERF_ID=" + erfID + " order by Source_ID";
 		//		System.out.println(sql);

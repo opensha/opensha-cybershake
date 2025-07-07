@@ -524,7 +524,7 @@ public class HazardDecompositionPlotter {
 
 		@Override
 		public void setEqkRupture(EqkRupture eqkRupture) {
-			this.eqkRupture = eqkRupture;
+			super.setEqkRupture(eqkRupture);
 		}
 
 		public void clearCache() {

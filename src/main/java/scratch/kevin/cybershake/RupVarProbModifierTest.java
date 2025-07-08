@@ -113,7 +113,7 @@ public class RupVarProbModifierTest implements RuptureVariationProbabilityModifi
 			ret = ret2;
 		}
 		
-		// convert back to lits of probabilities
+		// convert back to list of probabilities
 		List<Double> rvProbs = Lists.newArrayList();
 		for (int i=0; i<numAmps; i++)
 			rvProbs.add(0d);

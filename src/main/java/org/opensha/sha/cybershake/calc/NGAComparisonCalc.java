@@ -224,7 +224,7 @@ public class NGAComparisonCalc {
 			siteSpecificHeader.add(it.next().getName());
 		
 		ArrayList<String> rupSpecificHeader = Lists.newArrayList("Source ID", "Rup ID",
-				"DistanceJB", "DistanceRup", "DistanceSeis", "DistanceX");
+				"DistanceJB", "DistanceRup", "DistanceX");
 		for (ScalarIMR imr : imrs) {
 			rupSpecificHeader.add("mean ("+imr.getShortName()+")");
 			rupSpecificHeader.add("std. dev. ("+imr.getShortName()+")");
@@ -320,7 +320,6 @@ public class NGAComparisonCalc {
 		
 		line.add(rup.getRuptureSurface().getDistanceJB(site.getLocation())+"");
 		line.add(rup.getRuptureSurface().getDistanceRup(site.getLocation())+"");
-		line.add(rup.getRuptureSurface().getDistanceSeis(site.getLocation())+"");
 		line.add(rup.getRuptureSurface().getDistanceX(site.getLocation())+"");
 		
 		for (ScalarIMR imr : imrs) {

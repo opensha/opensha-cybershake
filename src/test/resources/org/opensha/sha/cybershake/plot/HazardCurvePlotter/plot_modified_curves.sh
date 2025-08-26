@@ -4,11 +4,14 @@ shopt -s nullglob  # ensures empty file patterns don't break the loop
 
 show_help() {
   cat <<EOF
-Usage: $0 <output_dir> <event_set_id>
+Usage: $0 <output_dir> <input_dir> <event_set_id>
 
 Arguments:
   output_dir     Directory where site-specific subdirectories will be created
-				 and generated hazard curve plots will be written in.
+                 and generated hazard curve plots will be written in.
+                 If relative, it's resolved against the directory where this
+                 script was executed. Absolute paths are used as-is.
+  input_dir      Directory where input CSV files are located.
                  If relative, it's resolved against the directory where this
                  script was executed. Absolute paths are used as-is.
   event_set_id   Identifier suffix for input event set files (without .csv).
@@ -17,14 +20,14 @@ Arguments:
                    - 'smaller' → matches *_smaller.csv
 
 Example:
-  $0 results/hazard_plots larger
-  $0 /absolute/path/to/plots smaller
+  $0 results/hazard_plots data/inputs larger
+  $0 /absolute/path/to/plots /absolute/path/to/inputs smaller
 EOF
   exit 1
 }
 
 # 📝 Validate inputs
-if [[ $# -ne 2 ]]; then
+if [[ $# -ne 3 ]]; then
   echo "❌ Error: Missing arguments"
   show_help
 fi
@@ -41,7 +44,16 @@ else
   OUTPUT_ROOT="$INITIAL_DIR/$1"
 fi
 
-EVENT_SET_ID=$2
+# Resolve INPUT_DIR properly
+if [[ "$2" = /* ]]; then
+  # absolute path → use directly
+  INPUT_DIR="$2"
+else
+  # relative path → resolve against initial dir
+  INPUT_DIR="$INITIAL_DIR/$2"
+fi
+
+EVENT_SET_ID=$3
 
 # 🚀 Ensure we're in the correct directory (prefer fork, fallback to main repo)
 if [ -d "$HOME/git/opensha-cybershake-fork" ]; then
@@ -85,7 +97,6 @@ declare -A RUNS=(
   [PDE]=9663
 )
 
-INPUT_DIR="src/test/resources/org/opensha/sha/cybershake/plot/HazardCurvePlotter"
 FILES=($INPUT_DIR/*_"$EVENT_SET_ID".csv)
 
 if [[ ${#FILES[@]} -eq 0 ]]; then

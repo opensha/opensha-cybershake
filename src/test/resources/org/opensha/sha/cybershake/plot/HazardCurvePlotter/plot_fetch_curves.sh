@@ -38,13 +38,13 @@ RUNS[SBSM]="9320"
 RUNS[SVD]="9647"
 RUNS[PDE]="9663"
 
-REFPROB_DIR="src/test/resources/org/opensha/sha/cybershake/plot/HazardCurvePlotter/refprob"
+FETCHDB_DIR="src/test/resources/org/opensha/sha/cybershake/plot/HazardCurvePlotter/fetchdb"
 
 # 🏃 Process in parallel
 for SITE in "${!RUNS[@]}"; do
   RUN=${RUNS[$SITE]}
 
-  OUTDIR="$REFPROB_DIR/$SITE"
+  OUTDIR="$FETCHDB_DIR/$SITE"
   mkdir -p "$OUTDIR"
 
   (

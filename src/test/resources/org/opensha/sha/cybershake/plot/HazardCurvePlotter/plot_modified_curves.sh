@@ -95,6 +95,11 @@ declare -A RUNS=(
   [SBSM]=9320
   [SVD]=9647
   [PDE]=9663
+  [s036]=9402
+  [s080]=9409
+  [s145]=9606
+  [s732]=9391
+  [s776]=9536
 )
 
 FILES=($INPUT_DIR/*_"$EVENT_SET_ID".csv)

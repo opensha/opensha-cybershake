@@ -30,13 +30,18 @@ if [ ! -f build/libs/opensha-cybershake-all.jar ]; then
 fi
 
 # 🗺️ Define RUNS mapping
-declare -A RUNS
-
-RUNS[ALP]="9542"
-RUNS[USC]="9306"
-RUNS[SBSM]="9320"
-RUNS[SVD]="9647"
-RUNS[PDE]="9663"
+declare -A RUNS=(
+  [ALP]=9542
+  [USC]=9306
+  [SBSM]=9320
+  [SVD]=9647
+  [PDE]=9663
+  [s036]=9402
+  [s080]=9409
+  [s145]=9606
+  [s732]=9391
+  [s776]=9536
+)
 
 FETCHDB_DIR="src/test/resources/org/opensha/sha/cybershake/plot/HazardCurvePlotter/fetchdb"
 

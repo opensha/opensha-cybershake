@@ -69,7 +69,7 @@ public class ComparisonCurvePlotter {
      * @return the loaded curve
      * @throws IOException
      */
-    public static DiscretizedFunc loadCurveFromCSV(File csvFile, int skipLines) throws IOException {
+    public static DiscretizedFunc loadCurveFromCSV(File csvFile, int skipLines, String delimiter) throws IOException {
         Preconditions.checkArgument(csvFile.exists(), "CSV file does not exist: %s", csvFile);
 
         ArbitrarilyDiscretizedFunc curve = new ArbitrarilyDiscretizedFunc();
@@ -99,8 +99,8 @@ public class ComparisonCurvePlotter {
                 
                 dataLineNumber++;
                 
-                // Split by whitespace (tabs or spaces)
-                String[] parts = line.split("\\s+");
+                // Split by delimiter
+                String[] parts = line.split(delimiter);
                 
                 if (parts.length < 2) {
                     System.err.println("WARNING: Skipping line " + lineNumber + " in " + csvFile.getName() +
@@ -124,6 +124,18 @@ public class ComparisonCurvePlotter {
     }
 
     /**
+     * Read a CSV file with X,Y columns into a DiscretizedFunc (using default whitespace delimiter)
+     *
+     * @param csvFile CSV file with X,Y columns (can use space or tab delimiters, supports # comments)
+     * @param skipLines number of header lines to skip (default 0)
+     * @return the loaded curve
+     * @throws IOException
+     */
+    public static DiscretizedFunc loadCurveFromCSV(File csvFile, int skipLines) throws IOException {
+        return loadCurveFromCSV(csvFile, skipLines, "\\s+");
+    }
+
+    /**
      * Plot multiple curves from CSV files
      *
      * @param csvFiles list of CSV files to load
@@ -134,12 +146,13 @@ public class ComparisonCurvePlotter {
      * @param xLog use log scale for x-axis
      * @param yLog use log scale for y-axis
      * @param skipLines number of header lines to skip in CSV files
+     * @param delimiter regex pattern for delimiter (default: "\\s+" for whitespace)
      * @return list of loaded curves
      * @throws IOException
      */
     public List<DiscretizedFunc> plotCurves(List<File> csvFiles, List<String> curveNames,
                                             String title, String xAxisLabel, String yAxisLabel,
-                                            boolean xLog, boolean yLog, int skipLines) throws IOException {
+                                            boolean xLog, boolean yLog, int skipLines, String delimiter) throws IOException {
 
         Preconditions.checkArgument(csvFiles.size() == curveNames.size(),
                 "Number of CSV files (%s) must match number of names (%s)",
@@ -152,7 +165,7 @@ public class ComparisonCurvePlotter {
         // Load curves from CSV files
         for (int i = 0; i < csvFiles.size(); i++) {
             System.out.println("Loading curve from: " + csvFiles.get(i));
-            DiscretizedFunc curve = loadCurveFromCSV(csvFiles.get(i), skipLines);
+            DiscretizedFunc curve = loadCurveFromCSV(csvFiles.get(i), skipLines, delimiter);
             curve.setName(curveNames.get(i));
             curves.add(curve);
 
@@ -247,6 +260,10 @@ public class ComparisonCurvePlotter {
                 "Number of header lines to skip in CSV files (default: 0)");
         ops.addOption(skip);
 
+        Option delimiter = new Option("d", "delimiter", true,
+                "Delimiter regex pattern for CSV parsing (default: \\s+ for whitespace)");
+        ops.addOption(delimiter);
+
         Option width = new Option("w", "width", true,
                 "Plot width in pixels (default: " + PLOT_WIDTH_DEFAULT + ")");
         ops.addOption(width);
@@ -319,6 +336,11 @@ public class ComparisonCurvePlotter {
                 skipLines = Integer.parseInt(cmd.getOptionValue("skip-lines"));
             }
 
+            String delimiter = "\\s+";
+            if (cmd.hasOption("delimiter")) {
+                delimiter = cmd.getOptionValue("delimiter");
+            }
+
             // Parse output types
             List<PlotType> types = new ArrayList<>();
             if (cmd.hasOption("type")) {
@@ -341,7 +363,7 @@ public class ComparisonCurvePlotter {
             // Plot curves
             System.out.println("Plotting " + csvFiles.size() + " curves...");
             plotter.plotCurves(csvFiles, curveNames, title, xAxisLabel, yAxisLabel,
-                    xLog, yLog, skipLines);
+                    xLog, yLog, skipLines, delimiter);
 
             // Save plots
             for (PlotType type : types) {

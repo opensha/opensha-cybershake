@@ -284,8 +284,8 @@ for SITE in "${SITES[@]}"; do
         --y-axis "Annual Probability of Exceedance" \
         --output "$OUTPUT_PREFIX" \
         --type PDF,PNG \
-        --x-log \
         --y-log \
+		--x-range 0,2 \
         --skip-lines 2
 
       END=$(date +%s)

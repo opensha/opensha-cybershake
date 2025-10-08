@@ -286,7 +286,6 @@ for SITE in "${SITES[@]}"; do
         --type PDF,PNG \
         --y-log \
 		--x-range 0,2 \
-        --skip-lines 2
 
       END=$(date +%s)
       DURATION=$((END - START))

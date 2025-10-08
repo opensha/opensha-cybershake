@@ -16,6 +16,7 @@ import org.apache.commons.cli.ParseException;
 import org.jfree.chart.ChartUtils;
 import org.jfree.chart.plot.DatasetRenderingOrder;
 import org.jfree.chart.ui.RectangleEdge;
+import org.jfree.data.Range;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.gui.plot.HeadlessGraphPanel;
@@ -153,6 +154,30 @@ public class ComparisonCurvePlotter {
     public List<DiscretizedFunc> plotCurves(List<File> csvFiles, List<String> curveNames,
                                             String title, String xAxisLabel, String yAxisLabel,
                                             boolean xLog, boolean yLog, int skipLines, String delimiter) throws IOException {
+        return plotCurves(csvFiles, curveNames, title, xAxisLabel, yAxisLabel, xLog, yLog, skipLines, delimiter, null, null);
+    }
+
+    /**
+     * Plot multiple curves from CSV files
+     *
+     * @param csvFiles list of CSV files to load
+     * @param curveNames names for each curve (must match number of CSV files)
+     * @param title plot title
+     * @param xAxisLabel x-axis label
+     * @param yAxisLabel y-axis label
+     * @param xLog use log scale for x-axis
+     * @param yLog use log scale for y-axis
+     * @param skipLines number of header lines to skip in CSV files
+     * @param delimiter regex pattern for delimiter (default: "\\s+" for whitespace)
+     * @param xRange the range of x values to plot (if null, uses data range)
+     * @param yRange the range of y values to plot (if null, uses data range)
+     * @return list of loaded curves
+     * @throws IOException
+     */
+    public List<DiscretizedFunc> plotCurves(List<File> csvFiles, List<String> curveNames,
+                                            String title, String xAxisLabel, String yAxisLabel,
+                                            boolean xLog, boolean yLog, int skipLines, String delimiter,
+                                            Range xRange, Range yRange) throws IOException {
 
         Preconditions.checkArgument(csvFiles.size() == curveNames.size(),
                 "Number of CSV files (%s) must match number of names (%s)",
@@ -180,7 +205,7 @@ public class ComparisonCurvePlotter {
         spec.setLegendLocation(RectangleEdge.BOTTOM);
 
         // Draw plot
-        gp.drawGraphPanel(spec, xLog, yLog, null, null);
+        gp.drawGraphPanel(spec, xLog, yLog, xRange, yRange);
         gp.setVisible(true);
         gp.validate();
         gp.repaint();
@@ -255,6 +280,12 @@ public class ComparisonCurvePlotter {
 
         Option yLog = new Option("ylog", "y-log", false, "Use log scale for y-axis");
         ops.addOption(yLog);
+
+        Option xRange = new Option("xrng", "x-range", true, "left,right values for x-axis");
+        ops.addOption(xRange);
+
+        Option yRange = new Option("yrng", "y-range", true, "left,right values for y-axis");
+        ops.addOption(yRange);
 
         Option skip = new Option("skip", "skip-lines", true,
                 "Number of header lines to skip in CSV files (default: 0)");
@@ -331,6 +362,41 @@ public class ComparisonCurvePlotter {
             boolean xLog = cmd.hasOption("x-log");
             boolean yLog = cmd.hasOption("y-log");
 
+            Range xRange = null;
+            Range yRange = null;
+
+            if (cmd.hasOption("x-range")) {
+                try {
+                    String[] xRangeValues = cmd.getOptionValue("x-range").split(",");
+                    Preconditions.checkArgument(xRangeValues.length == 2, 
+                            "Invalid x-range format. Expected `left,right`.");
+                    double xMin = Double.parseDouble(xRangeValues[0].trim());
+                    double xMax = Double.parseDouble(xRangeValues[1].trim());
+                    Preconditions.checkArgument(xMin < xMax, 
+                            "Invalid x-range values. `left` should be less than `right`.");
+                    xRange = new Range(xMin, xMax);
+                } catch (Exception e) {
+                    System.err.println("ERROR: Failed to parse x-range: " + e.getMessage());
+                    System.exit(1);
+                }
+            }
+
+            if (cmd.hasOption("y-range")) {
+                try {
+                    String[] yRangeValues = cmd.getOptionValue("y-range").split(",");
+                    Preconditions.checkArgument(yRangeValues.length == 2, 
+                            "Invalid y-range format. Expected `left,right`.");
+                    double yMin = Double.parseDouble(yRangeValues[0].trim());
+                    double yMax = Double.parseDouble(yRangeValues[1].trim());
+                    Preconditions.checkArgument(yMin < yMax, 
+                            "Invalid y-range values. `left` should be less than `right`.");
+                    yRange = new Range(yMin, yMax);
+                } catch (Exception e) {
+                    System.err.println("ERROR: Failed to parse y-range: " + e.getMessage());
+                    System.exit(1);
+                }
+            }
+
             int skipLines = 0;
             if (cmd.hasOption("skip-lines")) {
                 skipLines = Integer.parseInt(cmd.getOptionValue("skip-lines"));
@@ -360,10 +426,10 @@ public class ComparisonCurvePlotter {
                 plotter.setPlotSize(width, height);
             }
 
-            // Plot curves
+            // Plot curves with the provided ranges
             System.out.println("Plotting " + csvFiles.size() + " curves...");
             plotter.plotCurves(csvFiles, curveNames, title, xAxisLabel, yAxisLabel,
-                    xLog, yLog, skipLines, delimiter);
+                    xLog, yLog, skipLines, delimiter, xRange, yRange);
 
             // Save plots
             for (PlotType type : types) {

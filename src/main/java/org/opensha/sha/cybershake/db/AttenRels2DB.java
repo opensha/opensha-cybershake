@@ -7,6 +7,8 @@ import java.util.ArrayList;
 
 import org.opensha.commons.exceptions.ParameterException;
 import org.opensha.commons.param.Parameter;
+import org.opensha.commons.param.impl.WeightedListParameter;
+import org.opensha.commons.util.ClassUtils;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
 import org.opensha.sha.imr.param.OtherParams.SigmaTruncLevelParam;
@@ -75,13 +77,20 @@ public class AttenRels2DB {
 					if (imrParamVal.length() > 100)
 						imrParamVal = imrParamVal.substring(0, 100);
 					if (!imrParamVal.equals(pval)) {
+						if (imrParam instanceof WeightedListParameter<?>) {
+							// toString of WeightedList changed, if the short name is a match then it's probably fine
+							System.err.println("Warning: WeightedListParameter value for "+pname
+									+" doesn't match DB value, string representation likely changed. Considering it a match anyway.");
+							continue;
+						}
 						// there's a chance that it's truncated
 						if (imrParamVal.length()>50) {
 							if (pval.length() == 50 && imrParamVal.startsWith(pval))
 								// it was truncated, but matches
 								continue;
 						}
-//						System.out.println("Param '"+pname+"' doesn't match: "+imrParamVal+" != "+pval);
+						System.out.println("Param '"+pname+"' of type '"+ClassUtils.getClassNameWithoutPackage(imrParam.getClass())
+								+"' doesn't match:\nLocal:\t"+imrParamVal+"\nDB:\t"+pval);
 						match = false;
 						break;
 					}

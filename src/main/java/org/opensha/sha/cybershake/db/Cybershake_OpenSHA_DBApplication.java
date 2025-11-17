@@ -88,7 +88,7 @@ public class Cybershake_OpenSHA_DBApplication {
 						dbs.put(hostName, new DBAccess(hostName, DATABASE_NAME));
 					}
 				} catch (IOException e) {
-					throw ExceptionUtils.asRuntimeException(e);
+					throw new RuntimeException("Could not build DB connection for '"+hostName+"'", e);
 				}
 			return dbs.get(hostName);
 		}

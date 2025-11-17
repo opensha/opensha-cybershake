@@ -163,7 +163,7 @@ public enum CyberShakeStudy {
 			"study_17_3_1d", "Central California with CCA-1D Velocity Model, 1hz",
 			36, 9,
 			new CaliforniaRegions.CYBERSHAKE_CCA_MAP_REGION(),
-			Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME) {
+			Cybershake_OpenSHA_DBApplication.ARCHIVE_HOST_NAME) {
 		@Override
 		public AbstractERF buildNewERF() {
 			return MeanUCERF2_ToDB.createUCERF2ERF();
@@ -1488,6 +1488,11 @@ public enum CyberShakeStudy {
 //		List<CybershakeRun> runs = BBP_VALIDATION.runFetcher().fetch();
 //		System.out.println("Found "+runs.size()+" runs");
 //		System.out.println(runs);
+		
+//		List<CybershakeRun> runs = STUDY_22_12_LF.runFetcher().fetch();
+//		System.out.println("Found "+runs.size()+" runs");
+//		System.exit(0);
+		
 		File gitDir = new File("/home/kevin/markdown/cybershake-analysis");
 		
 		boolean replot = false;

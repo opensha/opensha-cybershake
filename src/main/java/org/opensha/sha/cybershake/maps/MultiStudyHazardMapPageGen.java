@@ -20,6 +20,7 @@ import org.opensha.commons.data.xyz.GriddedGeoDataSet;
 import org.opensha.commons.exceptions.GMT_MapException;
 import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
+import org.opensha.commons.geo.LocationList;
 import org.opensha.commons.geo.Region;
 import org.opensha.commons.mapping.gmt.elements.PSXYSymbol;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
@@ -50,7 +51,7 @@ public class MultiStudyHazardMapPageGen {
 
 	@SuppressWarnings("unused")
 	public static void main(String[] args) throws Exception {
-		HardCodedInterpDiffMapCreator.LOCAL_MAPGEN = true;
+//		HardCodedInterpDiffMapCreator.LOCAL_MAPGEN = true;
 		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
 
 //		CyberShakeStudy[] studies = {
@@ -62,13 +63,21 @@ public class MultiStudyHazardMapPageGen {
 //				CyberShakeStudy.STUDY_15_4,
 //				CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz
 //		};
+//		CyberShakeStudy[] studies = {
+//				CyberShakeStudy.STUDY_15_4,
+////				CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz,
+////				CyberShakeStudy.STUDY_22_3_RSQSIM_5413
+//				CyberShakeStudy.STUDY_22_12_LF
+//		};
 		CyberShakeStudy[] studies = {
-				CyberShakeStudy.STUDY_15_4,
-//				CyberShakeStudy.STUDY_21_12_RSQSIM_4983_SKIP65k_1Hz,
-//				CyberShakeStudy.STUDY_22_3_RSQSIM_5413
-				CyberShakeStudy.STUDY_22_12_LF
+				CyberShakeStudy.STUDY_22_12_LF,
+				CyberShakeStudy.STUDY_17_3_3D,
+				CyberShakeStudy.STUDY_18_8,
+				CyberShakeStudy.STUDY_24_8_LF,
 		};
 		
+		boolean overlapUseLatest = true;
+		boolean plotOverlap = false;
 		double[] periods = { 2d, 3d, 5d, 10d };
 		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
 		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
@@ -87,14 +96,14 @@ public class MultiStudyHazardMapPageGen {
 		
 		File baseMapsDir = new File("/home/kevin/CyberShake/baseMaps/");
 		Map<Double, File> baseMapFiles = new HashMap<>();
-//		baseMapFiles.put(2d, new File(baseMapsDir,
-//				"2017_04_12-statewide-nobasin-cs-nga2-2sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
-//		baseMapFiles.put(3d, new File(baseMapsDir,
-//				"2017_04_12-statewide-nobasin-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
-//		baseMapFiles.put(5d, new File(baseMapsDir,
-//				"2017_04_12-statewide-nobasin-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
-//		baseMapFiles.put(10d, new File(baseMapsDir,
-//				"2017_04_12-statewide-nobasin-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
+		baseMapFiles.put(2d, new File(baseMapsDir,
+				"2017_04_12-statewide-nobasin-cs-nga2-2sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
+		baseMapFiles.put(3d, new File(baseMapsDir,
+				"2017_04_12-statewide-nobasin-cs-nga2-3sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
+		baseMapFiles.put(5d, new File(baseMapsDir,
+				"2017_04_12-statewide-nobasin-cs-nga2-5sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
+		baseMapFiles.put(10d, new File(baseMapsDir,
+				"2017_04_12-statewide-nobasin-cs-nga2-10sec/NGAWest_2014_NoIdr/curves/imrs1.bin"));
 		
 		File studyDir = new File(mainOutputDir, lastStudy.getDirName());
 		Preconditions.checkState(studyDir.exists() || studyDir.mkdir());
@@ -138,28 +147,35 @@ public class MultiStudyHazardMapPageGen {
 				combinedRegion = reg;
 			} else {
 				Region newCombinedRegion = Region.union(combinedRegion, reg);
-				if (newCombinedRegion == null)
+				if (newCombinedRegion == null) {
 					combinedRegion = new Region(
 							new Location(Math.max(combinedRegion.getMaxLat(), reg.getMaxLat()),
 									Math.max(combinedRegion.getMaxLon(), reg.getMaxLon())),
 							new Location(Math.min(combinedRegion.getMinLat(), reg.getMinLat()),
 									Math.min(combinedRegion.getMinLon(), reg.getMinLon())));
-				else
+					System.err.println("Failed to union region for "+study);
+				} else {
 					combinedRegion = newCombinedRegion;
+				}
 			}
 		}
 		
 		System.out.println("Fetching runs");
 		List<List<CybershakeRun>> studyRuns = new ArrayList<>();
-		for (CyberShakeStudy study : studies)
-			studyRuns.add(study.runFetcher().fetch());
+		for (CyberShakeStudy study : studies) {
+			System.out.println("Fetching runs for "+study.getName()+" from "+study.getDBHost());
+			List<CybershakeRun> runs = study.runFetcher().fetch();
+			System.out.println("\tLoaded "+runs.size()+" runs");
+			Preconditions.checkState(!runs.isEmpty(), "No runs found");
+			studyRuns.add(runs);
+		}
 		
 		for (double period : periods) {
 			for (CyberShakeComponent component : components) {
 				CybershakeIM im = CybershakeIM.getSA(component, period);
 				int imTypeID = im.getID();
 				String imtLabel = (int)im.getVal()+"sec "+component.getShortName()+" SA";
-				System.out.println("Doing "+imtLabel);
+				System.out.println("Doing "+imtLabel+", imTypeID="+imTypeID);
 				Double customMax = 1d;
 				if (period >= 5)
 					customMax = 0.6;
@@ -171,64 +187,93 @@ public class MultiStudyHazardMapPageGen {
 				ArbDiscrGeoDataSet[] scatters = new ArbDiscrGeoDataSet[studies.length];
 				HashSet<Location> allLocs = new HashSet<Location>();
 				for (int i=0; i<studies.length; i++) {
-					System.out.println("Fetching curves for "+studies[i].getName());
+					List<CybershakeRun> runs = studyRuns.get(i);
+					System.out.println("Fetching curves for "+studies[i].getName()+" with "+runs.size()+" runs");
 					HazardCurveFetcher fetch = new HazardCurveFetcher(
-							studies[i].getDB(), studyRuns.get(i), studies[i].getDatasetIDs(), imTypeID);
+							studies[i].getDB(), runs, studies[i].getDatasetIDs(), imTypeID);
 					scatters[i] = HardCodedInterpDiffMapCreator.getMainScatter(
 							isProbAt_IML, val, fetch, imTypeID, null);
-					allLocs.addAll(scatters[i].getLocationList());
+					LocationList locs = scatters[i].getLocationList();
+					System.out.println("Loaded curves for "+locs.size()+" locations");
+					allLocs.addAll(locs);
 				}
 				
-				for (int i=studies.length; --i>0;) {
-					CyberShakeStudy study1 = studies[i];
-					ArbDiscrGeoDataSet scatter1 = scatters[i];
-					String name1 = study1.getName();
-					
-					for (int j=i; --j>=0;) {
-						CyberShakeStudy study2 = studies[j];
-						ArbDiscrGeoDataSet scatter2 = scatters[j];
-						String name2 = study2.getName();
+				if (plotOverlap) {
+					for (int i=studies.length; --i>0;) {
+						CyberShakeStudy study1 = studies[i];
+						ArbDiscrGeoDataSet scatter1 = scatters[i];
+						String name1 = study1.getName();
 						
-						Region intersection = Region.intersect(study1.getRegion(), study2.getRegion());
-						if (intersection != null) {
-							int num1not2 = 0;
-							int num2not1 = 0;
-							for (Location loc : scatter1.getLocationList())
-								if (intersection.contains(loc) && !scatter2.contains(loc))
-									num1not2++;
-							for (Location loc : scatter2.getLocationList())
-								if (intersection.contains(loc) && !scatter1.contains(loc))
-									num2not1++;
-							// TODO remove?
-							System.out.println("Intersection region has "+num1not2+" points in "+name1+" but not in "+name2);
-							System.out.println("Intersection region has "+num2not1+" points in "+name2+" but not in "+name1);
+						for (int j=i; --j>=0;) {
+							CyberShakeStudy study2 = studies[j];
+							ArbDiscrGeoDataSet scatter2 = scatters[j];
+							String name2 = study2.getName();
+							
+							System.out.println("Doing "+name1+" vs "+name2);
+							
+							Region intersection = Region.intersect(study1.getRegion(), study2.getRegion());
+							if (intersection != null) {
+								int num1not2 = 0;
+								int num2not1 = 0;
+								for (Location loc : scatter1.getLocationList())
+									if (intersection.contains(loc) && !scatter2.contains(loc))
+										num1not2++;
+								for (Location loc : scatter2.getLocationList())
+									if (intersection.contains(loc) && !scatter1.contains(loc))
+										num2not1++;
+								// TODO remove?
+								System.out.println("Intersection region has "+num1not2+" points in "+name1+" but not in "+name2);
+								System.out.println("Intersection region has "+num2not1+" points in "+name2+" but not in "+name1);
 
-							System.out.println("Plotting ratio");
-							String prefix = study1.getDirName()+"_"+study2.getDirName()+"_"+imtPrefix;
-							plotIntersectionRatio(scatter1, scatter2, intersection, resourcesDir, name1, name2, imtLabel, prefix, interpSettings);
+								System.out.println("Plotting ratio");
+								String prefix = study1.getDirName()+"_"+study2.getDirName()+"_"+imtPrefix;
+								plotIntersectionRatio(scatter1, scatter2, intersection, resourcesDir, name1, name2, imtLabel, prefix, interpSettings);
+							}
 						}
 					}
 				}
+				
+				System.out.println("Doing combined");
 				
 				ArbDiscrGeoDataSet combScatter = new ArbDiscrGeoDataSet(scatters[0].isLatitudeX());
 				int overlaps = 0;
 				for (Location loc : allLocs) {
 					List<Double> vals = new ArrayList<>();
-					for (ArbDiscrGeoDataSet scatter : scatters)
-						if (scatter.contains(loc))
+					List<Long> times = new ArrayList<>();
+					for (int s=0; s<studies.length; s++) {
+						ArbDiscrGeoDataSet scatter = scatters[s];
+						if (scatter.contains(loc)) {
 							vals.add(scatter.get(loc));
+							times.add(studies[s].getDate().getTimeInMillis());
+						}
+					}
 					Preconditions.checkState(!vals.isEmpty());
 					
 					double mapVal;
 					if (vals.size() == 1) {
 						mapVal = vals.get(0);
 					} else {
-						mapVal = StatUtils.mean(Doubles.toArray(vals));
+						if (overlapUseLatest) {
+							long lastTime = Long.MIN_VALUE;
+							mapVal = Double.NaN;
+							for (int i=0; i<vals.size(); i++) {
+								long time = times.get(i);
+								if (time > lastTime) {
+									lastTime = time;
+									mapVal = vals.get(i);
+								}
+							}
+						} else {
+							mapVal = StatUtils.mean(Doubles.toArray(vals));
+						}
 						overlaps++;
 					}
 					combScatter.set(loc, mapVal);
 				}
-				System.out.println("Averaged at "+overlaps+" overlap sites");
+				if (overlapUseLatest)
+					System.out.println("Used latest at "+overlaps+" overlap sites");
+				else
+					System.out.println("Averaged at "+overlaps+" overlap sites");
 
 				System.out.println("Getting GMPE curves");
 				HardCodedInterpDiffMapCreator.cs_db = gmpeDB;
@@ -239,8 +284,18 @@ public class MultiStudyHazardMapPageGen {
 					BinaryHazardCurveReader reader = new BinaryHazardCurveReader(baseMapFile.getAbsolutePath());
 					Map<Location, ArbitrarilyDiscretizedFunc> curves = reader.getCurveMap();
 					basemap = new GriddedGeoDataSet(basemapReg, scatters[0].isLatitudeX());
-					for (Location loc : curves.keySet())
-						basemap.set(loc, HazardDataSetLoader.getCurveVal(curves.get(loc), isProbAt_IML, val));
+					for (int i=0; i<basemap.size(); i++)
+						basemap.set(i, Double.NaN);
+					int numSkipped = 0;
+					for (Location loc : curves.keySet()) {
+						int index = basemap.indexOf(loc);
+						if (index >= 0)
+							basemap.set(index, HazardDataSetLoader.getCurveVal(curves.get(loc), isProbAt_IML, val));
+						else
+							numSkipped++;
+					}
+					if (numSkipped > 0)
+						System.err.println("WARNING: Skipped "+numSkipped+" basemap locs outside of gridded region");
 				} else if (baseMapIMR != null) {
 					basemap = HardCodedInterpDiffMapCreator.loadBaseMap(
 							baseMapIMR, isProbAt_IML, val, studies[0].getERF_ID(), velModelIDforGMPE, imTypeID, basemapReg);

@@ -39,7 +39,11 @@ import org.opensha.commons.gui.plot.HeadlessGraphPanel;
 import org.opensha.commons.gui.plot.PlotCurveCharacterstics;
 import org.opensha.commons.gui.plot.PlotLineType;
 import org.opensha.commons.gui.plot.PlotSpec;
+import org.opensha.commons.mapping.gmt.elements.PSText;
+import org.opensha.commons.mapping.gmt.elements.PSText.Justify;
+import org.opensha.commons.mapping.gmt.elements.PSXYPolygon;
 import org.opensha.commons.mapping.gmt.elements.PSXYSymbol;
+import org.opensha.commons.mapping.gmt.elements.PSXYSymbol.Symbol;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.commons.util.MarkdownUtils;
@@ -62,13 +66,16 @@ import org.opensha.sha.cybershake.db.CybershakeSite;
 import org.opensha.sha.cybershake.db.CybershakeSiteInfo2DB;
 import org.opensha.sha.cybershake.maps.InterpDiffMap.InterpDiffMapType;
 import org.opensha.sha.cybershake.maps.servlet.CS_InterpDiffMapServletAccessor;
+import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
+import org.opensha.sha.util.NEHRP_TestCity;
 
 import com.google.common.base.Preconditions;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
 
+import scratch.UCERF3.enumTreeBranches.FaultModels;
 import scratch.kevin.cybershake.BatchBaseMapPlot;
 
 public class StudyHazardMapPageGen {
@@ -77,6 +84,8 @@ public class StudyHazardMapPageGen {
 
 	public static void main(String[] args) throws IOException {
 		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
+		
+		String dirName = "hazard_maps";
 
 		int vmOverride = -1;
 		int erfOverride = -1;
@@ -85,6 +94,9 @@ public class StudyHazardMapPageGen {
 		double baseMapRes = 0.005;
 		GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
 		HardCodedInterpDiffMapCreator.gmpe_db = Cybershake_OpenSHA_DBApplication.getDB(Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME);
+		
+		boolean includeU2Faults = false;
+		Map<String, Location> cities = new HashMap<>();
 		
 ////		CyberShakeStudy study = CyberShakeStudy.STUDY_22_12_LF;
 ////		double[] periods = { 2d, 3d, 5d, 10d };
@@ -104,11 +116,18 @@ public class StudyHazardMapPageGen {
 //				new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 //		Region zoomRegion = null;
 		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_LF;
-//		double[] periods = { 2d, 3d, 5d, 10d };
+		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_LF;
+		double[] periods = { 2d, 3d, 5d, 10d };
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_BB;
+//		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
+		
 //		compStudy = CyberShakeStudy.STUDY_18_8;
-		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_BB;
-		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
+		
+//		includeU2Faults = true;
+//		cities.put("San Francisco", NEHRP_TestCity.SAN_FRANCISCO.location());
+//		cities.put("San Jose", NEHRP_TestCity.SAN_JOSE.location());
+		dirName += "_labeled";
+		
 		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
 		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);
 //		ScalarIMR baseMapGMPE = null;
@@ -254,9 +273,9 @@ public class StudyHazardMapPageGen {
 		
 		File mapsDir;
 		if (backgroundGMPE == null)
-			mapsDir = new File(studyDir, "hazard_maps");
+			mapsDir = new File(studyDir, dirName);
 		else
-			mapsDir = new File(studyDir, "hazard_maps_back_seis");
+			mapsDir = new File(studyDir, dirName+"_back_seis");
 		Preconditions.checkState(mapsDir.exists() || mapsDir.mkdir());
 		
 		File resourcesDir = new File(mapsDir, "resources");
@@ -458,6 +477,29 @@ public class StudyHazardMapPageGen {
 								map.setCustomScaleMin(0d);
 								map.setCustomScaleMax(cptMax);
 								map.getInterpSettings().setSaveInterpSurface(saveInterp);
+								
+								if (includeU2Faults) {
+									List<FaultSection> sects = FaultModels.FM2_1.getFaultSections();
+									for (FaultSection sect : sects) {
+										PSXYPolygon line = new PSXYPolygon(sect.getFaultTrace());
+										line.setFillColor(null);
+										line.setPenColor(Color.BLACK);
+										line.setPenWidth(1);
+										line.setLineType(PlotLineType.SOLID);
+										map.addPolys(line);
+									}
+								}
+								
+								for (String name : cities.keySet()) {
+									Location loc = cities.get(name);
+									PSText text = new PSText(new Point2D.Double(loc.lon+0.02, loc.lat), Color.WHITE, 18, name, Justify.LEFT_BOTTOM);
+									map.addText(text);
+									PSXYSymbol symbol = new PSXYSymbol(new Point2D.Double(loc.lon, loc.lat), Symbol.CIRCLE, 0.1);
+									symbol.setFillColor(Color.WHITE);
+									symbol.setPenColor(Color.BLACK);
+									symbol.setPenWidth(0.4);
+									map.addSymbol(symbol);
+								}
 								
 								String metadata = "isProbAt_IML: " + isProbAt_IML + "\n" +
 												"val: " + probLevel + "\n" +

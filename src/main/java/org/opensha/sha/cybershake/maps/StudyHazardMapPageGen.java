@@ -116,17 +116,17 @@ public class StudyHazardMapPageGen {
 //				new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 //		Region zoomRegion = null;
 		
-		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_LF;
-		double[] periods = { 2d, 3d, 5d, 10d };
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_BB;
-//		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_LF;
+//		double[] periods = { 2d, 3d, 5d, 10d };
+		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_BB;
+		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
 		
 //		compStudy = CyberShakeStudy.STUDY_18_8;
 		
 //		includeU2Faults = true;
 //		cities.put("San Francisco", NEHRP_TestCity.SAN_FRANCISCO.location());
 //		cities.put("San Jose", NEHRP_TestCity.SAN_JOSE.location());
-		dirName += "_labeled";
+//		dirName += "_labeled";
 		
 		CyberShakeComponent[] components = { CyberShakeComponent.RotD50 };
 		ScalarIMR baseMapGMPE = AttenRelRef.NGAWest_2014_AVG_NOIDRISS.instance(null);

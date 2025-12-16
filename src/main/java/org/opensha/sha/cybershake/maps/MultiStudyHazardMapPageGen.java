@@ -1,5 +1,7 @@
 package org.opensha.sha.cybershake.maps;
 
+import java.awt.Color;
+import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -22,8 +24,13 @@ import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationList;
 import org.opensha.commons.geo.Region;
+import org.opensha.commons.gui.plot.PlotLineType;
+import org.opensha.commons.mapping.gmt.elements.PSText;
+import org.opensha.commons.mapping.gmt.elements.PSXYPolygon;
 import org.opensha.commons.mapping.gmt.elements.PSXYSymbol;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
+import org.opensha.commons.mapping.gmt.elements.PSText.Justify;
+import org.opensha.commons.mapping.gmt.elements.PSXYSymbol.Symbol;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.commons.util.cpt.CPT;
 import org.opensha.sha.calc.hazardMap.BinaryHazardCurveReader;
@@ -39,13 +46,17 @@ import org.opensha.sha.cybershake.db.Cybershake_OpenSHA_DBApplication;
 import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.maps.InterpDiffMap.InterpDiffMapType;
 import org.opensha.sha.cybershake.maps.servlet.CS_InterpDiffMapServletAccessor;
+import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
+import org.opensha.sha.util.NEHRP_TestCity;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.google.common.primitives.Doubles;
+
+import scratch.UCERF3.enumTreeBranches.FaultModels;
 
 public class MultiStudyHazardMapPageGen {
 
@@ -53,6 +64,9 @@ public class MultiStudyHazardMapPageGen {
 	public static void main(String[] args) throws Exception {
 //		HardCodedInterpDiffMapCreator.LOCAL_MAPGEN = true;
 		File mainOutputDir = new File("/home/kevin/markdown/cybershake-analysis/");
+		
+		boolean includeU2Faults = false;
+		Map<String, Location> cities = new HashMap<>();
 
 //		CyberShakeStudy[] studies = {
 //				CyberShakeStudy.STUDY_15_4,
@@ -75,6 +89,11 @@ public class MultiStudyHazardMapPageGen {
 				CyberShakeStudy.STUDY_18_8,
 				CyberShakeStudy.STUDY_24_8_LF,
 		};
+		
+		cities.put("San Francisco", NEHRP_TestCity.SAN_FRANCISCO.location());
+		cities.put("San Jose", NEHRP_TestCity.SAN_JOSE.location());
+		cities.put("Los Angeles", NEHRP_TestCity.LOS_ANGELES.location());
+		cities.put("Bakersfield", new Location(35.37, -119.02));
 		
 		boolean overlapUseLatest = true;
 		boolean plotOverlap = false;
@@ -312,7 +331,8 @@ public class MultiStudyHazardMapPageGen {
 					}
 				}
 				
-				plotCombinedMap(combinedRegion, basemapSpacing, combScatter, basemap, resourcesDir, durationLabel, imtLabel, imtPrefix, customMax, saveDPI);
+				plotCombinedMap(combinedRegion, basemapSpacing, combScatter, basemap, resourcesDir, durationLabel,
+						imtLabel, imtPrefix, customMax, saveDPI, includeU2Faults, cities);
 			}
 		}
 		
@@ -351,7 +371,8 @@ public class MultiStudyHazardMapPageGen {
 	}
 	
 	private static void plotCombinedMap(Region region, double spacing, GeoDataSet scatterData, GeoDataSet basemap,
-			File outputDir, String durationLabel, String imtLabel, String imtPrefix, Double customMax, int saveDPI)
+			File outputDir, String durationLabel, String imtLabel, String imtPrefix, Double customMax, int saveDPI,
+			boolean includeU2Faults, Map<String, Location> cities)
 					throws ClassNotFoundException, IOException, GMT_MapException {
 		boolean logPlot = false;
 		Double customMin = null;
@@ -378,6 +399,37 @@ public class MultiStudyHazardMapPageGen {
 		map.setXyzFileName("base_map.xyz");
 		map.setCustomScaleMin(customMin);
 		map.setCustomScaleMax(customMax);
+		
+		if (includeU2Faults) {
+			List<FaultSection> sects = FaultModels.FM2_1.getFaultSections();
+			for (FaultSection sect : sects) {
+				PSXYPolygon line = new PSXYPolygon(sect.getFaultTrace());
+				line.setFillColor(null);
+				line.setPenColor(Color.BLACK);
+				line.setPenWidth(1);
+				line.setLineType(PlotLineType.SOLID);
+				map.addPolys(line);
+			}
+		}
+		
+		for (String name : cities.keySet()) {
+			Location loc = cities.get(name);
+			// good for smaller maps
+//			double lonOffset = 0.02;
+//			double circleSize = 0.1;
+//			int fontSize = 18;
+			// good for smaller maps
+			double lonOffset = 0.05;
+			double circleSize = 0.06;
+			int fontSize = 15;
+			PSText text = new PSText(new Point2D.Double(loc.lon+lonOffset, loc.lat), Color.WHITE, fontSize, name, Justify.LEFT_BOTTOM);
+			map.addText(text);
+			PSXYSymbol symbol = new PSXYSymbol(new Point2D.Double(loc.lon, loc.lat), Symbol.CIRCLE, circleSize);
+			symbol.setFillColor(Color.WHITE);
+			symbol.setPenColor(Color.BLACK);
+			symbol.setPenWidth(0.4);
+			map.addSymbol(symbol);
+		}
 		
 		String metadata = label;
 		

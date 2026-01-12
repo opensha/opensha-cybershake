@@ -263,6 +263,7 @@ public class CyberShakeScenarioShakeMapGenerator {
 		}
 		
 		GMT_InterpolationSettings interpSettings = GMT_InterpolationSettings.getDefaultSettings();
+		interpSettings.setInterpolateOnly(noPlot); // if we're not plotting, we're only interpolating
 		InterpDiffMapType[] typesToPlot;
 		if (gmpe == null)
 			typesToPlot = new InterpDiffMapType[] { InterpDiffMapType.INTERP_MARKS, InterpDiffMapType.INTERP_NOMARKS };
@@ -300,9 +301,6 @@ public class CyberShakeScenarioShakeMapGenerator {
 			if (gmpeXYZsAtCS != null)
 				ArbDiscrGeoDataSet.writeXYZFile(gmpeXYZsAtCS[p], new File(outputDir, prefix+"_gmpe_amps_at_cs_sites.txt"));
 			
-			if (noPlot)
-				continue;
-			
 			double maxZ = csXYZs[p] == null ? 0d : csXYZs[p].getMaxZ();
 			if (gmpe != null)
 				maxZ = Math.max(maxZ, gmpeXYZs[p].getMaxZ());
@@ -322,6 +320,10 @@ public class CyberShakeScenarioShakeMapGenerator {
 				title += ", PGV (cm/s)";
 			
 			boolean interp = customIntensities != null || ims[p] != null;
+			
+			if (noPlot && (!downloadInterpolated || !interp))
+				continue;
+			
 			InterpDiffMapType[] myTypes;
 			if (interp) {
 				myTypes = typesToPlot;
@@ -370,18 +372,20 @@ public class CyberShakeScenarioShakeMapGenerator {
 			
 			System.out.println("Done, downloading");
 			
-			for (InterpDiffMapType type : myTypes) {
-				File pngFile = new File(outputDir, prefix+"_"+type.getPrefix()+".png");
-				if (LOCAL_MAPGEN) {
-					File inFile = new File(addr, type.getPrefix()+".150.png");
-					Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
-					Files.copy(inFile, pngFile);
-				} else {
-					FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
+			if (!noPlot) {
+				for (InterpDiffMapType type : myTypes) {
+					File pngFile = new File(outputDir, prefix+"_"+type.getPrefix()+".png");
+					if (LOCAL_MAPGEN) {
+						File inFile = new File(addr, type.getPrefix()+".150.png");
+						Preconditions.checkState(inFile.exists(), "In file doesn't exist: %s", inFile.getAbsolutePath());
+						Files.copy(inFile, pngFile);
+					} else {
+						FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
+					}
+//					if (!addr.endsWith("/"))
+//						addr += "/";
+//					FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
 				}
-//				if (!addr.endsWith("/"))
-//					addr += "/";
-//				FileUtils.downloadURL(addr+type.getPrefix()+".150.png", pngFile);
 			}
 			
 			if (numRandomFields > 0) {

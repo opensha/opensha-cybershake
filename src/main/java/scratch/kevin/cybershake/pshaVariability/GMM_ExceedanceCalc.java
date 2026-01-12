@@ -88,8 +88,12 @@ public class GMM_ExceedanceCalc {
 			List<RSQSimEvent> events, AttenRelRef gmmRef, ReturnPeriods[] rps, boolean randFields) throws IOException {
 		
 		SpatialVarCalc randFieldCalc = null;
-		if (randFields)
-			randFieldCalc = new SpatialVarCalc(new double[] {period}, sites);
+		if (randFields) {
+			List<Location> siteLocs = new ArrayList<>(sites.size());
+			for (Site site : sites)
+				siteLocs.add(site.getLocation());
+			randFieldCalc = new SpatialVarCalc(new double[] {period}, siteLocs);
+		}
 		
 		Random rng = new Random(sites.size()*events.size());
 		
@@ -219,8 +223,12 @@ public class GMM_ExceedanceCalc {
 		}
 		
 		SpatialVarCalc randFieldCalc = null;
-		if (randFields)
-			randFieldCalc = new SpatialVarCalc(new double[] {period}, sites);
+		if (randFields) {
+			List<Location> siteLocs = new ArrayList<>(sites.size());
+			for (Site site : sites)
+				siteLocs.add(site.getLocation());
+			randFieldCalc = new SpatialVarCalc(new double[] {period}, siteLocs);
+		}
 		
 		GMM_SimProv simProv = new GMM_SimProv(obsRups, gmmRef, period, sites, randFieldCalc, rng);
 		
@@ -326,8 +334,12 @@ public class GMM_ExceedanceCalc {
 		}
 		
 		SpatialVarCalc randFieldCalc = null;
-		if (randFields)
-			randFieldCalc = new SpatialVarCalc(new double[] {period}, sites);
+		if (randFields) {
+			List<Location> siteLocs = new ArrayList<>(sites.size());
+			for (Site site : sites)
+				siteLocs.add(site.getLocation());
+			randFieldCalc = new SpatialVarCalc(new double[] {period}, siteLocs);
+		}
 		
 		GMM_SimProv simProv = new GMM_SimProv(obsRups, gmmRef, period, sites, randFieldCalc, rng);
 		

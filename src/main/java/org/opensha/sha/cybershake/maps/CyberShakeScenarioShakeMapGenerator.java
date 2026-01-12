@@ -414,21 +414,24 @@ public class CyberShakeScenarioShakeMapGenerator {
 				interpXYZ = filtered;
 				
 				if (spCorrCalc == null) {
-					if (spatialCorrCache != null && SpatialVarCalc.isCached(spatialCorrCache, interpXYZ.size(), periods)) {
+					List<Location> siteLocs = new ArrayList<>(interpXYZ.size());
+					for (int i=0; i<interpXYZ.size(); i++)
+						siteLocs.add(interpXYZ.getLocation(i));
+					if (spatialCorrCache != null && SpatialVarCalc.isCached(spatialCorrCache, siteLocs, periods)) {
 						Stopwatch watch = Stopwatch.createStarted();
-						spCorrCalc = SpatialVarCalc.loadCache(spatialCorrCache, periods, interpXYZ.size());
+						spCorrCalc = SpatialVarCalc.loadCache(spatialCorrCache, periods, siteLocs);
 						watch.stop();
 						double secs = watch.elapsed(TimeUnit.MILLISECONDS)/1000d;
 						System.out.println("Took "+(float)secs+" s to load spatial correlation cache");
 					} else {
 						System.out.println("Initializing spatial correlation calculator for "+interpXYZ.size()+" sites. "
 								+ "This can take a long time for high resolution maps, speed things up by setting "
-								+ "a coarse grid spacing via --spacing <spacing>");
+								+ "a coarse grid spacing via --spacing <spacing>, or cache these values with --spatial-corr-cache <cache-dir>");
 						List<Site> sites = new ArrayList<>();
 						for (int i=0; i<interpXYZ.size(); i++)
 							sites.add(new Site(interpXYZ.getLocation(i)));
 						Stopwatch watch = Stopwatch.createStarted();
-						spCorrCalc = new SpatialVarCalc(periods, sites);
+						spCorrCalc = new SpatialVarCalc(periods, siteLocs);
 						watch.stop();
 						double secs = watch.elapsed(TimeUnit.MILLISECONDS)/1000d;
 						System.out.println("Took "+(float)secs+" to initialize spatial correlation matrices");
@@ -522,22 +525,24 @@ public class CyberShakeScenarioShakeMapGenerator {
 					System.out.println("Writing mean random field to "+randShakeMapFile.getAbsolutePath());
 					ArbDiscrGeoDataSet.writeXYZFile(avgData, randShakeMapFile);
 					
-					map.setGriddedData(avgData);
-					map.setScatter(null);
-					map.setCustomLabel(title+", Random Mean");
-					
-					InterpDiffMapType[] randTypes = { InterpDiffMapType.BASEMAP };
-					map.setMapTypes(randTypes);
-					
-					System.out.println("Making map...");
-					String addr2 = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
-					
-					System.out.println("Done, downloading");
-					
-					File pngFile = new File(outputDir, prefix+"_rand_mean.png");
-					if (!addr2.endsWith("/"))
-						addr2 += "/";
-					FileUtils.downloadURL(addr2+InterpDiffMapType.BASEMAP.getPrefix()+".150.png", pngFile);
+					if (!noPlot) {
+						map.setGriddedData(avgData);
+						map.setScatter(null);
+						map.setCustomLabel(title+", Random Mean");
+						
+						InterpDiffMapType[] randTypes = { InterpDiffMapType.BASEMAP };
+						map.setMapTypes(randTypes);
+						
+						System.out.println("Making map...");
+						String addr2 = CS_InterpDiffMapServletAccessor.makeMap(null, map, metadata);
+						
+						System.out.println("Done, downloading");
+						
+						File pngFile = new File(outputDir, prefix+"_rand_mean.png");
+						if (!addr2.endsWith("/"))
+							addr2 += "/";
+						FileUtils.downloadURL(addr2+InterpDiffMapType.BASEMAP.getPrefix()+".150.png", pngFile);
+					}
 					
 					StandardDeviation stdDev = new StandardDeviation();
 					for (int n=0; n<numRandomFields; n++)
@@ -927,11 +932,11 @@ public class CyberShakeScenarioShakeMapGenerator {
 		spatCorrDebugOp.setRequired(false);
 		ops.addOption(spatCorrDebugOp);
 		
-		// this option isn't really useful, takes longer to write/read cache than create it
-//		Option spatCorrCacheOp = new Option("scc", "spatial-corr-cache", true,
-//				"Cache directory for spatial correlation matrices");
-//		spatCorrCacheOp.setRequired(false);
-//		ops.addOption(spatCorrCacheOp);
+		// is this option really useful? it can take longer to write/read the cache than create it
+		Option spatCorrCacheOp = new Option("scc", "spatial-corr-cache", true,
+				"Cache directory for spatial correlation matrices");
+		spatCorrCacheOp.setRequired(false);
+		ops.addOption(spatCorrCacheOp);
 		
 		Option downloadInterpolated = new Option("dli", "download-interpolated", false,
 				"Flag to download interpolated map data (will save to *_interp.txt)");

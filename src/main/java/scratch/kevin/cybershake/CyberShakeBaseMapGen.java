@@ -28,6 +28,7 @@ import org.opensha.commons.hpc.JavaShellScriptWriter;
 import org.opensha.commons.hpc.mpj.FastMPJShellScriptWriter;
 import org.opensha.commons.hpc.mpj.MPJExpressShellScriptWriter;
 import org.opensha.commons.hpc.pbs.USC_CARC_ScriptWriter;
+import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.ClassUtils;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.XMLUtils;
@@ -49,6 +50,7 @@ import org.opensha.sha.gui.infoTools.IMT_Info;
 import org.opensha.sha.imr.AttenRelRef;
 import org.opensha.sha.imr.ScalarIMR;
 import org.opensha.sha.imr.param.IntensityMeasureParams.PGA_Param;
+import org.opensha.sha.imr.param.IntensityMeasureParams.PGV_Param;
 import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 import org.opensha.sha.imr.param.OtherParams.SigmaTruncLevelParam;
 import org.opensha.sha.imr.param.OtherParams.SigmaTruncTypeParam;
@@ -128,9 +130,17 @@ public class CyberShakeBaseMapGen {
 			if (period > 0) {
 				imr.setIntensityMeasure(SA_Param.NAME);
 				SA_Param.setPeriodInSA_Param(imr.getIntensityMeasure(), period);
-			} else {
+			} else if (period == 0d) {
 				imr.setIntensityMeasure(PGA_Param.NAME);
+			} else if (period == -1d) {
+				imr.setIntensityMeasure(PGV_Param.NAME);
+			} else {
+				throw new IllegalStateException("Unexpected period: "+period);
 			}
+			System.out.println(imr.getShortName()+": "+imr.getAllParamMetadata());
+			Parameter im = imr.getIntensityMeasure();
+			System.out.println("\t"+im.getMetadataString());
+			System.out.println("\t"+im.getDependentParamMetadataString());
 			imrs.add(imr);
 		}
 		
@@ -211,6 +221,8 @@ public class CyberShakeBaseMapGen {
 		IMT_Info imtInfo = new IMT_Info();
 		if (period == 0d) {
 			xValues = imtInfo.getDefaultHazardCurve(PGA_Param.NAME);
+		} else if (period == 1d) {
+			xValues = imtInfo.getDefaultHazardCurve(PGV_Param.NAME);
 		} else {
 			xValues = imtInfo.getDefaultHazardCurve(SA_Param.NAME);
 		}

@@ -221,9 +221,10 @@ public class CyberShakeBaseMapGen {
 		IMT_Info imtInfo = new IMT_Info();
 		if (period == 0d) {
 			xValues = imtInfo.getDefaultHazardCurve(PGA_Param.NAME);
-		} else if (period == 1d) {
+		} else if (period == -1d) {
 			xValues = imtInfo.getDefaultHazardCurve(PGV_Param.NAME);
 		} else {
+			Preconditions.checkState(period > 0d);
 			xValues = imtInfo.getDefaultHazardCurve(SA_Param.NAME);
 		}
 		double maxSourceDistance = 200;

@@ -29,7 +29,6 @@ import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculatorAPI;
 import org.opensha.sha.calc.hazardMap.HazardCurveSetCalculator;
-import org.opensha.sha.calc.params.MaxDistanceParam;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
@@ -415,7 +414,7 @@ public class DisaggregationPlotter {
 							String gmpeMeanModeText = gmpeMeanModeHeader+disaggCalc.getMeanAndModeInfo();
 							String gmpeMetadataText = HazardCurvePlotter.getCurveParametersInfoAsString(
 									attenRel, erf, site,
-									disaggParams.getParameter(Double.class, MaxDistanceParam.NAME).getValue());
+									gmpeCurveCalc.getSourceFilterManager().getMaxDistance());
 							String gmpeBinDataText = disaggCalc.getBinData();
 							String gmpeSourceDataText = disaggCalc.getDisaggregationSourceInfo();
 							

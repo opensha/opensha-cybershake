@@ -1459,7 +1459,7 @@ public enum CyberShakeStudy {
 			table.initNewLine();
 			
 			table.addColumn(dateFormat.format(study.date.getTime()));
-			table.addColumn("["+study.getName()+"]("+study.getDirName()+"#"+MarkdownUtils.getAnchorName(study.getName())+")");
+			table.addColumn("["+study.getName()+"]("+study.getDirName()+"/#"+MarkdownUtils.getAnchorName(study.getName())+")");
 			table.addColumn(study.getDescription());
 			
 			table.finalizeLine();

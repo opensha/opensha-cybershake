@@ -20,6 +20,7 @@ import org.opensha.commons.util.DataUtils.MinMaxAveTracker;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.sha.calc.hazardMap.BinaryHazardCurveReader;
 import org.opensha.sha.calc.hazardMap.HazardDataSetLoader;
+import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.AttenRelCurves2DB;
 import org.opensha.sha.cybershake.db.AttenRelDataSets2DB;
 import org.opensha.sha.cybershake.db.AttenRels2DB;
@@ -161,23 +162,35 @@ public class ARCurveInserter {
 //		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-3sec"; double period = 3d;
 //		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-5sec"; double period = 5d;
 //		String dirName = "2023_03_28-cvm4i26_m01_taper-cs-nga2-10sec"; double period = 10d;
+		
 		List<File> dirs = new ArrayList<>();
 		List<Double> periods = new ArrayList<>();
-		String prefix = "2024_10_30-study_24_8-cs-nga2";
-		DecimalFormat oDF = new DecimalFormat("0.###");
-		for (double period : new double[] { 0.1, 0.2, 0.5, 1, 2, 3, 5, 10 }) {
-			String perStr = oDF.format(period).replace('.', 'p');
-			String dirName = prefix+"-"+perStr+"sec";
-			System.out.println("Period "+(float)period+" -> "+dirName);
-			File dir = new File(baseDir, dirName);
-			Preconditions.checkState(dir.exists(), "Directory doesn't exist: %s", dir.getAbsolutePath());
-			
-			dirs.add(dir);
-			periods.add(period);
-		}
-
+		CyberShakeStudy study;
 		Calendar cal = GregorianCalendar.getInstance();
-		cal.set(2024, 9, 30); // month is 0-based, 3=April
+		
+//		study = CyberShakeStudy.STUDY_24_8_BB;
+//		String prefix = "2024_10_30-study_24_8-cs-nga2";
+//		DecimalFormat oDF = new DecimalFormat("0.###");
+//		for (double period : new double[] { 0.1, 0.2, 0.5, 1, 2, 3, 5, 10 }) {
+//			String perStr = oDF.format(period).replace('.', 'p');
+//			String dirName = prefix+"-"+perStr+"sec";
+//			System.out.println("Period "+(float)period+" -> "+dirName);
+//			File dir = new File(baseDir, dirName);
+//			Preconditions.checkState(dir.exists(), "Directory doesn't exist: %s", dir.getAbsolutePath());
+//			
+//			dirs.add(dir);
+//			periods.add(period);
+//		}
+		
+		study = CyberShakeStudy.STUDY_24_8_BB;
+		dirs.add(new File(baseDir, "2026_01_20-study_24_8-cs-nga2-pgv"));
+		periods.add(-1d);
+		cal.set(2026, 0, 20); // month is 0-based, 3=April
+		
+//		study = CyberShakeStudy.STUDY_22_12_HF;
+//		dirs.add(new File(baseDir, "2026_01_20-study_22_12-cs-nga2-pgv"));
+//		periods.add(-1d);
+//		cal.set(2026, 0, 20); // month is 0-based, 3=April
 		
 		// UPDATE ERF ID and VM ID !!!!!!!
 		boolean deleteOld = true;
@@ -192,17 +205,19 @@ public class ARCurveInserter {
 		imr.setParamDefaults();
 		setTruncation(imr, 3d);
 		/*		UPDATE THESE		*/
-//		int erfID = 36;
-//		int erfID = 63;
-		int erfID = 64;
-		int velModelID = CybershakeVelocityModel.Models.STUDY_24_8.instance().getID();
+		int erfID = study.getERF_ID();
+		int velModelID = study.getVelocityModelID();
+		System.out.println("Study: "+study);
+		System.out.println("\tERF is "+erfID+", VM is "+velModelID);
 		CyberShakeComponent component = CyberShakeComponent.RotD50;
 //		int velModelID = -1; // Vs30 only
 		/*		END UPDATE THESE	*/
 		int probModelID = 1;
 		int timeSpanID = 1;
 //		String dbHostName = Cybershake_OpenSHA_DBApplication.PRODUCTION_HOST_NAME;
-		String dbHostName = "localhost";
+//		String dbHostName = "localhost";
+		String dbHostName = study.getDBHost();
+		System.out.println("\tDB host: "+dbHostName);
 		Date calcDate = cal.getTime();
 		Date timeSpanDate = null;
 		// for small insert tests
@@ -238,7 +253,18 @@ public class ARCurveInserter {
 				System.out.println("Curve file: "+curveFile.getAbsolutePath());
 				Preconditions.checkState(curveFile.exists(), "Curve file doesn't exist: %s", curveFile.getAbsolutePath());
 				
-				int imTypeID = CybershakeIM.getSA(component, period).getID();
+				CybershakeIM im;
+				if (period == 0d) {
+					im = CybershakeIM.PGA;
+					Preconditions.checkState(im.getComponent() == component);
+				} else if (period == -1d) {
+					im = CybershakeIM.PGV;
+					Preconditions.checkState(im.getComponent() == component);
+				} else {
+					Preconditions.checkState(period > 0d);
+					im = CybershakeIM.getSA(component, period);
+				}
+				int imTypeID = im.getID();
 				
 				// load the curves
 				Map<Location, ArbitrarilyDiscretizedFunc> curves = loadCurves(curveFile);

@@ -116,10 +116,10 @@ public class StudyHazardMapPageGen {
 //				new CVM4i26_M01_TaperBasinDepth(SiteData.TYPE_DEPTH_TO_2_5) };
 //		Region zoomRegion = null;
 		
-//		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_LF;
-//		double[] periods = { 2d, 3d, 5d, 10d };
-		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_BB;
-		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
+		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_LF;
+		double[] periods = { -1d, 2d, 3d, 5d, 10d };
+//		CyberShakeStudy study = CyberShakeStudy.STUDY_24_8_BB;
+//		double[] periods = { 0.1, 0.2, 0.5, 1d, 2d, 3d, 5d, 10d };
 		
 //		compStudy = CyberShakeStudy.STUDY_18_8;
 		
@@ -395,10 +395,27 @@ public class StudyHazardMapPageGen {
 				}
 				for (double period : periods) {
 					for (CyberShakeComponent component : components) {
-						CybershakeIM im = CybershakeIM.getSA(component, period);
-						
-						String periodLabel = optionalDigitDF.format(period)+"sec SA, "+component.getShortName();
-						String periodFileLabel = optionalDigitDF.format(period)+"s_"+component.getShortName();
+						CybershakeIM im;
+						String periodLabel, periodFileLabel;
+						if (period == 0d) {
+							im = CybershakeIM.PGA;
+							Preconditions.checkState(im.getComponent() == component);
+							
+							periodLabel = "PGA, "+component.getShortName();
+							periodFileLabel = "pga_"+component.getShortName();
+						} else if (period == -1d) {
+							im = CybershakeIM.PGV;
+							Preconditions.checkState(im.getComponent() == component);
+							
+							periodLabel = "PGV, "+component.getShortName();
+							periodFileLabel = "pgv_"+component.getShortName();
+						} else {
+							Preconditions.checkState(period > 0d);
+							im = CybershakeIM.getSA(component, period);
+							
+							periodLabel = optionalDigitDF.format(period)+"sec SA, "+component.getShortName();
+							periodFileLabel = optionalDigitDF.format(period)+"s_"+component.getShortName();
+						}
 						
 						if (probLevels.size() > 1)
 							lines.add(heading+" "+periodLabel);

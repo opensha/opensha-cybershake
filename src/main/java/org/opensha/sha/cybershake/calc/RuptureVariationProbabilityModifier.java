@@ -31,7 +31,7 @@ public interface RuptureVariationProbabilityModifier {
 	 * @param rupID
 	 * @param originalProb original total rupture probability
 	 * @param run
-	 * @param im
+	 * @param im intensity measure
 	 * @return
 	 */
 	public List<Double> getVariationProbs(int sourceID, int rupID, double originalProb,

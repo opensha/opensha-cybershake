@@ -241,10 +241,16 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 							+region+interpSettings.getConvergenceArg()+" "+interpSettings.getSearchArg()
 							+" "+interpSettings.getTensionArg()+" -: -h0 2>/dev/null";
 			gmtCommandLines.add(commandLine);
-			if (interpSettings.isSaveInterpSurface()) {
+			if (interpSettings.isSaveInterpSurface() || interpSettings.isInterpolateOnly()) {
 				gmtCommandLines.add("# write interpolated XYZ file");
 				commandLine = "${GMT_PATH}grd2xyz -fg "+ interpUnsampledGRD+ " > "+GMT_InterpolationSettings.INTERP_XYZ_FILE_NAME;
 				gmtCommandLines.add(commandLine);
+			}
+			if (interpSettings.isInterpolateOnly()) {
+				GMT_MapGenerator.addCleanup(gmtCommandLines, rmFiles);
+				
+				System.out.println("DONE generating interpolate-only map script for dir: " + dir);
+				return gmtCommandLines;
 			}
 			// resample the interpolation
 			

@@ -1,0 +1,18 @@
+#Experiment 2:
+#	Only use events which occur on all of the North San Bernardino (NSB) and South Mojave (SM) segments.
+#	For these ruptures, place 90% of the probability on the southern 20% of ruptures, by increasing their probability by 350%. The other 80% of ruptures will have their probability decreased by 87.5% to make up the difference.
+#Format is:
+#source: ruptures (commas, ranges)
+#Either 'N', 'C', or 'S' for north, center, south: percentage of hypocenters which fit here
+#Increase prob by this much
+#Region to decrease probability to make up difference
+#NSB, SM segments
+91:0-5
+S:20
+350%
+N:80
+#Floating on these 2 segments
+128:852-854,938-945,1022-1029
+S:20
+350%
+N:80

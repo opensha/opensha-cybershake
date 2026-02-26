@@ -289,11 +289,9 @@ public class ObsExceedProbCalculator implements ParameterChangeWarningListener{
   private void setSiteParamsInIMR(ScalarIMR attenRel,
                                   String willsClass, double basinDepth) {
 
-    Iterator it = attenRel.getSiteParamsIterator(); // get site params for this IMR
     SiteTranslator siteTranslator = new SiteTranslator();
     Site site = new Site(loc);
-    while(it.hasNext()) {
-      Parameter tempParam = (Parameter)it.next();
+    for (Parameter<?> tempParam : attenRel.getSiteParams()) {
       site.addParameter(tempParam);
       //adding the site Params from the CVM, if site is out the range of CVM then it
       //sets the site with whatever site Parameter Value user has choosen in the application

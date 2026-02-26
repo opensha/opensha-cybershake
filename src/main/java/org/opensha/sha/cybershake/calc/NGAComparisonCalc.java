@@ -173,9 +173,7 @@ public class NGAComparisonCalc {
 			
 			// add site parameters from the IMR to the site. we will set them in the next step
 			for (ScalarIMR imr : imrs) {
-				Iterator<Parameter<?>> it = imr.getSiteParamsIterator();
-				while (it.hasNext()) {
-					Parameter<?> param = it.next();
+				for (Parameter<?> param : imr.getSiteParams()) {
 					if (!site.containsParameter(param))
 						site.addParameter((Parameter)param.clone());
 				}

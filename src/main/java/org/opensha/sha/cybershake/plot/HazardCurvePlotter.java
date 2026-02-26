@@ -196,7 +196,7 @@ public class HazardCurvePlotter implements RuptureVariationProbabilityModifier {
 	}
 	
 	private void init() {
-		PlotPreferences plotPrefs = PlotPreferences.getDefault();
+		PlotPreferences plotPrefs = PlotPreferences.getDefaultScreenFigurePrefs();
 		plotPrefs.setAxisLabelFontSize(12);
 		plotPrefs.setTickLabelFontSize(12);
 		plotPrefs.setPlotLabelFontSize(14);

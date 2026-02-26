@@ -136,7 +136,7 @@ public class ZFilePlot {
 			chars.add(new PlotCurveCharacterstics(PlotLineType.DASHED, 2f, Color.GRAY));
 			
 			PlotSpec spec = new PlotSpec(funcs, chars, "Basin Depth Scatter Comparison", compareLabel, label);
-			PlotPreferences plotPrefs = PlotPreferences.getDefault();
+			PlotPreferences plotPrefs = PlotPreferences.getDefaultScreenFigurePrefs();
 			plotPrefs.setTickLabelFontSize(18);
 			plotPrefs.setAxisLabelFontSize(20);
 			plotPrefs.setPlotLabelFontSize(21);

@@ -346,7 +346,7 @@ public abstract class WindowedFractionalExceedanceCalculator<E> {
 		PlotSpec spec = new PlotSpec(funcs, chars, title, "Fraction of Sites Exceeding Map Value", "Fraction");
 		spec.setLegendInset(true);
 		
-		HeadlessGraphPanel gp = PlotUtils.initHeadless();
+		HeadlessGraphPanel gp = PlotUtils.initScreenHeadless();
 		gp.getPlotPrefs().scaleFontSizes(1.4);
 		
 		gp.drawGraphPanel(spec, logX, false, xRange, new Range(0d, maxY));
@@ -457,7 +457,7 @@ public abstract class WindowedFractionalExceedanceCalculator<E> {
 			
 			String rpPrefix = prefix+"_"+rps[r].name();
 			
-			HeadlessGraphPanel gp = PlotUtils.initHeadless();
+			HeadlessGraphPanel gp = PlotUtils.initScreenHeadless();
 			gp.getPlotPrefs().scaleFontSizes(1.4);
 			
 			gp.setRenderingOrder(DatasetRenderingOrder.REVERSE);

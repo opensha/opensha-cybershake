@@ -1406,7 +1406,7 @@ public enum CyberShakeStudy {
 		else
 			yRange = AbstractPlot.calcEncompassingLog10Range(minY, maxY);
 		
-		PlotPreferences plotPrefs = PlotPreferences.getDefault();
+		PlotPreferences plotPrefs = PlotPreferences.getDefaultScreenFigurePrefs();
 		plotPrefs.setTickLabelFontSize(20);
 		plotPrefs.setAxisLabelFontSize(22);
 		plotPrefs.setPlotLabelFontSize(24);

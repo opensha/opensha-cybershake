@@ -53,7 +53,7 @@ public class ComparisonCurvePlotter {
             Color.ORANGE, Color.CYAN, Color.PINK, new Color(139, 69, 19)); // brown
 
     public ComparisonCurvePlotter() {
-        PlotPreferences plotPrefs = PlotPreferences.getDefault();
+        PlotPreferences plotPrefs = PlotPreferences.getDefaultScreenFigurePrefs();
         plotPrefs.setAxisLabelFontSize(18);
         plotPrefs.setTickLabelFontSize(18);
         plotPrefs.setPlotLabelFontSize(20);

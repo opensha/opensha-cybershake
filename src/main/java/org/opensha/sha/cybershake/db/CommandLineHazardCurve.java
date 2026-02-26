@@ -92,10 +92,7 @@ public class CommandLineHazardCurve implements ParameterChangeWarningListener {
 		setSiteParamsInIMR();
 		Site site = new Site(new Location(siteCoords[0], siteCoords[1]), siteName);
 
-		Iterator it = imr.getSiteParamsIterator();
-		while(it.hasNext())  {
-			site.addParameter((Parameter)it.next());
-		}
+		site.addParameterList(imr.getSiteParams());
 
 		//log the IML valuesbefore passing to HazardCurveCalculator
 		DiscretizedFunc logIML_Func = new ArbitrarilyDiscretizedFunc();
@@ -146,9 +143,7 @@ public class CommandLineHazardCurve implements ParameterChangeWarningListener {
 			return;
 		}
 
-		Iterator it = imr.getSiteParamsIterator(); // get site params for this IMR
-		while(it.hasNext()) {
-			Parameter tempParam = (Parameter)it.next();
+		for (Parameter<?> tempParam : imr.getSiteParams()) {
 			System.out.println("Param:"+tempParam.getName());
 			//adding the site Params from the CVM, if site is out the range of CVM then it
 			//sets the site with whatever site Parameter Value user has choosen in the application

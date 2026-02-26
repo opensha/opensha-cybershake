@@ -378,7 +378,7 @@ public class Study3Dvs1DCompare {
 	private File[][] plotScatters(File resourcesDir, String prefix, List<Site> sites, double[] periods,
 			Table<Site, CSRupture, AmpComparison> comps) throws IOException {
 		
-		PlotPreferences plotPrefs = PlotPreferences.getDefault();
+		PlotPreferences plotPrefs = PlotPreferences.getDefaultScreenFigurePrefs();
 		plotPrefs.setTickLabelFontSize(18);
 		plotPrefs.setAxisLabelFontSize(24);
 		plotPrefs.setPlotLabelFontSize(24);
@@ -598,7 +598,7 @@ public class Study3Dvs1DCompare {
 		Preconditions.checkState(maxGain > 0, "Bad max gain: %s", maxGain);
 		CPT gainCPT = GMT_CPT_Files.GMT_POLAR.instance().rescale(-maxGain, maxGain);
 		
-		PlotPreferences plotPrefs = PlotPreferences.getDefault();
+		PlotPreferences plotPrefs = PlotPreferences.getDefaultScreenFigurePrefs();
 		plotPrefs.setTickLabelFontSize(18);
 		plotPrefs.setAxisLabelFontSize(24);
 		plotPrefs.setPlotLabelFontSize(24);

@@ -86,7 +86,7 @@ public class DDW_Corr_BiasPlots {
 		PlotSpec spec = new PlotSpec(funcs, chars, "CyberShake DDW Correction BugFix", "Magnitude", "DDW Correction Factor");
 		spec.setLegendInset(RectangleAnchor.TOP_LEFT);
 		
-		HeadlessGraphPanel gp = PlotUtils.initHeadless();
+		HeadlessGraphPanel gp = PlotUtils.initScreenHeadless();
 		
 		gp.drawGraphPanel(spec, false, false, xRange, yRange);
 		

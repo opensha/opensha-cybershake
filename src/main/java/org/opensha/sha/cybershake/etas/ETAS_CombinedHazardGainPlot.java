@@ -103,7 +103,7 @@ public class ETAS_CombinedHazardGainPlot {
 		spec.setPlotAnnotations(anns);
 		spec.setLegendVisible(true);
 		
-		HeadlessGraphPanel gp = PlotUtils.initHeadless();
+		HeadlessGraphPanel gp = PlotUtils.initScreenHeadless();
 		gp.drawGraphPanel(spec, true, true, xRange, yRange);
 		PlotUtils.writePlots(outputDir, prefix, gp, 1000, 850, true, true, true);
 		
@@ -170,7 +170,7 @@ public class ETAS_CombinedHazardGainPlot {
 				spec = new PlotSpec(funcs, chars, " ", "5s SA", "One Week Probability of Exceedance");
 				spec.setLegendInset(true);
 				
-				gp = PlotUtils.initHeadless();
+				gp = PlotUtils.initScreenHeadless();
 				gp.setLegendFontSize(22);
 				gp.drawGraphPanel(spec, true, true, xRange, yRange);
 				PlotUtils.writePlots(outputDir, prefix, gp, 1000, 850, true, true, true);

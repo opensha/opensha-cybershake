@@ -76,7 +76,7 @@ public class CheckboardPlot {
 		
 		DecimalFormat oDF = new DecimalFormat("0.##");
 		
-		HeadlessGraphPanel gp = PlotUtils.initHeadless();
+		HeadlessGraphPanel gp = PlotUtils.initScreenHeadless();
 		
 		gp.getPlotPrefs().setPlotLabelFontSize(36);
 		gp.getPlotPrefs().setAxisLabelFontSize(28);

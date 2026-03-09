@@ -1119,7 +1119,7 @@ public class ETAS_ScenarioPageGen {
 		spec.setLegendVisible(false);
 		spec.setLegendInset(true);
 		
-		PlotPreferences plotPrefs = PlotPreferences.getDefault();
+		PlotPreferences plotPrefs = PlotPreferences.getDefaultScreenFigurePrefs();
 		plotPrefs.setTickLabelFontSize(18);
 		plotPrefs.setAxisLabelFontSize(20);
 		plotPrefs.setPlotLabelFontSize(21);
@@ -1676,7 +1676,7 @@ public class ETAS_ScenarioPageGen {
 			PlotSpec spec = new PlotSpec(funcs, chars, title, xAxisLabel, "Conditional Probability");
 			spec.setLegendVisible(true);
 			
-			HeadlessGraphPanel gp = PlotUtils.initHeadless();
+			HeadlessGraphPanel gp = PlotUtils.initScreenHeadless();
 			
 			Range xRange = new Range(minX, maxX);
 			Range yRange = new Range(0d, 1d);

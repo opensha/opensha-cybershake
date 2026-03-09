@@ -35,7 +35,7 @@ public class AttenRelSaver extends XMLSaver implements IMR_GuiBeanAPI {
 		super();
 		bean = createIMR_GUI_Bean();
 		ScalarIMR imr = bean.getSelectedIMR_Instance();
-		imtBean = new IMT_GuiBean(imr, imr.getSupportedIntensityMeasuresIterator());
+		imtBean = new IMT_GuiBean(imr, imr.getSupportedIntensityMeasures().iterator());
 		super.init();
 	}
 	

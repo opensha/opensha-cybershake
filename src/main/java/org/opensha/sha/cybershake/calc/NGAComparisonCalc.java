@@ -173,9 +173,7 @@ public class NGAComparisonCalc {
 			
 			// add site parameters from the IMR to the site. we will set them in the next step
 			for (ScalarIMR imr : imrs) {
-				Iterator<Parameter<?>> it = imr.getSiteParamsIterator();
-				while (it.hasNext()) {
-					Parameter<?> param = it.next();
+				for (Parameter<?> param : imr.getSiteParams()) {
 					if (!site.containsParameter(param))
 						site.addParameter((Parameter)param.clone());
 				}
@@ -224,7 +222,7 @@ public class NGAComparisonCalc {
 			siteSpecificHeader.add(it.next().getName());
 		
 		ArrayList<String> rupSpecificHeader = Lists.newArrayList("Source ID", "Rup ID",
-				"DistanceJB", "DistanceRup", "DistanceSeis", "DistanceX");
+				"DistanceJB", "DistanceRup", "DistanceX");
 		for (ScalarIMR imr : imrs) {
 			rupSpecificHeader.add("mean ("+imr.getShortName()+")");
 			rupSpecificHeader.add("std. dev. ("+imr.getShortName()+")");
@@ -320,7 +318,6 @@ public class NGAComparisonCalc {
 		
 		line.add(rup.getRuptureSurface().getDistanceJB(site.getLocation())+"");
 		line.add(rup.getRuptureSurface().getDistanceRup(site.getLocation())+"");
-		line.add(rup.getRuptureSurface().getDistanceSeis(site.getLocation())+"");
 		line.add(rup.getRuptureSurface().getDistanceX(site.getLocation())+"");
 		
 		for (ScalarIMR imr : imrs) {

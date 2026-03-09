@@ -351,7 +351,7 @@ public class RunAmpCompare {
 			
 			PlotSpec spec = new PlotSpec(funcs, chars, title, "Ln "+runID1+" "+imtName, "Ln "+runID2+" "+imtName);
 			
-			HeadlessGraphPanel gp = PlotUtils.initHeadless();
+			HeadlessGraphPanel gp = PlotUtils.initScreenHeadless();
 			
 			gp.drawGraphPanel(spec, false, false, range, range);
 			

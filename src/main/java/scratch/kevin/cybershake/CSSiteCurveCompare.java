@@ -93,7 +93,7 @@ public class CSSiteCurveCompare {
 					xRange = new Range(0, 1d);
 			}
 			
-			HeadlessGraphPanel gp = PlotUtils.initHeadless();
+			HeadlessGraphPanel gp = PlotUtils.initScreenHeadless();
 			
 			gp.drawGraphPanel(spec, logX, logY, xRange, yRange);
 			

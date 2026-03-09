@@ -78,4 +78,10 @@ public class CyberShakeEvenlyGriddedSurface extends AbstractEvenlyGriddedSurface
 		return new CyberShakeEvenlyGriddedSurface(numRows, numCols, gridSpacingAlong);
 	}
 
+	@Override
+	public double getAveRupBottomDepth() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
 }

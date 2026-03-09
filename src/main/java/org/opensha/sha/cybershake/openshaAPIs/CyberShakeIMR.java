@@ -27,6 +27,7 @@ import org.opensha.sha.cybershake.db.DBAccess;
 import org.opensha.sha.cybershake.db.HazardCurve2DB;
 import org.opensha.sha.cybershake.db.PeakAmplitudesFromDB;
 import org.opensha.sha.earthquake.EqkRupture;
+import org.opensha.sha.faultSurface.cache.SurfaceDistances;
 import org.opensha.sha.imr.AttenuationRelationship;
 import org.opensha.sha.imr.param.IntensityMeasureParams.DampingParam;
 import org.opensha.sha.imr.param.IntensityMeasureParams.PeriodParam;
@@ -604,4 +605,9 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 	// Methods required by abstract parent, but not needed here
 	protected void initEqkRuptureParams() {}
 	protected void initSiteParams() {}
+
+	@Override
+	public void setPropagationEffectParams(SurfaceDistances distances) {
+		throw new IllegalStateException();
+	}
 }

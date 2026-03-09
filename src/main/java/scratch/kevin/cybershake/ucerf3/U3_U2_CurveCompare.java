@@ -173,7 +173,7 @@ public class U3_U2_CurveCompare {
 							(float)period+"s SA", "Annual Probability");
 					spec.setLegendVisible(true);
 					
-					PlotPreferences plotPrefs = PlotPreferences.getDefault();
+					PlotPreferences plotPrefs = PlotPreferences.getDefaultScreenFigurePrefs();
 					plotPrefs.setTickLabelFontSize(18);
 					plotPrefs.setAxisLabelFontSize(20);
 					plotPrefs.setPlotLabelFontSize(21);

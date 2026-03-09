@@ -138,7 +138,7 @@ public class RotD_CSV_Compare {
 		
 		PlotSpec spec = new PlotSpec(funcs, chars, title, "Ln "+origName+" "+imtName, "Ln "+newName+" "+imtName);
 		
-		HeadlessGraphPanel gp = PlotUtils.initHeadless();
+		HeadlessGraphPanel gp = PlotUtils.initScreenHeadless();
 		
 		gp.drawGraphPanel(spec, false, false, range, range);
 		

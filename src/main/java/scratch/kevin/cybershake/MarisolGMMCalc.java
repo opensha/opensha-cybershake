@@ -100,7 +100,7 @@ public class MarisolGMMCalc {
 			if (surfs.size() == 1)
 				surf = surfs.get(0);
 			else
-				surf = new CompoundSurface(surfs);
+				surf = CompoundSurface.get(surfs);
 			EqkRupture rup = new EqkRupture(src.getMag(), src.getFocalMechanism().getRake(), surf, src.getHypoLoc());
 			gmm.setEqkRupture(rup);
 			

@@ -49,7 +49,7 @@ public class MultiFaultGMPE_Compare {
 		for (BBP_SourceFile segment : segments)
 			segSurfaces.add(segment.getSurface().getQuadSurface());
 		
-		CompoundSurface fullSurf = new CompoundSurface(segSurfaces);
+		CompoundSurface fullSurf = CompoundSurface.get(segSurfaces);
 		EqkRupture rup = new EqkRupture(mag, rake, fullSurf, null);
 		
 		for (ScalarIMR gmpe : gmpes) {

@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.opensha.commons.data.Site;
 import org.opensha.commons.data.siteData.CachedSiteDataWrapper;
 import org.opensha.commons.data.siteData.OrderedSiteDataProviderList;
 import org.opensha.commons.data.siteData.SiteData;
@@ -19,15 +18,12 @@ import org.opensha.commons.data.siteData.impl.CVMHBasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
 import org.opensha.commons.data.siteData.impl.ConstantValueDataProvider;
 import org.opensha.commons.data.siteData.impl.ThompsonVs30_2020;
-import org.opensha.commons.data.siteData.impl.USGSBayAreaBasinDepth;
 import org.opensha.commons.data.siteData.impl.USGS_SFBay_BasinDepth_v21p1;
 import org.opensha.commons.data.siteData.impl.WaldAllenGlobalVs30;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationList;
-import org.opensha.commons.param.Parameter;
 import org.opensha.commons.util.ExceptionUtils;
-import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.mcer.CyberShakeSiteRun;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CybershakeRun;
@@ -426,17 +422,30 @@ public class CyberShakeSiteBuilder {
 					ExceptionUtils.throwAsRuntimeException(e);
 				}
 			} else if (velModelID == CybershakeVelocityModel.Models.STUDY_24_8.getID()) {
-				/*		Study 24.8									 */
-				try {
-					providers.add(new CachedSiteDataWrapper<Double>(new CS_Study24_8_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
-				} catch (IOException e) {
-					ExceptionUtils.throwAsRuntimeException(e);
-				}
-				try {
-					providers.add(new CachedSiteDataWrapper<Double>(new CS_Study24_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0)));
-				} catch (IOException e) {
-					ExceptionUtils.throwAsRuntimeException(e);
-				}
+                /*		Study 24.8									 */
+                try {
+                    providers.add(new CachedSiteDataWrapper<Double>(new CS_Study24_8_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
+                } catch (IOException e) {
+                    ExceptionUtils.throwAsRuntimeException(e);
+                }
+                try {
+                    providers.add(new CachedSiteDataWrapper<Double>(new CS_Study24_8_BasinDepth(SiteData.TYPE_DEPTH_TO_1_0)));
+                } catch (IOException e) {
+                    ExceptionUtils.throwAsRuntimeException(e);
+                }
+            } else if (velModelID == CybershakeVelocityModel.Models.MUSCAL26.getID()) {
+                // MUSCAL Depth to 1.0
+                try {
+                    providers.add(new CachedSiteDataWrapper<Double>(new Muscal26_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
+                } catch (IOException e) {
+                    ExceptionUtils.throwAsRuntimeException(e);
+                }
+                // MUSCAL Depth to 2.5
+                try {
+                    providers.add(new CachedSiteDataWrapper<Double>(new Muscal26_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
+                } catch (IOException e) {
+                    ExceptionUtils.throwAsRuntimeException(e);
+                }
 			} else {
 				System.err.println("Unknown Velocity Model ID: "+velModelID);
 				System.exit(1);
@@ -473,4 +482,5 @@ public class CyberShakeSiteBuilder {
 		return providers;
 	}
 
+    }
 }

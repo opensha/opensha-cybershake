@@ -21,6 +21,7 @@ import org.opensha.commons.data.siteData.impl.ThompsonVs30_2020;
 import org.opensha.commons.data.siteData.impl.USGS_SFBay_BasinDepth_v21p1;
 import org.opensha.commons.data.siteData.impl.WaldAllenGlobalVs30;
 import org.opensha.commons.data.siteData.impl.WillsMap2015;
+import org.opensha.commons.data.siteData.impl.MuscalBasinDepth;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationList;
 import org.opensha.commons.util.ExceptionUtils;
@@ -433,16 +434,16 @@ public class CyberShakeSiteBuilder {
                 } catch (IOException e) {
                     ExceptionUtils.throwAsRuntimeException(e);
                 }
-            } else if (velModelID == CybershakeVelocityModel.Models.MUSCAL26.getID()) {
+            } else if (velModelID == CybershakeVelocityModel.Models.MUSCAL.getID()) {
                 // MUSCAL Depth to 1.0
                 try {
-                    providers.add(new CachedSiteDataWrapper<Double>(new Muscal26_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
+                    providers.add(new CachedSiteDataWrapper<Double>(new MuscalBasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
                 } catch (IOException e) {
                     ExceptionUtils.throwAsRuntimeException(e);
                 }
                 // MUSCAL Depth to 2.5
                 try {
-                    providers.add(new CachedSiteDataWrapper<Double>(new Muscal26_BasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
+                    providers.add(new CachedSiteDataWrapper<Double>(new MuscalBasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
                 } catch (IOException e) {
                     ExceptionUtils.throwAsRuntimeException(e);
                 }
@@ -482,5 +483,4 @@ public class CyberShakeSiteBuilder {
 		return providers;
 	}
 
-    }
 }

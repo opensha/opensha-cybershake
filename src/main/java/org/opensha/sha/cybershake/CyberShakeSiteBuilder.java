@@ -437,7 +437,7 @@ public class CyberShakeSiteBuilder {
             } else if (velModelID == CybershakeVelocityModel.Models.MUSCAL.getID()) {
                 // MUSCAL Depth to 1.0
                 try {
-                    providers.add(new CachedSiteDataWrapper<Double>(new MuscalBasinDepth(SiteData.TYPE_DEPTH_TO_2_5)));
+                    providers.add(new CachedSiteDataWrapper<Double>(new MuscalBasinDepth(SiteData.TYPE_DEPTH_TO_1_0)));
                 } catch (IOException e) {
                     ExceptionUtils.throwAsRuntimeException(e);
                 }

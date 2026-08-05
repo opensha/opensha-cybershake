@@ -31,8 +31,6 @@ import org.opensha.sha.cybershake.plot.ScatterSymbol;
 
 import com.google.common.io.Files;
 
-import gov.usgs.earthquake.nshmp.geo.GriddedRegion;
-
 public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 	
 	public static int[] dpis = {72, 150, 300};

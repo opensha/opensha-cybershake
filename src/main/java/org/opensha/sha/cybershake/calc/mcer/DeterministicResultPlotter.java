@@ -143,9 +143,9 @@ public class DeterministicResultPlotter {
 					if (valCell == null)
 						continue;
 					double val;
-					if (valCell.getCellType() == HSSFCell.CELL_TYPE_NUMERIC) {
+					if (valCell.getCellType() == org.apache.poi.ss.usermodel.CellType.NUMERIC) {
 						val = valCell.getNumericCellValue();
-					} else if (valCell.getCellType() == HSSFCell.CELL_TYPE_FORMULA) {
+					} else if (valCell.getCellType() == org.apache.poi.ss.usermodel.CellType.FORMULA) {
 						val = evaluator.evaluate(valCell).getNumberValue();
 //						System.out.println("Evaluated: "+valCell.getCellFormula()+" = "+val);
 					} else {

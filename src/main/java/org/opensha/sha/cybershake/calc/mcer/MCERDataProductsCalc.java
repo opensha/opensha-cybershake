@@ -634,9 +634,9 @@ public class MCERDataProductsCalc {
 	}
 	
 	public static double loadASCEValue(HSSFCell cell, FormulaEvaluator evaluator) {
-		if (cell.getCellType() == HSSFCell.CELL_TYPE_NUMERIC) {
+		if (cell.getCellType() == org.apache.poi.ss.usermodel.CellType.NUMERIC) {
 			return cell.getNumericCellValue();
-		} else if (cell.getCellType() == HSSFCell.CELL_TYPE_FORMULA) {
+		} else if (cell.getCellType() == org.apache.poi.ss.usermodel.CellType.FORMULA) {
 			return evaluator.evaluate(cell).getNumberValue();
 		} else {
 			try {

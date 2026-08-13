@@ -35,6 +35,7 @@ import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 import org.opensha.sha.imr.param.OtherParams.SigmaTruncLevelParam;
 import org.opensha.sha.imr.param.OtherParams.SigmaTruncTypeParam;
 
+import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -210,10 +211,11 @@ public class CyberShakeIMR extends AttenuationRelationship implements ParameterC
 	}
 
 	private CyberShakeEqkRupture getRuptureAsCSRup() {
-		if (this.eqkRupture instanceof CyberShakeEqkRupture) {
-			return (CyberShakeEqkRupture)this.eqkRupture;
-		} else
-			throw new RuntimeException("The CyberShakeIMR isn't being used with a CyberShake ERF!");
+		Preconditions.checkNotNull(eqkRupture, "eqkRupture not set");
+		Preconditions.checkState(eqkRupture instanceof CyberShakeEqkRupture,
+				"The CyberShakeIMR isn't being used with a CyberShake ERF? Rupture type is %s",
+				eqkRupture.getClass());
+		return (CyberShakeEqkRupture)this.eqkRupture;
 	}
 
 	/**

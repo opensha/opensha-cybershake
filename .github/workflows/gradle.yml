@@ -27,6 +27,12 @@ jobs:
           repository: opensha/opensha-dev
           path: opensha-dev
 
+      - name: Checkout cybershake repo
+        uses: actions/checkout@v4
+        with:
+          repository: opensha/opensha-cybershake
+          path: opensha-cybershake
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:

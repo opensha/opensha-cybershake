@@ -448,7 +448,12 @@ public class DisaggregationPlotter {
 		if (type == PlotType.PDF) {
 			String outputFileName = outputDir.getAbsolutePath()+File.separator+outFileName+".pdf";
 			DisaggregationPlotViewerWindow.saveAsPDF(
-					address+DisaggregationCalculator.DISAGGREGATION_PLOT_PDF_NAME,
+//					address+DisaggregationCalculator.DISAGGREGATION_PLOT_PDF_NAME,
+					// TODO: updated to give it the PNG name, as the disagg plot viewer now expects the image URL to be
+					// passed in. The long term/better fix is to update this to use the pure-java viewer instead
+					// See org.opensha.sha.calc.disaggregation.chart3d.PureJavaDisaggPlotter and how it is used
+					// in the HazardCurveGUI.
+					address+DisaggregationCalculator.DISAGGREGATION_PLOT_PNG_NAME,
 					outputFileName, meanModeText, metadataText, binDataText, sourceDataText, null);
 		} else if (type == PlotType.PNG) {
 			downloadPlot(address+ DisaggregationCalculator.DISAGGREGATION_PLOT_PNG_NAME, outFileName, "png");

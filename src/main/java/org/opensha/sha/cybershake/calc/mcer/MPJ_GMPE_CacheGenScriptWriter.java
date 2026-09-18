@@ -75,7 +75,7 @@ public class MPJ_GMPE_CacheGenScriptWriter {
 		
 		List<String> script = mpjWrite.buildScript(MPJ_GMPE_CacheGen.class.getName(), argz);
 		
-		script = pbsWrite.buildScript(script, mins, nodes, ppn, null);
+		script = pbsWrite.buildScript(script, mins, nodes, ppn, memGigs, null);
 		pbsWrite.writeScript(pbsFile, script);
 	}
 

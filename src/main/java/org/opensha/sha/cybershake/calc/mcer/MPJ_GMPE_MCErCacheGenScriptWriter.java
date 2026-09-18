@@ -178,7 +178,7 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 			
 			List<String> script = mpjWrite.buildScript(MPJ_GMPE_MCErCacheGen.class.getName(), argz);
 			
-			script = pbsWrite.buildScript(script, mins, nodes, ppn, queue);
+			script = pbsWrite.buildScript(script, mins, nodes, ppn, 0, queue);
 			pbsWrite.writeScript(pbsFile, script);
 		}
 	}

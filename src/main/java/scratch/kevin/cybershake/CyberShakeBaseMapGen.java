@@ -274,7 +274,7 @@ public class CyberShakeBaseMapGen {
 //			USC_HPCC_ScriptWriter writer = new USC_HPCC_ScriptWriter();
 			USC_CARC_ScriptWriter writer = new USC_CARC_ScriptWriter();
 			
-			script = writer.buildScript(script, mins, nodes, ppn, queue);
+			script = writer.buildScript(script, mins, nodes, ppn, 0, queue);
 			
 			File pbsFile = new File(imrDir, imr.getShortName().toLowerCase()+".slurm");
 			JavaShellScriptWriter.writeScript(pbsFile, script);

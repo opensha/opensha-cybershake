@@ -24,7 +24,7 @@ import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;
 import org.opensha.sha.cybershake.db.CybershakeRun;
 import org.opensha.sha.cybershake.db.CybershakeIM.CyberShakeComponent;
-import org.opensha.sha.earthquake.faultSysSolution.util.SolHazardMapCalc.ReturnPeriods;
+import org.opensha.sha.calc.ReturnPeriod;
 import org.opensha.sha.imr.param.IntensityMeasureParams.DurationTimeInterval;
 import org.opensha.sha.simulators.RSQSimEvent;
 import org.opensha.sha.simulators.utils.RSQSimUtils;
@@ -41,7 +41,7 @@ import scratch.kevin.simulators.erf.RSQSimSectBundledERF.RSQSimSectBundledSource
 public class CyberShakeExceedanceCalc {
 	
 	public static WindowedFractionalExceedanceCalculator<RSQSimEvent> forStudy(CyberShakeStudy study, CybershakeIM im,
-			File ampsCacheDir, List<RSQSimEvent> events, ReturnPeriods[] rps) {
+			File ampsCacheDir, List<RSQSimEvent> events, ReturnPeriod[] rps) {
 		List<CybershakeRun> runs = study.runFetcher().fetch();
 		
 		List<CyberShakeSiteRun> sites = CyberShakeSiteBuilder.buildSites(study, Vs30_Source.Simulation, runs);
@@ -223,7 +223,7 @@ public class CyberShakeExceedanceCalc {
 		List<RSQSimEvent> events = study.getRSQSimCatalog().loader().minMag(6.5).skipSlipsAndTimes().skipYears(skipYears).load();
 		CybershakeIM im = CybershakeIM.getSA(CyberShakeComponent.RotD50, 3d);
 		
-		ReturnPeriods[] rps = ReturnPeriods.values();
+		ReturnPeriod[] rps = ReturnPeriod.standardValues();
 		File ampsCacheDir = new File("/data/kevin/cybershake/amps_cache/");
 		
 		WindowedFractionalExceedanceCalculator<RSQSimEvent> calc = forStudy(study, im, ampsCacheDir, events, rps);

@@ -24,7 +24,7 @@ import org.opensha.commons.util.DataUtils.MinMaxAveTracker;
 import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 import org.opensha.commons.util.FileNameComparator;
 import org.opensha.commons.util.MarkdownUtils;
-import org.opensha.commons.util.ReturnPeriodUtils;
+import org.opensha.sha.calc.ReturnPeriodUtils;
 import org.opensha.commons.util.binFile.BinaryGeoDatasetRandomAccessFile;
 import org.opensha.commons.util.binFile.BinaryXYZRandomAccessFile;
 import org.opensha.commons.util.cpt.CPT;

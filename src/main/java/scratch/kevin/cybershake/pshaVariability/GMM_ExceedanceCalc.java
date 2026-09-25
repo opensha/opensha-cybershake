@@ -39,7 +39,7 @@ import org.opensha.sha.earthquake.ProbEqkRupture;
 import org.opensha.sha.earthquake.ProbEqkSource;
 import org.opensha.sha.earthquake.faultSysSolution.FaultSystemSolution;
 import org.opensha.sha.earthquake.faultSysSolution.modules.GridSourceProvider;
-import org.opensha.sha.earthquake.faultSysSolution.util.SolHazardMapCalc.ReturnPeriods;
+import org.opensha.sha.calc.ReturnPeriod;
 import org.opensha.sha.earthquake.observedEarthquake.ObsEqkRupList;
 import org.opensha.sha.earthquake.observedEarthquake.ObsEqkRupture;
 import org.opensha.sha.earthquake.param.IncludeBackgroundOption;
@@ -88,7 +88,7 @@ public class GMM_ExceedanceCalc {
 	private static double SIGMA_TRUNCATION = 3;
 	
 	public static WindowedFractionalExceedanceCalculator<ObsEqkRupture> forRSQSim(List<? extends Site> sites, RSQSimCatalog catalog, double period,
-			List<RSQSimEvent> events, AttenRelRef gmmRef, ReturnPeriods[] rps, boolean randFields) throws IOException {
+			List<RSQSimEvent> events, AttenRelRef gmmRef, ReturnPeriod[] rps, boolean randFields) throws IOException {
 		
 		SpatialVarCalc randFieldCalc = null;
 		if (randFields) {
@@ -158,7 +158,7 @@ public class GMM_ExceedanceCalc {
 	
 	public static WindowedFractionalExceedanceCalculator<ObsEqkRupture> forSourceRegion(GriddedRegion siteReg,
 			GriddedRegion sourceReg, IncrementalMagFreqDist mfd, double durationYears, AttenRelRef gmmRef,
-			double period, ReturnPeriods[] rps, boolean randFields, double[] seisPDF) {
+			double period, ReturnPeriod[] rps, boolean randFields, double[] seisPDF) {
 		double totRate = mfd.getTotalIncrRate();
 		int numEvents = (int)(durationYears*totRate + 0.5);
 		System.out.println("Creating "+numEvents+" events in "+(float)durationYears+" for totRate="+(float)totRate);
@@ -232,7 +232,7 @@ public class GMM_ExceedanceCalc {
 	
 	public static WindowedFractionalExceedanceCalculator<ObsEqkRupture> forFSS(GriddedRegion siteReg,
 			FaultSystemSolution sol, double durationYears, AttenRelRef gmmRef,
-			double period, ReturnPeriods[] rps, boolean randFields, boolean filterRups, boolean randomizeSiteLocs) {
+			double period, ReturnPeriod[] rps, boolean randFields, boolean filterRups, boolean randomizeSiteLocs) {
 		System.out.println("Building ERF");
 		FaultSystemSolutionERF erf = new FaultSystemSolutionERF(sol);
 		erf.setParameter(IncludeBackgroundParam.NAME, IncludeBackgroundOption.INCLUDE);
@@ -650,7 +650,7 @@ public class GMM_ExceedanceCalc {
 	}
 	
 	private static WindowedFractionalExceedanceCalculator<ObsEqkRupture> initRSQSimCyberShakeMap(AttenRelRef gmmRef, double period,
-			ReturnPeriods[] rps, boolean randFields) throws IOException {
+			ReturnPeriod[] rps, boolean randFields) throws IOException {
 		CyberShakeStudy study = CyberShakeStudy.STUDY_22_3_RSQSIM_5413;
 		double skipYears = 20000;
 		double minMag = 6d;
@@ -671,7 +671,7 @@ public class GMM_ExceedanceCalc {
 	}
 	
 	private static WindowedFractionalExceedanceCalculator<ObsEqkRupture> initRSQSimStatewide(AttenRelRef gmmRef, double period,
-			ReturnPeriods[] rps, boolean randFields) throws IOException {
+			ReturnPeriod[] rps, boolean randFields) throws IOException {
 		RSQSimCatalog catalog = Catalogs.BRUCE_5413.instance();
 		double skipYears = 20000;
 		double minMag = 6d;
@@ -697,7 +697,7 @@ public class GMM_ExceedanceCalc {
 	}
 	
 	private static WindowedFractionalExceedanceCalculator<ObsEqkRupture> initUniform(AttenRelRef gmmRef, double period,
-			ReturnPeriods[] rps, boolean randFields, boolean useSeisPDF) throws IOException {
+			ReturnPeriod[] rps, boolean randFields, boolean useSeisPDF) throws IOException {
 //		GutenbergRichterMagFreqDist mfd = new GutenbergRichterMagFreqDist(6.05d, 20, 0.1);
 //		double totRate = 0.5d;
 //		double bVal = 1d;
@@ -755,7 +755,7 @@ public class GMM_ExceedanceCalc {
 	}
 	
 	private static WindowedFractionalExceedanceCalculator<ObsEqkRupture> initU3(AttenRelRef gmmRef, double period,
-			ReturnPeriods[] rps, boolean randFields) throws IOException {
+			ReturnPeriod[] rps, boolean randFields) throws IOException {
 		FaultSystemSolution sol = FaultSystemSolution.load(new File("/home/kevin/OpenSHA/UCERF3/rup_sets/modular/FM3_1_branch_averaged.zip"));
 		
 		double durationYears = 100000;
@@ -770,7 +770,7 @@ public class GMM_ExceedanceCalc {
 	}
 	
 	private static WindowedFractionalExceedanceCalculator<ObsEqkRupture> initU3forLA(AttenRelRef gmmRef, double period,
-			ReturnPeriods[] rps, boolean randFields) throws IOException {
+			ReturnPeriod[] rps, boolean randFields) throws IOException {
 		FaultSystemSolution sol = FaultSystemSolution.load(new File("/home/kevin/OpenSHA/UCERF3/rup_sets/modular/FM3_1_branch_averaged.zip"));
 		
 		double durationYears = 50000;
@@ -787,7 +787,7 @@ public class GMM_ExceedanceCalc {
 	public static void main(String[] args) throws IOException {
 		boolean randFields = true;
 		AttenRelRef gmmRef = AttenRelRef.ASK_2014;
-		ReturnPeriods[] rps = ReturnPeriods.values();
+		ReturnPeriod[] rps = ReturnPeriod.standardValues();
 //		double period = 3d;
 		double period = 0d;
 		
@@ -845,7 +845,7 @@ public class GMM_ExceedanceCalc {
 //					if (map) {
 //						String prefix, title;
 //						prefix = "map_fract_hist_"+rps[r].name();
-//						title = rps[r].label+" Map, "+oDF.format(windowDuration)+"yr Observations";
+//						title = rps[r].getLabel()+" Map, "+oDF.format(windowDuration)+"yr Observations";
 //						
 //						if (poisson) {
 //							prefix += "_poisson";

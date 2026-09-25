@@ -34,7 +34,7 @@ import org.opensha.commons.gui.plot.PlotUtils;
 import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.ExceptionUtils;
 import org.opensha.commons.util.DataUtils.MinMaxAveTracker;
-import org.opensha.sha.earthquake.faultSysSolution.util.SolHazardMapCalc.ReturnPeriods;
+import org.opensha.sha.calc.ReturnPeriod;
 import org.opensha.sha.earthquake.observedEarthquake.ObsEqkRupture;
 import org.opensha.sha.simulators.RSQSimEvent;
 import org.opensha.sha.simulators.utils.SimulatorUtils;
@@ -50,7 +50,7 @@ public abstract class WindowedFractionalExceedanceCalculator<E> {
 	
 	private List<E> events;
 	private List<? extends Site> sites;
-	private ReturnPeriods[] rps;
+	private ReturnPeriod[] rps;
 	private boolean[][][] eventSiteExceedances;
 	
 	private List<DiscretizedFunc> curves;
@@ -61,7 +61,7 @@ public abstract class WindowedFractionalExceedanceCalculator<E> {
 	static class RSQSim extends WindowedFractionalExceedanceCalculator<RSQSimEvent> {
 
 		public RSQSim(List<RSQSimEvent> events, SimulationRotDProvider<RSQSimEvent> simProv, List<? extends Site> sites,
-				IMT imt, ReturnPeriods[] rps) {
+				IMT imt, ReturnPeriod[] rps) {
 			super(events, simProv, sites, imt, rps);
 		}
 
@@ -81,7 +81,7 @@ public abstract class WindowedFractionalExceedanceCalculator<E> {
 	static class ObsRup extends WindowedFractionalExceedanceCalculator<ObsEqkRupture> {
 
 		public ObsRup(List<ObsEqkRupture> events, SimulationRotDProvider<ObsEqkRupture> simProv, List<? extends Site> sites,
-				IMT imt, ReturnPeriods[] rps) {
+				IMT imt, ReturnPeriod[] rps) {
 			super(events, simProv, sites, imt, rps);
 		}
 
@@ -101,7 +101,7 @@ public abstract class WindowedFractionalExceedanceCalculator<E> {
 	}
 
 	public WindowedFractionalExceedanceCalculator(List<E> events, SimulationRotDProvider<E> simProv,
-			List<? extends Site> sites, IMT imt, ReturnPeriods[] rps) {
+			List<? extends Site> sites, IMT imt, ReturnPeriod[] rps) {
 		this.events = events;
 		this.sites = sites;
 		this.rps = rps;
@@ -143,14 +143,14 @@ public abstract class WindowedFractionalExceedanceCalculator<E> {
 			System.out.println("Ground motions:");
 			for (int r=0; r<rps.length; r++) {
 				double val;
-				if (rps[r].oneYearProb > curve.getMaxY())
+				if (rps[r].getProbability(1d) > curve.getMaxY())
 					val = 0d;
-				else if (rps[r].oneYearProb < curve.getMinY())
+				else if (rps[r].getProbability(1d) < curve.getMinY())
 					// saturated
 					val = curve.getMaxX();
 				else
-//					val = curve.getFirstInterpolatedX_inLogXLogYDomain(rps[r].oneYearProb);
-					val = curve.getFirstInterpolatedX(rps[r].oneYearProb);
+//					val = curve.getFirstInterpolatedX_inLogXLogYDomain(rps[r].getProbability(1d));
+					val = curve.getFirstInterpolatedX(rps[r].getProbability(1d));
 				System.out.println("\t"+rps[r]+":\t"+(float)val+" (g)");
 				siteGroundMotions[r][s] = val;
 			}
@@ -233,8 +233,8 @@ public abstract class WindowedFractionalExceedanceCalculator<E> {
 	private static final DecimalFormat pDF = new DecimalFormat("0.00%");
 	public static DecimalFormat oDF = new DecimalFormat("0.##");
 	
-	public static double calcExpectedExceedanceFract(ReturnPeriods rp, double observedDuration) {
-		return 1d - Math.exp(-observedDuration/rp.returnPeriod);
+	public static double calcExpectedExceedanceFract(ReturnPeriod rp, double observedDuration) {
+		return 1d - Math.exp(-observedDuration/rp.getReturnPeriodYears());
 	}
 	
 	public void plotCatalogExceedanceFractDists(double windowDuration, int numCatalogs,
@@ -244,7 +244,7 @@ public abstract class WindowedFractionalExceedanceCalculator<E> {
 		for (int r=0; r<rps.length; r++) {
 			String rpPrefix = prefix+"_"+rps[r].name();
 			
-			String title = rps[r].label+" Map, "+oDF.format(windowDuration)+"yr Observations";
+			String title = rps[r].getLabel()+" Map, "+oDF.format(windowDuration)+"yr Observations";
 			
 			double expected = calcExpectedExceedanceFract(rps[r], windowDuration);
 			
@@ -412,7 +412,7 @@ public abstract class WindowedFractionalExceedanceCalculator<E> {
 				p97p5Funcs[r].set(i, StatUtils.percentile(exceeds, 97.5d));
 				maxFuncs[r].set(i, StatUtils.max(exceeds));
 				
-				System.out.println(rps[r].label+" Map, "+oDF.format(duration)+"yr Observations");
+				System.out.println(rps[r].getLabel()+" Map, "+oDF.format(duration)+"yr Observations");
 				System.out.println("\tExpected: "+pDF.format(expected));
 				printExceedStats(results[r].catalogFractSiteExceedances);
 			}
@@ -449,7 +449,7 @@ public abstract class WindowedFractionalExceedanceCalculator<E> {
 			funcs.add(bounds95);
 			chars.add(new PlotCurveCharacterstics(PlotLineType.SHADED_UNCERTAIN, 1f, transColor));
 			
-			String title = rps[r].label+" Map";
+			String title = rps[r].getLabel()+" Map";
 			
 			PlotSpec spec = new PlotSpec(funcs, chars, title, "Observation Window (yrs)",
 					"Fraction of Sites Exceeding Map Value");
@@ -576,11 +576,11 @@ public abstract class WindowedFractionalExceedanceCalculator<E> {
 	}
 	
 	public static class ExceedanceResult {
-		public final ReturnPeriods rp;
+		public final ReturnPeriod rp;
 		public final double[] catalogFractSiteExceedances;
 		public final double[] siteFractExceedances;
 		
-		private ExceedanceResult(ReturnPeriods rp, boolean[][][] catalogSiteExceedances, int r) {
+		private ExceedanceResult(ReturnPeriod rp, boolean[][][] catalogSiteExceedances, int r) {
 			this.rp = rp;
 			
 			int numCatalogs = catalogSiteExceedances.length;

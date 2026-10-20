@@ -1,5 +1,8 @@
 package scratch.kevin.cybershake.ucerf3;
 
+import org.opensha.sha.calc.disaggregation.chart3d.PureJavaDisaggPlotter;
+import org.jfree.chart3d.export.ExportUtils;
+import org.jfree.chart3d.Chart3DPanel;
 import java.awt.Color;
 import java.awt.geom.Point2D;
 import java.io.File;
@@ -20,11 +23,9 @@ import org.opensha.commons.gui.plot.PlotPreferences;
 import org.opensha.commons.gui.plot.PlotSpec;
 import org.opensha.commons.param.Parameter;
 import org.opensha.commons.param.ParameterList;
-import org.opensha.commons.util.FileUtils;
 import org.opensha.commons.util.cpt.CPT;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculator;
-import org.opensha.sha.calc.disaggregation.DisaggregationCalculatorAPI;
 import org.opensha.sha.calc.hazardMap.HazardDataSetLoader;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.db.CybershakeSite;
@@ -111,7 +112,7 @@ public class U3_U2_CurveCompare {
 		for (Point2D pt : xVals)
 			logXVals.set(Math.log(pt.getX()), 1);
 		
-		DisaggregationCalculatorAPI disaggCalc = new DisaggregationCalculator();
+		DisaggregationCalculator disaggCalc = new DisaggregationCalculator();
 
 		// disagg plot settings
 		double minMag = 5;
@@ -200,8 +201,8 @@ public class U3_U2_CurveCompare {
 					System.out.println("Done Disaggregating");
 					String metadata = "temp metadata";
 
-					System.out.println("Fetching plot...");
-					String address = disaggCalc.getDisaggregationPlotUsingServlet(metadata);
+					System.out.println("Building plot...");
+					Chart3DPanel chartPanel = PureJavaDisaggPlotter.buildChartPanel(disaggCalc.getDisaggPlotData());
 
 					String meanModeText = disaggCalc.getMeanAndModeInfo();
 					String binDataText = disaggCalc.getBinData();
@@ -213,11 +214,9 @@ public class U3_U2_CurveCompare {
 
 					String metadataText = "Custom disagg";
 
-					DisaggregationPlotViewerWindow.saveAsPDF(
-							address+DisaggregationCalculator.DISAGGREGATION_PLOT_PDF_NAME,
+					DisaggregationPlotViewerWindow.saveAsPDF(chartPanel,
 							outputFile.getAbsolutePath()+".pdf", meanModeText, metadataText, binDataText, sourceDataText, null);
-					FileUtils.downloadURL(address+DisaggregationCalculator.DISAGGREGATION_PLOT_PNG_NAME,
-							new File(outputFile.getAbsolutePath()+".png"));
+					ExportUtils.writeAsPNG(chartPanel.getDrawable(), chartPanel.getWidth(), chartPanel.getHeight(), new File(outputFile.getAbsolutePath()+".png"));
 					DisaggregationPlotViewerWindow.saveAsTXT(outputFile.getAbsolutePath()+".txt", meanModeText, metadataText,
 							binDataText, sourceDataText, null);
 					
@@ -231,8 +230,8 @@ public class U3_U2_CurveCompare {
 					disaggCalc.setMaxZAxisForPlot(maxZAxis);
 					System.out.println("Done Disaggregating");
 
-					System.out.println("Fetching plot...");
-					address = disaggCalc.getDisaggregationPlotUsingServlet(metadata);
+					System.out.println("Building plot...");
+					chartPanel = PureJavaDisaggPlotter.buildChartPanel(disaggCalc.getDisaggPlotData());
 
 					meanModeText = disaggCalc.getMeanAndModeInfo();
 					binDataText = disaggCalc.getBinData();
@@ -240,11 +239,9 @@ public class U3_U2_CurveCompare {
 
 					outputFile = new File(outputDir, prefix+"_u3");
 
-					DisaggregationPlotViewerWindow.saveAsPDF(
-							address+DisaggregationCalculator.DISAGGREGATION_PLOT_PDF_NAME,
+					DisaggregationPlotViewerWindow.saveAsPDF(chartPanel,
 							outputFile.getAbsolutePath()+".pdf", meanModeText, metadataText, binDataText, sourceDataText, null);
-					FileUtils.downloadURL(address+DisaggregationCalculator.DISAGGREGATION_PLOT_PNG_NAME,
-							new File(outputFile.getAbsolutePath()+".png"));
+					ExportUtils.writeAsPNG(chartPanel.getDrawable(), chartPanel.getWidth(), chartPanel.getHeight(), new File(outputFile.getAbsolutePath()+".png"));
 					DisaggregationPlotViewerWindow.saveAsTXT(outputFile.getAbsolutePath()+".txt", meanModeText, metadataText,
 							binDataText, sourceDataText, null);
 				}

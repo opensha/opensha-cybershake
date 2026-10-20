@@ -1,5 +1,8 @@
 package scratch.kevin.cybershake.ugms;
 
+import org.opensha.sha.calc.disaggregation.chart3d.PureJavaDisaggPlotter;
+import org.jfree.chart3d.export.ExportUtils;
+import org.jfree.chart3d.Chart3DPanel;
 import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.IOException;
@@ -11,10 +14,8 @@ import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.param.Parameter;
-import org.opensha.commons.util.FileUtils;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculator;
-import org.opensha.sha.calc.disaggregation.DisaggregationCalculatorAPI;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
 import org.opensha.sha.cybershake.calc.mcer.MCERDataProductsCalc;
@@ -90,7 +91,7 @@ public class DisaggCompare {
 		int numSourcesForDisag = 100;
 		boolean showSourceDistances = true;
 		double maxZAxis = Double.NaN;
-		DisaggregationCalculatorAPI gmpeDisagg = new DisaggregationCalculator();
+		DisaggregationCalculator gmpeDisagg = new DisaggregationCalculator();
 		gmpeDisagg.setMagRange(minMag, numMags, deltaMag);
 		gmpeDisagg.setNumSourcesToShow(numSourcesForDisag);
 		gmpeDisagg.setShowDistances(showSourceDistances);
@@ -145,11 +146,10 @@ public class DisaggCompare {
 						Preconditions.checkState(gmpeDisagg.disaggregate(iml, site, gmpe, gmpeERF,
 								curveCalc.getSourceFilters(), curveCalc.getAdjustableParams()));
 						gmpeDisagg.setMaxZAxisForPlot(maxZAxis);
-						String address = gmpeDisagg.getDisaggregationPlotUsingServlet("asfd");
-						DisaggregationPlotViewerWindow.saveAsPDF(
-								address+DisaggregationCalculator.DISAGGREGATION_PLOT_PDF_NAME,
+						Chart3DPanel chartPanel = PureJavaDisaggPlotter.buildChartPanel(gmpeDisagg.getDisaggPlotData());
+						DisaggregationPlotViewerWindow.saveAsPDF(chartPanel,
 								outputFileName+".pdf", "safda", "asdf", "asfda", "asdf", "asdf");
-						FileUtils.downloadURL(address+ DisaggregationCalculator.DISAGGREGATION_PLOT_PNG_NAME, new File(outputFileName+".png"));
+						ExportUtils.writeAsPNG(chartPanel.getDrawable(), chartPanel.getWidth(), chartPanel.getHeight(), new File(outputFileName+".png"));
 					}
 				}
 			}

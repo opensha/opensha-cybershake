@@ -16,6 +16,8 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.dom4j.DocumentException;
+import org.jfree.chart3d.Chart3DPanel;
+import org.jfree.chart3d.export.ExportUtils;
 import org.opensha.commons.data.Site;
 import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
@@ -24,10 +26,9 @@ import org.opensha.commons.param.ParameterList;
 import org.opensha.commons.util.ClassUtils;
 import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.ExceptionUtils;
-import org.opensha.commons.util.FileUtils;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculator;
-import org.opensha.sha.calc.disaggregation.DisaggregationCalculatorAPI;
+import org.opensha.sha.calc.disaggregation.chart3d.PureJavaDisaggPlotter;
 import org.opensha.sha.calc.hazardMap.HazardCurveSetCalculator;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder;
 import org.opensha.sha.cybershake.CyberShakeSiteBuilder.Vs30_Source;
@@ -57,6 +58,34 @@ import org.opensha.sha.imr.param.IntensityMeasureParams.SA_Param;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
+/**
+ * CyberShake disaggregation driver and command line tool.
+ * <p>
+ * The disaggregation mathematics (binning by magnitude, distance and epsilon, mean/mode, per-source contributions) is
+ * done entirely by {@link DisaggregationCalculator}. This class supplies everything CyberShake-specific that the
+ * calculator knows nothing about:
+ * <ul>
+ * <li><b>Run, site and ERF set-up from the CyberShake database:</b> looks up the run ({@link Runs2DB}), its site
+ * ({@link SiteInfo2DB}), builds the {@link Site} with {@link CyberShakeSiteBuilder} (Wills 2015 Vs30 and the run's
+ * velocity model, optionally overridden by {@code --force-vs30}) and wraps the ERF in a
+ * {@link CyberShakeWrapper_ERF} bound to the run's ERF ID.</li>
+ * <li><b>Simulation-based "IMR":</b> the calculator is driven by a {@link CyberShakeIMR}, which reads simulated peak
+ * amplitudes from the database ({@link PeakAmplitudesFromDB}, cached) rather than evaluating a GMPE, so the result is a
+ * disaggregation of CyberShake simulation results.</li>
+ * <li><b>Hazard curve handling:</b> fetches the stored hazard curve for each intensity measure, or computes one
+ * ({@link HazardCurveComputation}) if none exists, and converts requested probabilities of exceedance ({@code --probs})
+ * into intensity measure levels by log-log interpolation, skipping probabilities outside the curve's range.</li>
+ * <li><b>GMPE comparison:</b> optionally repeats the disaggregation for one or more ground motion models
+ * ({@code --atten-rel-file}) at the same probability, recomputing the IML from each GMPE's own hazard curve.</li>
+ * <li><b>Output conventions:</b> file names of the form
+ * {@code <SITE>_ERF<id>_Run<id>_DisaggPOE_<prob>_SA_<period>sec_<component>_<curve date>}, a CyberShake metadata header
+ * ({@link HazardCurvePlotter#getCyberShakeCurveInfo}) and mean/mode text, written as PDF, PNG, JPG and/or TXT
+ * ({@link PlotType}).</li>
+ * <li><b>Command line interface:</b> {@link #main(String[])} shares its common options with {@link HazardCurvePlotter}.</li>
+ * </ul>
+ * Plots are rendered client-side with {@link PureJavaDisaggPlotter}; no server or GMT installation is needed. (This class
+ * previously fetched GMT-rendered images from the OpenSHA {@code DisaggregationPlotServlet}.)
+ */
 public class DisaggregationPlotter {
 	
 	public static final PlotType TYPE_DEFAULT = PlotType.PDF;
@@ -84,7 +113,7 @@ public class DisaggregationPlotter {
 	private double forceVs30 = Double.NaN;
 	
 	private HazardCurveCalculator gmpeCurveCalc;
-	private DisaggregationCalculatorAPI disaggCalc;
+	private DisaggregationCalculator disaggCalc;
 	private ParameterList disaggParams;
 	
 	private File outputDir;
@@ -104,6 +133,20 @@ public class DisaggregationPlotter {
 	
 	private HashMap<Double, Double> imlToProbsMap;
 	
+	/**
+	 * Creates a plotter that disaggregates the given CyberShake run, using a new (uncached-until-needed) peak amplitude
+	 * accessor on the given database.
+	 * 
+	 * @param db database connection, or null to use {@link Cybershake_OpenSHA_DBApplication#getDB()}
+	 * @param runID CyberShake run ID to disaggregate
+	 * @param rawERF the (unwrapped) ERF; it is wrapped in a {@link CyberShakeWrapper_ERF} for the run's ERF ID
+	 * @param ims intensity measures (periods/components) to disaggregate; must be non-empty
+	 * @param gmpes optional GMPEs to also disaggregate for comparison, or null for none
+	 * @param probLevels annual probabilities of exceedance to disaggregate at (converted to IMLs via the hazard curve), may be null
+	 * @param imlLevels intensity measure levels to disaggregate at (linear units, e.g. g), may be null
+	 * @param outputDir directory that plots/text are written to
+	 * @param plotTypes output formats to write
+	 */
 	public DisaggregationPlotter(
 			DBAccess db,
 			int runID,
@@ -117,6 +160,21 @@ public class DisaggregationPlotter {
 		this(db, null, runID, rawERF, ims, gmpes, probLevels, imlLevels, outputDir, plotTypes);
 	}
 	
+	/**
+	 * Same as {@link #DisaggregationPlotter(DBAccess, int, AbstractERF, List, List, List, List, File, List)}, but allows
+	 * sharing an existing peak amplitude accessor (e.g. a {@link CachedPeakAmplitudesFromDB}) across many plotters.
+	 * 
+	 * @param db database connection, or null to use {@link Cybershake_OpenSHA_DBApplication#getDB()}
+	 * @param amps2db peak amplitude accessor, or null to create one from {@code db}
+	 * @param runID CyberShake run ID to disaggregate
+	 * @param rawERF the (unwrapped) ERF
+	 * @param ims intensity measures to disaggregate; must be non-empty
+	 * @param gmpes optional GMPEs to also disaggregate for comparison, or null for none
+	 * @param probLevels annual probabilities of exceedance to disaggregate at, may be null
+	 * @param imlLevels intensity measure levels to disaggregate at, may be null
+	 * @param outputDir directory that plots/text are written to
+	 * @param plotTypes output formats to write
+	 */
 	public DisaggregationPlotter(
 			DBAccess db,
 			PeakAmplitudesFromDB amps2db,
@@ -132,6 +190,13 @@ public class DisaggregationPlotter {
 		init(runID, rawERF, ims, gmpes, probLevels, imlLevels, outputDir, plotTypes);
 	}
 	
+	/**
+	 * Creates a plotter from parsed command line arguments (see {@link #main(String[])}). Connects to the default
+	 * CyberShake database, loads the ERF from {@code --erf-file}, and reads the run, IMs, probabilities/IMLs, output
+	 * directory, plot types, GMPE comparison files and Vs30 override from the options.
+	 * 
+	 * @param cmd parsed command line
+	 */
 	public DisaggregationPlotter(CommandLine cmd) {
 		initDB(null, null);
 		init(cmd);
@@ -149,6 +214,16 @@ public class DisaggregationPlotter {
 		site2db = new SiteInfo2DB(db);
 	}
 	
+	/**
+	 * Initializes this plotter from command line options. Resolves the run ID (directly or from site/ERF options), the IMs,
+	 * the requested probabilities and IMLs, the output directory (created if missing), plot types (default
+	 * {@link #TYPE_DEFAULT}), optional GMPE comparison files and Vs30 override, and loads the ERF, then delegates to
+	 * {@link #init(int, AbstractERF, List, List, List, List, File, List)}.
+	 * 
+	 * @param cmd parsed command line
+	 * @throws IllegalArgumentException if {@code --erf-file} is missing or does not exist
+	 * @throws RuntimeException if the output directory cannot be created or an ERF/GMPE file cannot be loaded
+	 */
 	public void init(CommandLine cmd) {
 		int runID = HazardCurvePlotter.getRunIDFromOptions(runs2db, curve2db, amps2db, site2db, cmd);
 		this.run = runs2db.getRun(runID);
@@ -171,7 +246,7 @@ public class DisaggregationPlotter {
 				}
 			}
 		} else {
-			outputDir = new File("");
+			outputDir = new File("").getAbsoluteFile();
 		}
 		
 		List<PlotType> plotTypes;
@@ -218,6 +293,21 @@ public class DisaggregationPlotter {
 		init(runID, rawERF, ims, gmpeComparisons, probLevels, imlLevels, outputDir, plotTypes);
 	}
 	
+	/**
+	 * Initializes the run, site, CyberShake ERF and IMR, and the disaggregation calculator and its default parameters.
+	 * The site is built with Wills 2015 Vs30 and the run's velocity model; the intensity measure type is fixed to SA
+	 * (the period is set per IM in {@link #disaggregate()}).
+	 * 
+	 * @param runID CyberShake run ID
+	 * @param rawERF the (unwrapped) ERF
+	 * @param ims intensity measures to disaggregate; must be non-null and non-empty
+	 * @param gmpeComparisons optional GMPEs to disaggregate for comparison, or null
+	 * @param probLevels annual probabilities of exceedance, or null for none
+	 * @param imlLevels intensity measure levels, or null for none
+	 * @param outputDir directory that plots/text are written to
+	 * @param plotTypes output formats to write
+	 * @throws NullPointerException if the run cannot be found in the database or {@code ims} is null
+	 */
 	public void init(
 			int runID,
 			AbstractERF rawERF,
@@ -270,15 +360,33 @@ public class DisaggregationPlotter {
 		
 		disaggParams = DisaggregationCalculator.getDefaultParams();
 		
-		this.outputDir = outputDir;
+		// absolute, as new File(new File(""), name) would resolve against the root directory rather than the working directory
+		this.outputDir = outputDir.getAbsoluteFile();
 	}
 	
+	/**
+	 * Sets the magnitude binning used for disaggregation (defaults: 5.0, 10 bins, 0.5 width).
+	 * 
+	 * @param minMag lower edge of the first magnitude bin
+	 * @param numMags number of magnitude bins
+	 * @param deltaMag magnitude bin width
+	 */
 	public void setMagRange(double minMag, int numMags, double deltaMag) {
 		this.minMag = minMag;
 		this.numMags = numMags;
 		this.deltaMag = deltaMag;
 	}
 	
+	/**
+	 * Runs the disaggregation for every configured IM and IML/probability and writes the requested outputs to the output
+	 * directory. For each IM it fetches (or computes) the hazard curve, converts probabilities to IMLs, disaggregates with
+	 * the CyberShake IMR, builds the plot with {@link PureJavaDisaggPlotter} (skipped if only TXT output was requested), and
+	 * saves it. If GMPE comparisons were configured, each GMPE is then disaggregated at the same probability and written with
+	 * the GMPE's short name appended to the file name.
+	 * 
+	 * @throws IOException if an output file cannot be written
+	 * @throws RuntimeException if a disaggregation fails or the hazard curve cannot be obtained
+	 */
 	public void disaggregate() throws IOException {
 		
 		for (CybershakeIM im : ims) {
@@ -343,15 +451,14 @@ public class DisaggregationPlotter {
 					throw new RuntimeException("Disagg calc failed (see errors above, if any).");
 				disaggCalc.setMaxZAxisForPlot(maxZAxis);
 				System.out.println("Done Disaggregating");
-				String metadata = "temp metadata";
 				try {
 					boolean textOnly = plotTypes.size() == 1 && plotTypes.get(0) == PlotType.TXT;
 					
-					String address = null;
-					
+					Chart3DPanel chartPanel = null;
+
 					if (!textOnly) {
-						System.out.println("Fetching plot...");
-						address = disaggCalc.getDisaggregationPlotUsingServlet(metadata);
+						System.out.println("Building plot...");
+						chartPanel = PureJavaDisaggPlotter.buildChartPanel(disaggCalc.getDisaggPlotData());
 					}
 					
 					boolean isProb = imlToProbsMap.containsKey(iml);
@@ -386,7 +493,7 @@ public class DisaggregationPlotter {
 					String sourceDataText = disaggCalc.getDisaggregationSourceInfo();
 					
 					for (PlotType type : plotTypes)
-						savePlot(address, outFileName, meanModeText, metadataText, binDataText, sourceDataText, type);
+						savePlot(chartPanel, outFileName, meanModeText, metadataText, binDataText, sourceDataText, type);
 					
 					if (gmpeComparisons != null) {
 						for (AttenuationRelationship attenRel : gmpeComparisons) {
@@ -405,8 +512,8 @@ public class DisaggregationPlotter {
 							disaggCalc.setMaxZAxisForPlot(maxZAxis);
 							
 							if (!textOnly) {
-								System.out.println("Fetching plot...");
-								address = disaggCalc.getDisaggregationPlotUsingServlet(metadata);
+								System.out.println("Building plot...");
+								chartPanel = PureJavaDisaggPlotter.buildChartPanel(disaggCalc.getDisaggPlotData());
 							}
 							
 							String gmpeOutFileName = outFileName+"_"+attenRel.getShortName();
@@ -419,7 +526,7 @@ public class DisaggregationPlotter {
 							String gmpeSourceDataText = disaggCalc.getDisaggregationSourceInfo();
 							
 							for (PlotType type : plotTypes)
-								savePlot(address, gmpeOutFileName, gmpeMeanModeText, gmpeMetadataText,
+								savePlot(chartPanel, gmpeOutFileName, gmpeMeanModeText, gmpeMetadataText,
 										gmpeBinDataText, gmpeSourceDataText, type);
 						}
 					}
@@ -443,22 +550,19 @@ public class DisaggregationPlotter {
 		return meanModeHeader;
 	}
 
-	private void savePlot(String address, String outFileName, String meanModeText, String metadataText,
+	private void savePlot(Chart3DPanel chartPanel, String outFileName, String meanModeText, String metadataText,
 			String binDataText, String sourceDataText, PlotType type) throws IOException {
 		if (type == PlotType.PDF) {
 			String outputFileName = outputDir.getAbsolutePath()+File.separator+outFileName+".pdf";
-			DisaggregationPlotViewerWindow.saveAsPDF(
-//					address+DisaggregationCalculator.DISAGGREGATION_PLOT_PDF_NAME,
-					// TODO: updated to give it the PNG name, as the disagg plot viewer now expects the image URL to be
-					// passed in. The long term/better fix is to update this to use the pure-java viewer instead
-					// See org.opensha.sha.calc.disaggregation.chart3d.PureJavaDisaggPlotter and how it is used
-					// in the HazardCurveGUI.
-					address+DisaggregationCalculator.DISAGGREGATION_PLOT_PNG_NAME,
+			DisaggregationPlotViewerWindow.saveAsPDF(chartPanel,
 					outputFileName, meanModeText, metadataText, binDataText, sourceDataText, null);
 		} else if (type == PlotType.PNG) {
-			downloadPlot(address+ DisaggregationCalculator.DISAGGREGATION_PLOT_PNG_NAME, outFileName, "png");
+			System.out.println("Writing disagg png plot to: "+outputDir.getAbsolutePath()+File.separator+outFileName+".png");
+			PureJavaDisaggPlotter.writeChartPlot(outputDir, outFileName, chartPanel, true, false);
 		} else if (type == PlotType.JPG || type == PlotType.JPEG) {
-			downloadPlot(address+ DisaggregationCalculator.DISAGGREGATION_PLOT_JPG_NAME, outFileName, "jpg");
+			File outFile = new File(outputDir, outFileName+".jpg");
+			System.out.println("Writing disagg jpg plot to: "+outFile.getAbsolutePath());
+			ExportUtils.writeAsJPEG(chartPanel.getDrawable(), chartPanel.getWidth(), chartPanel.getHeight(), outFile);
 		} else if (type == PlotType.TXT) {
 			String outputFileName = outputDir.getAbsolutePath()+File.separator+outFileName+".txt";
 			DisaggregationPlotViewerWindow.saveAsTXT(outputFileName, meanModeText, metadataText,
@@ -466,12 +570,6 @@ public class DisaggregationPlotter {
 		} else {
 			throw new IllegalArgumentException("Unknown plot type: "+type);
 		}
-	}
-	
-	private void downloadPlot(String address, String outFileName, String ext) throws IOException {
-		File outFile = new File(outputDir.getAbsolutePath()+File.separator+outFileName+"."+ext);
-		System.out.println("Downloading disagg "+ext+" plot to: "+outFile.getAbsolutePath());
-		FileUtils.downloadURL(address, outFile);
 	}
 
 	/**
@@ -508,6 +606,16 @@ public class DisaggregationPlotter {
 		return ops;
 	}
 
+	/**
+	 * Command line entry point. Run with {@code --help} for all options. Key options: {@code --run-id}, {@code --period},
+	 * {@code --component}, {@code --probs}, {@code --imls}, {@code --erf-file} (required), {@code --atten-rel-file},
+	 * {@code --type} (pdf, png, jpg, txt; comma separated), {@code --force-vs30} and {@code -o} (output directory).
+	 * With the single argument {@code --hardcoded}, a built-in developer configuration is used.
+	 * 
+	 * @param args command line arguments
+	 * @throws DocumentException if an ERF XML file cannot be parsed
+	 * @throws InvocationTargetException if constructing an ERF from its XML metadata fails
+	 */
 	public static void main(String args[]) throws DocumentException, InvocationTargetException {
 		if (args.length == 1 && args[0].equals("--hardcoded")) {
 //			String[] newArgs = {"-R", "5760", "-p", "3,5,10", "-pr", "0.002,4.0e-4", "-o", "/tmp", "-t", "png",

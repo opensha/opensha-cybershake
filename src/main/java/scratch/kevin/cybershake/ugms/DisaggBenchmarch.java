@@ -1,5 +1,8 @@
 package scratch.kevin.cybershake.ugms;
 
+import org.opensha.sha.calc.disaggregation.chart3d.PureJavaDisaggPlotter;
+import org.jfree.chart3d.export.ExportUtils;
+import org.jfree.chart3d.Chart3DPanel;
 import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.IOException;
@@ -17,7 +20,6 @@ import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.util.FileUtils;
 import org.opensha.sha.calc.HazardCurveCalculator;
 import org.opensha.sha.calc.disaggregation.DisaggregationCalculator;
-import org.opensha.sha.calc.disaggregation.DisaggregationCalculatorAPI;
 import org.opensha.sha.cybershake.calc.mcer.MCERDataProductsCalc;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
@@ -223,7 +225,7 @@ public class DisaggBenchmarch {
 						int numSourcesForDisag = 100;
 						boolean showSourceDistances = true;
 						double maxZAxis = Double.NaN;
-						DisaggregationCalculatorAPI disagg = new DisaggregationCalculator();
+						DisaggregationCalculator disagg = new DisaggregationCalculator();
 						disagg.setMagRange(minMag, numMags, deltaMag);
 						disagg.setNumSourcesToShow(numSourcesForDisag);
 						disagg.setShowDistances(showSourceDistances);
@@ -259,10 +261,12 @@ public class DisaggBenchmarch {
 										Preconditions.checkState(disagg.disaggregate(Math.log(iml), site, gmpe, erf,
 												curveCalc.getSourceFilters(), curveCalc.getAdjustableParams()));
 										disagg.setMaxZAxisForPlot(maxZAxis);
-										String address = disagg.getDisaggregationPlotUsingServlet("asfd");
+										// NOTE: the plot step below used to time a round trip to the GMT DisaggregationPlotServlet (server render,
+										// network, PDF download). It is now a local Java render and PDF write, so these timings are not
+										// comparable with results recorded before the GMT servlet migration.
+										Chart3DPanel chartPanel = PureJavaDisaggPlotter.buildChartPanel(disagg.getDisaggPlotData());
 										String outputFileName = tempDir.getAbsolutePath()+File.separator+"gmpe_temp.pdf";
-										DisaggregationPlotViewerWindow.saveAsPDF(
-												address+DisaggregationCalculator.DISAGGREGATION_PLOT_PDF_NAME,
+										DisaggregationPlotViewerWindow.saveAsPDF(chartPanel,
 												outputFileName, "safda", "asdf", "asfda", "asdf", "asdf");
 									}
 								}

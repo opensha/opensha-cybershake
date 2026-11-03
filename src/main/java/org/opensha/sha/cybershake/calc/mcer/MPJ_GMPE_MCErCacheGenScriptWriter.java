@@ -80,9 +80,9 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 		System.out.println(sites.size()+" sites before TL filter");
 		TLDataLoader tlData = new TLDataLoader(
 				CSVFile.readStream(TLDataLoader.class.getResourceAsStream(
-						"/resources/data/site/USGS_TL/tl-nodes.csv"), true),
+						"/data/site/USGS_TL/tl-nodes.csv"), true),
 				CSVFile.readStream(TLDataLoader.class.getResourceAsStream(
-						"/resources/data/site/USGS_TL/tl-attributes.csv"), true));
+						"/data/site/USGS_TL/tl-attributes.csv"), true));
 		for (int i=sites.size(); --i>=0;) {
 			if (Double.isNaN(tlData.getValue(sites.get(i).getLocation())))
 				sites.remove(i);

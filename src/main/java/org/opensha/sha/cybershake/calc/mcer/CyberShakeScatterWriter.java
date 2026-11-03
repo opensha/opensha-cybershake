@@ -36,7 +36,7 @@ import org.opensha.sha.calc.mcer.MCErCalcUtils;
 import org.opensha.sha.calc.mcer.MCErMapGenerator;
 import org.opensha.sha.cybershake.HazardCurveFetcher;
 import org.opensha.sha.cybershake.calc.HazardCurveComputation;
-import org.opensha.sha.cybershake.calc.mcer.UGMS_WebToolCalc.SpectraType;
+import org.opensha.sha.cybershake.calc.mcer.Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraType;
 import org.opensha.sha.cybershake.constants.CyberShakeStudy;
 import org.opensha.sha.cybershake.db.CachedPeakAmplitudesFromDB;
 import org.opensha.sha.cybershake.db.CybershakeIM;

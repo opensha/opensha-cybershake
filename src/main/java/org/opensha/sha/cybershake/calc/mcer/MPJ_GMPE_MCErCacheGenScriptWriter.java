@@ -58,11 +58,11 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 		
 		boolean fmpj = false;
 		
-		Map<String, Double> vs30Map = new HashMap<>(UGMS_WebToolCalc.vs30Map);
+		Map<String, Double> vs30Map = new HashMap<>(Legacy_ASCE7_16_UGMS_WebToolCalc.vs30Map);
 //		double spacing = 0.02;
 		double spacing = 0.01;
 //		Map<String, Double> vs30Map = new HashMap<>();
-//		vs30Map.put("Wills", UGMS_WebToolCalc.vs30Map.get("Wills"));
+//		vs30Map.put("Wills", Legacy_ASCE7_16_UGMS_WebToolCalc.vs30Map.get("Wills"));
 //		double spacing = 0.001;
 		
 		vs30Map.remove("D_default"); // calculated after the fact

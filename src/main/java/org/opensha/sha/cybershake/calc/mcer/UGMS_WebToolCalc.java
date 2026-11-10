@@ -616,7 +616,14 @@ public class UGMS_WebToolCalc {
 			spectrum.setName(type.getName());
 		else
 			spectrum.setName(source.getName()+" "+type.getShortName());
-		spectrum.toXMLMetadata(resultsEl, type.getElementName(), valDF);
+		boolean capped = true;
+		for (int i=0; i<spectrum.size(); i++)
+			capped = capped && Double.isFinite(spectrum.getY(i));
+		if (capped)
+			spectrum.toXMLMetadata(resultsEl, type.getElementName(), valDF);
+		else
+			// USGS gave no 84th percentile (see noDeterministicCap); record that instead of infinite values
+			resultsEl.addElement(type.getElementName()).addAttribute("notProvided", "true");
 		spectraCache.put(type, source, spectrum);
 		return spectrum;
 	}
@@ -720,6 +727,17 @@ public class UGMS_WebToolCalc {
 	}
 
 	/**
+	 * Deterministic spectrum where USGS provides no 84th percentile: +infinity at every period, so
+	 * min(P, max(Det, DLL)) = P, matching the service's own MCER there
+	 */
+	static DiscretizedFunc noDeterministicCap() {
+		DiscretizedFunc spectrum = new ArbitrarilyDiscretizedFunc();
+		for (double period : periods)
+			spectrum.set(period, Double.POSITIVE_INFINITY);
+		return spectrum;
+	}
+
+	/**
 	 * One class's USGS spectrum of the given type on our periods, which drops T=0 (PGA is handled by PGAM)
 	 */
 	private DiscretizedFunc getUSGSSpectrum(String siteClass, SpectraType type) {
@@ -731,6 +749,8 @@ public class UGMS_WebToolCalc {
 			break;
 		case MCER_DET:
 			full = usgs.getEightyFourthSpectrum();
+			if (full == null)
+				return noDeterministicCap();
 			break;
 		case MCER_DET_LOWER:
 			full = usgs.getDetLowerLimitSpectrum();
@@ -843,6 +863,11 @@ public class UGMS_WebToolCalc {
 			double x = s1.getX(i);
 			Preconditions.checkState((float)x == (float)s2.getX(i), "Spectrum x values inconsistent");
 			double[] ys = {s1.getY(i), s2.getY(i)};
+			if (Double.isInfinite(ys[0]) || Double.isInfinite(ys[1])) {
+				// a class with no USGS deterministic spectrum has no cap, so neither does the interpolated value
+				interpSpectrum.set(x, Double.POSITIVE_INFINITY);
+				continue;
+			}
 			// log-log interpolation as requested by Christine, 1/17/17
 //				double y = Interpolate.findY(xs, ys, userVs30);
 //				double y = Interpolate.findLogY(xs, ys, userVs30);
@@ -1307,7 +1332,8 @@ public class UGMS_WebToolCalc {
 	 */
 	public static void main(String[] args) {
 		if (args.length == 1 && args[0].equals("--hardcoded")) {
-			File backendDir = new File("/home/kevin/git/UGMS-opensha-backend");
+			// UGMS-opensha-backend checked out next to this repo under ~/git
+			File backendDir = new File(System.getProperty("user.home"), "git/UGMS-opensha-backend");
 			File dataDir = new File(backendDir, "data");
 			File siteDataDir = new File(dataDir, "site_params");
 			// hardcoded
@@ -1343,7 +1369,7 @@ public class UGMS_WebToolCalc {
 			argStr += " --wills-file "+new File(siteDataDir, "wills_2015_vs30.flt");
 			argStr += " --wills-header "+new File(siteDataDir, "wills_2015_vs30.hdr");
 			
-			argStr += " --output-dir /tmp/ugms_web_tool_asce7_22";
+			argStr += " --output-dir "+new File(backendDir, "results/ugms-asce-7-22-hardcoded");
 			
 			args = Splitter.on(" ").splitToList(argStr).toArray(new String[0]);
 		}

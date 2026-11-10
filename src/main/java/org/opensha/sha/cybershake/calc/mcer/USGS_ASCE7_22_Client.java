@@ -27,7 +27,8 @@ import com.google.gson.JsonParser;
  * <li>{@link Response#getRiskTargetedSpectrum()}: {@code response.data.underlyingData.riskTargetedSpectrum}
  * (probabilistic MCER)</li>
  * <li>{@link Response#getEightyFourthSpectrum()}: {@code response.data.underlyingData.eightyFourthSpectrum}
- * (deterministic 84th percentile). {@code pga84th} is the PGA value only.</li>
+ * (deterministic 84th percentile). {@code pga84th} is the PGA value only. Empty where USGS skips the deterministic
+ * calculation (e.g. Irvine, Palos Verdes); its MCER there equals the probabilistic spectrum.</li>
  * <li>{@link Response#getDetLowerLimitSpectrum()}: {@code response.metadata.sadFloor}
  * (deterministic lower limit, DLL)</li>
  * <li>{@link Response#getMCErSpectrum()}: {@code response.data.multiPeriodMCErSpectrum}, equal to
@@ -127,10 +128,10 @@ public class USGS_ASCE7_22_Client {
 			JsonObject data = response.getAsJsonObject("data");
 			JsonObject underlying = data.getAsJsonObject("underlyingData");
 			JsonObject metadata = response.getAsJsonObject("metadata");
-			riskTargeted = toFunc(underlying, "riskTargetedSpectrum", "USGS Probabilistic");
-			eightyFourth = toFunc(underlying, "eightyFourthSpectrum", "USGS 84th Percentile");
-			detLowerLimit = toFunc(metadata, "sadFloor", "USGS Deterministic Lower Limit");
-			mcer = toFunc(data, "multiPeriodMCErSpectrum", "USGS MCER");
+			riskTargeted = toFunc(underlying, "riskTargetedSpectrum", "USGS Probabilistic", false);
+			eightyFourth = toFunc(underlying, "eightyFourthSpectrum", "USGS 84th Percentile", true);
+			detLowerLimit = toFunc(metadata, "sadFloor", "USGS Deterministic Lower Limit", false);
+			mcer = toFunc(data, "multiPeriodMCErSpectrum", "USGS MCER", false);
 			pgam = data.get("pgam").getAsDouble();
 			tl = data.get("tl").getAsDouble();
 			sms = data.get("sms").getAsDouble();
@@ -139,12 +140,18 @@ public class USGS_ASCE7_22_Client {
 			modelVersion = metadata.get("modelVersion").getAsString();
 		}
 
-		private static ArbitrarilyDiscretizedFunc toFunc(JsonObject parent, String name, String funcName) {
+		/**
+		 * @param mayBeEmpty true to return null for an empty spectrum instead of failing
+		 */
+		private static ArbitrarilyDiscretizedFunc toFunc(JsonObject parent, String name, String funcName,
+				boolean mayBeEmpty) {
 			JsonObject obj = parent.getAsJsonObject(name);
 			if (obj == null)
 				throw new IllegalStateException("Missing spectrum '"+name+"' in USGS ASCE 7-22 reply");
 			JsonArray periods = obj.getAsJsonArray("periods");
 			JsonArray ordinates = obj.getAsJsonArray("ordinates");
+			if (mayBeEmpty && periods.size() == 0 && ordinates.size() == 0)
+				return null;
 			if (periods.size() == 0 || periods.size() != ordinates.size())
 				throw new IllegalStateException("Bad spectrum '"+name+"': "+periods.size()+" periods, "
 						+ordinates.size()+" ordinates");
@@ -158,7 +165,10 @@ public class USGS_ASCE7_22_Client {
 		/** Probabilistic risk-targeted spectrum ({@code underlyingData.riskTargetedSpectrum}), includes T=0 (PGA) */
 		public ArbitrarilyDiscretizedFunc getRiskTargetedSpectrum() { return riskTargeted; }
 
-		/** Deterministic 84th-percentile spectrum ({@code underlyingData.eightyFourthSpectrum}), includes T=0 */
+		/**
+		 * Deterministic 84th-percentile spectrum ({@code underlyingData.eightyFourthSpectrum}), includes T=0, or null
+		 * where USGS doesn't provide it. Then no deterministic cap applies: the service's MCER is the probabilistic spectrum.
+		 */
 		public ArbitrarilyDiscretizedFunc getEightyFourthSpectrum() { return eightyFourth; }
 
 		/** Deterministic lower limit (DLL) spectrum ({@code metadata.sadFloor}), includes T=0 */

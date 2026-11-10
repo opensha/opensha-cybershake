@@ -20,7 +20,8 @@ import com.google.gson.JsonParser;
 /**
  * Checks the USGS ASCE 7-22 field mapping and the ASCE 7-22 rules used by {@link UGMS_WebToolCalc} against
  * saved service replies (Los Angeles 34.05, -118.25, class D, and USC 34.0192, -118.286, classes C, CD, D and
- * Default, retrieved 2026-10-20). No network access.
+ * Default, retrieved 2026-10-20; Irvine 33.70, -117.80, class BC, which has no 84th-percentile spectrum, retrieved
+ * 2026-11-10). No network access.
  */
 public class USGS_ASCE7_22_ClientTest {
 
@@ -120,6 +121,28 @@ public class USGS_ASCE7_22_ClientTest {
 		DiscretizedFunc f = new ArbitrarilyDiscretizedFunc();
 		f.set(1d, y);
 		return f;
+	}
+
+	/**
+	 * Where USGS gives no 84th percentile (Irvine 33.70, -117.80, class BC, retrieved 2026-11-10) the reply still
+	 * parses, and MCER with no deterministic cap reproduces the service's own MCER (its probabilistic spectrum).
+	 * @throws IOException if the fixture cannot be read
+	 */
+	@Test
+	public void testNoEightyFourth() throws IOException {
+		USGS_ASCE7_22_Client.Response reply = USGS_ASCE7_22_Client.parse(
+				readFixture("usgs_asce7-22_irvine_BC_no84th.json"));
+		assertNull(reply.getEightyFourthSpectrum());
+		DiscretizedFunc noCap = UGMS_WebToolCalc.noDeterministicCap();
+		DiscretizedFunc prob = new ArbitrarilyDiscretizedFunc(), dll = new ArbitrarilyDiscretizedFunc();
+		for (int i=0; i<noCap.size(); i++) {
+			double t = noCap.getX(i);
+			prob.set(t, reply.getRiskTargetedSpectrum().getY(t));
+			dll.set(t, reply.getDetLowerLimitSpectrum().getY(t));
+		}
+		DiscretizedFunc mcer = UGMS_WebToolCalc.calcMCER(prob, noCap, dll);
+		for (int i=0; i<mcer.size(); i++)
+			assertEquals("MCER at T="+mcer.getX(i), reply.getMCErSpectrum().getY(mcer.getX(i)), mcer.getY(i), TOL);
 	}
 
 	/** A reply whose status is not "success" is rejected. */

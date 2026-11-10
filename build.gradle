@@ -10,6 +10,13 @@ ext {
 
 apply from: '../opensha/build-common.gradle'
 
+// opensha leaves data/site out of its jars, but the MCER code needs the USGS TL map (ASCEDetLowerLimitCalc.getTl)
+processResources {
+    from('../opensha/src/main/resources') {
+        include 'data/site/USGS_TL/**'
+    }
+}
+
 dependencies {
 
     api 'org.xerial:sqlite-jdbc:3.42.0.0'

@@ -1,6 +1,7 @@
 package org.opensha.sha.calc.mcer;
 
 import java.awt.Color;
+import java.awt.geom.Path2D;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
@@ -14,6 +15,7 @@ import org.opensha.commons.geo.BorderType;
 import org.opensha.commons.geo.GriddedRegion;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationList;
+import org.opensha.commons.geo.LocationUtils;
 import org.opensha.commons.geo.Region;
 import org.opensha.commons.mapping.gmt.GMT_Map;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
@@ -27,13 +29,18 @@ import scratch.UCERF3.analysis.FaultBasedMapGen;
 
 public class TLDataLoader {
 	
+	// one entry per TL zone; a zone has either a Region or, if its outline isn't a valid Region, a fallback shape
 	private List<Region> regions;
+	private List<Path2D> fallbackShapes;
+	private List<LocationList> boundaries;
 	private List<Double> values;
 	
 	private static final double distance_buffer = 10; // buffer in km for really close but just outside
 	
 	public TLDataLoader(CSVFile<String> polygons, CSVFile<String> attributes) {
 		regions = Lists.newArrayList();
+		fallbackShapes = Lists.newArrayList();
+		boundaries = Lists.newArrayList();
 		values = Lists.newArrayList();
 		
 		Map<String, Double> shapeIDtoVals = Maps.newHashMap();
@@ -64,22 +71,64 @@ public class TLDataLoader {
 		for (String shapeID : shapeIDtoVals.keySet()) {
 			double val = shapeIDtoVals.get(shapeID);
 			LocationList boundary = shapeIDtoBoundaries.get(shapeID);
-			Region region = new Region(boundary, BorderType.GREAT_CIRCLE);
+			Region region = null;
+			Path2D fallback = null;
+			try {
+				region = new Region(boundary, BorderType.GREAT_CIRCLE);
+			} catch (IllegalArgumentException e) {
+				// 7 of the 24 USGS outlines cross or touch themselves, which Region rejects
+				fallback = toPath(boundary);
+			}
 			regions.add(region);
+			fallbackShapes.add(fallback);
+			boundaries.add(boundary);
 			values.add(val);
 		}
 	}
-	
+
+	/**
+	 * Outline as a flat lon/lat polygon. Inside/outside uses the even-odd (ray casting) rule, which accepts outlines
+	 * that cross or touch themselves.
+	 * shortcut: edges are straight in lon/lat rather than great circles, and an outline crossing the date line
+	 * (Alaska) is not split; neither matters for the short edges of these outlines in the contiguous US
+	 */
+	private static Path2D toPath(LocationList boundary) {
+		Path2D path = new Path2D.Double(Path2D.WIND_EVEN_ODD);
+		path.moveTo(boundary.get(0).getLongitude(), boundary.get(0).getLatitude());
+		for (int i=1; i<boundary.size(); i++)
+			path.lineTo(boundary.get(i).getLongitude(), boundary.get(i).getLatitude());
+		path.closePath();
+		return path;
+	}
+
+	private boolean contains(int index, Location loc) {
+		Region region = regions.get(index);
+		if (region != null)
+			return region.contains(loc);
+		return fallbackShapes.get(index).contains(loc.getLongitude(), loc.getLatitude());
+	}
+
+	private double distance(int index, Location loc) {
+		Region region = regions.get(index);
+		if (region != null)
+			return region.distanceToLocation(loc);
+		// closest outline point; the points are dense enough for the near-miss buffer
+		double minDist = Double.POSITIVE_INFINITY;
+		for (Location pt : boundaries.get(index))
+			minDist = Math.min(minDist, LocationUtils.horzDistanceFast(loc, pt));
+		return minDist;
+	}
+
 	public double getValue(Location loc) {
 		Preconditions.checkNotNull(loc);
 		for (int i=0; i<regions.size(); i++)
-			if (regions.get(i).contains(loc))
+			if (contains(i, loc))
 				return values.get(i);
 		// ok see if it's a really near miss that we should still include
 		double minDistance = Double.POSITIVE_INFINITY;
 		int minIndex = -1;
 		for (int i=0; i<regions.size(); i++) {
-			double dist = regions.get(i).distanceToLocation(loc);
+			double dist = distance(i, loc);
 			if (dist < minDistance) {
 				minDistance= dist;
 				minIndex = i;
@@ -95,8 +144,8 @@ public class TLDataLoader {
 //				CSVFile.readFile(new File("/tmp/temp-nodes.csv"), true),
 //				CSVFile.readFile(new File("/tmp/temp-attributes.csv"), true));
 		TLDataLoader tl = new TLDataLoader(
-				CSVFile.readStream(TLDataLoader.class.getResourceAsStream("/resources/data/site/USGS_TL/tl-nodes.csv"), true),
-				CSVFile.readStream(TLDataLoader.class.getResourceAsStream("/resources/data/site/USGS_TL/tl-attributes.csv"), true));
+				CSVFile.readStream(TLDataLoader.class.getResourceAsStream("/data/site/USGS_TL/tl-nodes.csv"), true),
+				CSVFile.readStream(TLDataLoader.class.getResourceAsStream("/data/site/USGS_TL/tl-attributes.csv"), true));
 		
 		double spacing = 0.01;
 		GriddedRegion gridReg = new GriddedRegion(new CaliforniaRegions.CYBERSHAKE_MAP_REGION(), spacing, null);

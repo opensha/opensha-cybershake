@@ -1,0 +1,56 @@
+
+/* UGMS_GridReport: appended to MarkdownUtils' GitHub stylesheet so the HTML matches mcer_report.pdf (MarkdownToPDF) */
+body .markdown-body {
+  max-width: 1150px;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #1f1f1e;
+}
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5 {
+  font-weight: 700;
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-top: 26px;
+  margin-bottom: 8px;
+}
+.markdown-body h1 { font-size: 25px; }
+.markdown-body h2 { font-size: 20px; }
+.markdown-body h3 { font-size: 17px; }
+.markdown-body h4, .markdown-body h5 { font-size: 15px; }
+.markdown-body table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.markdown-body table th {
+  background: #24565a;
+  color: #fff;
+  font-weight: 700;
+  text-align: left;
+}
+.markdown-body table th, .markdown-body table td {
+  border: 1px solid #c8cdcd;
+  padding: 4px 6px;
+  vertical-align: middle;
+}
+.markdown-body table tr { background: #fff; border-top: none; }
+.markdown-body table tr:nth-child(2n) { background: #f1f3f2; }
+.markdown-body table td img { display: block; width: 100%; max-width: none; background: #fff; }
+.markdown-body code {
+  font-size: 92%;
+  background: none;
+  padding: 0;
+}
+.markdown-body pre {
+  background: #f4f4f1;
+  border: 1px solid #c8cdcd;
+  border-radius: 0;
+  font-size: 12px;
+}
+/* equal-width map columns, as in the PDF */
+.markdown-body table:has(img) { table-layout: fixed; }
+/* map and chart tables: the first row is a label row like the others, not a header */
+.markdown-body table:has(img) tr { background: #fff; }
+.markdown-body table:has(img) th { background: #fff; color: inherit; font-weight: 400; }

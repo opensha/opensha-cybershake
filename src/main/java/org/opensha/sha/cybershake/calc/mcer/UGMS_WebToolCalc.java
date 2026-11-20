@@ -34,7 +34,7 @@ import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.data.siteData.SiteData;
 import org.opensha.commons.data.siteData.impl.CVM4i26BasinDepth;
 import org.opensha.commons.data.siteData.impl.CVM_CCAi6BasinDepth;
-import org.opensha.commons.data.siteData.impl.WillsMap2015;
+import org.opensha.commons.data.siteData.impl.ThompsonVs30_2022;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.LocationUtils;
 import org.opensha.commons.geo.Region;
@@ -91,7 +91,7 @@ import com.google.common.collect.Table;
  * service. PGAM and TL come from the service.</li>
  * </ul>
  *
- * <p>The service takes ASCE 7-22 site classes only. A user or Wills Vs30 is handled by querying the two
+ * <p>The service takes ASCE 7-22 site classes only. A user or Thompson 2022 Vs30 is handled by querying the two
  * bounding classes and interpolating log-log in Vs30. The "Default" class MCER is the per-period envelope of
  * the MCERs of classes C, CD and D, which matches the service's own Default result.</p>
  *
@@ -434,7 +434,8 @@ public class UGMS_WebToolCalc {
 			if (cmd.hasOption("vs30")) {
 				vs30 = Double.parseDouble(cmd.getOptionValue("vs30"));
 			} else {
-				vs30 = getWillsVs30(cmd);
+				vs30 = getThompsonVs30(loc, cmd.getOptionValue("thompson-file"), cmd.getOptionValue("thompson-header"));
+				metadataEl.addAttribute("thompsonVs30", vs30DF.format(vs30));
 			}
 			Preconditions.checkState(Double.isFinite(vs30) && vs30 > 0, "Bad Vs30: %s", vs30);
 			double minDiff = Double.POSITIVE_INFINITY;
@@ -538,35 +539,39 @@ public class UGMS_WebToolCalc {
 		spectraCache = HashBasedTable.create();
 	}
 	
-	private double getWillsVs30(CommandLine cmd) {
-		System.out.println("Fetching Vs30 from Wills 2015 map");
+	/**
+	 * Looks up Vs30 from the Thompson 2022 California map, from a local grid file if given, otherwise from the servlet.
+	 * @param dataFile local Thompson 2022 data file, or null to use the servlet
+	 * @param hdrFile header for a custom grid in dataFile, or null for the full map's grid
+	 */
+	static double getThompsonVs30(Location loc, String dataFile, String hdrFile) {
+		System.out.println("Fetching Vs30 from Thompson 2022 map");
 		double vs30;
 		try {
-			WillsMap2015 wills;
-			if (cmd.hasOption("wills-file")) {
-				File willsFile = new File(cmd.getOptionValue("wills-file"));
-				Preconditions.checkState(willsFile.exists(),
-						"Wills 2015 file specified but doesnt exist: %s", willsFile.getAbsolutePath());
-				if (cmd.hasOption("wills-header")) {
-					System.out.println("Reading custom Wills 2015 header file");
-					File hdrFile = new File(cmd.getOptionValue("wills-header"));
-					Preconditions.checkState(hdrFile.exists(),
-							"Wills 2015 header file specified but doesnt exist: %s", hdrFile.getAbsolutePath());
-					GeolocatedRectangularBinaryMesh2DCalculator calc = GeolocatedRectangularBinaryMesh2DCalculator.readHDR(hdrFile);
-					wills = new WillsMap2015(willsFile.getAbsolutePath(), calc);
+			ThompsonVs30_2022 thompson;
+			if (dataFile != null) {
+				File thompsonFile = new File(dataFile);
+				Preconditions.checkState(thompsonFile.exists(),
+						"Thompson 2022 file specified but doesnt exist: %s", thompsonFile.getAbsolutePath());
+				if (hdrFile != null) {
+					System.out.println("Reading custom Thompson 2022 header file");
+					File hdr = new File(hdrFile);
+					Preconditions.checkState(hdr.exists(),
+							"Thompson 2022 header file specified but doesnt exist: %s", hdr.getAbsolutePath());
+					GeolocatedRectangularBinaryMesh2DCalculator calc = GeolocatedRectangularBinaryMesh2DCalculator.readHDR(hdr);
+					thompson = new ThompsonVs30_2022(thompsonFile.getAbsolutePath(), calc);
 				} else {
-					wills = new WillsMap2015(willsFile.getAbsolutePath());
+					thompson = new ThompsonVs30_2022(thompsonFile.getAbsolutePath());
 				}
 			} else {
 				// use servlet
-				wills = new WillsMap2015();
+				thompson = new ThompsonVs30_2022();
 			}
-			vs30 = wills.getValue(loc);
+			vs30 = thompson.getValue(loc);
 		} catch (IOException e) {
 			throw ExceptionUtils.asRuntimeException(e);
 		}
-		System.out.println("Wills 2015 Vs30: "+vs30);
-		metadataEl.addAttribute("willsVs30", vs30DF.format(vs30));
+		System.out.println("Thompson 2022 Vs30: "+vs30);
 		return vs30;
 	}
 
@@ -1250,12 +1255,12 @@ public class UGMS_WebToolCalc {
 		ops.addOption(lon);
 		
 		Option siteClass = new Option("c", "class", true,
-				"ASCE 7-22 site class (A, B, BC, C, CD, D, DE, E or Default). If neither this or vs30 is specified, Wills value will be used");
+				"ASCE 7-22 site class (A, B, BC, C, CD, D, DE, E or Default). If neither this or vs30 is specified, Thompson 2022 value will be used");
 		siteClass.setRequired(false);
 		ops.addOption(siteClass);
 		
 		Option vs30 = new Option("v", "vs30", true,
-				"Vs30 (m/s). If neither this or site class is specified, Wills value will be used");
+				"Vs30 (m/s). If neither this or site class is specified, Thompson 2022 value will be used");
 		vs30.setRequired(false);
 		ops.addOption(vs30);
 		
@@ -1271,15 +1276,15 @@ public class UGMS_WebToolCalc {
 		outputDir.setRequired(true);
 		ops.addOption(outputDir);
 		
-		Option willsFile = new Option("w", "wills-file", true,
-				"Path to Wills 2015 data file for local access, otherwise servlet will be used");
-		willsFile.setRequired(false);
-		ops.addOption(willsFile);
+		Option thompsonFile = new Option("tf", "thompson-file", true,
+				"Path to Thompson 2022 Vs30 data file for local access, otherwise servlet will be used");
+		thompsonFile.setRequired(false);
+		ops.addOption(thompsonFile);
 		
-		Option willsHeaderFile = new Option("w", "wills-header", true,
-				"Path to Wills 2015 header file, which can be used if a different grid is supplied than the full (large) Wills 2015 data file.");
-		willsHeaderFile.setRequired(false);
-		ops.addOption(willsHeaderFile);
+		Option thompsonHeaderFile = new Option("th", "thompson-header", true,
+				"Path to Thompson 2022 header file, which can be used if a different grid is supplied than the full (large) Thompson 2022 data file.");
+		thompsonHeaderFile.setRequired(false);
+		ops.addOption(thompsonHeaderFile);
 		
 		Option velModelID = new Option("vm", "vel-model-id", true,
 				"Velocity model ID, required if using precomputed CS data files");
@@ -1365,9 +1370,8 @@ public class UGMS_WebToolCalc {
 			argStr += " --z25-file "+new File(siteDataDir, "CVM4i26_depth_2.5.bin");
 //			argStr += " --vs30 260";
 			argStr += " --class D";
-//			argStr += " --wills-file /data/kevin/opensha/wills2015.flt";
-			argStr += " --wills-file "+new File(siteDataDir, "wills_2015_vs30.flt");
-			argStr += " --wills-header "+new File(siteDataDir, "wills_2015_vs30.hdr");
+			argStr += " --thompson-file "+new File(siteDataDir, "thompson_2022_vs30.flt");
+			argStr += " --thompson-header "+new File(siteDataDir, "thompson_2022_vs30.hdr");
 			
 			argStr += " --output-dir "+new File(backendDir, "results/ugms-asce-7-22-hardcoded");
 			

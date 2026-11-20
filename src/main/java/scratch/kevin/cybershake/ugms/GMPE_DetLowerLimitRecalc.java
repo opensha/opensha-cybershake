@@ -12,7 +12,7 @@ import org.opensha.sha.calc.hazardMap.BinaryHazardCurveWriter;
 import org.opensha.sha.calc.hazardMap.components.BinaryCurveArchiver;
 import org.opensha.sha.calc.mcer.ASCEDetLowerLimitCalc;
 import org.opensha.sha.cybershake.calc.mcer.MCERDataProductsCalc;
-import org.opensha.sha.cybershake.calc.mcer.UGMS_WebToolCalc;
+import org.opensha.sha.cybershake.calc.mcer.Legacy_ASCE7_16_UGMS_WebToolCalc;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
@@ -50,7 +50,7 @@ public class GMPE_DetLowerLimitRecalc {
 		String dirName = dir.getName();
 		if (dirName.contains("class")) {
 			String cl = dirName.substring(dirName.indexOf("class")+5);
-			vs30 = UGMS_WebToolCalc.vs30Map.get(cl);
+			vs30 = Legacy_ASCE7_16_UGMS_WebToolCalc.vs30Map.get(cl);
 			System.out.println("Detected site class "+cl+", vs30="+vs30);
 		} else {
 			wills = new WillsMap2006();

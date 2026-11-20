@@ -33,9 +33,9 @@ import org.opensha.sha.calc.hazardMap.BinaryHazardCurveWriter;
 import org.opensha.sha.calc.hazardMap.BinaryRandomAccessHazardCurveWriter;
 import org.opensha.sha.calc.hazardMap.components.BinaryCurveArchiver;
 import org.opensha.sha.calc.mcer.MCErMapGenerator;
-import org.opensha.sha.cybershake.calc.mcer.UGMS_WebToolCalc.DesignParameter;
-import org.opensha.sha.cybershake.calc.mcer.UGMS_WebToolCalc.SpectraSource;
-import org.opensha.sha.cybershake.calc.mcer.UGMS_WebToolCalc.SpectraType;
+import org.opensha.sha.cybershake.calc.mcer.Legacy_ASCE7_16_UGMS_WebToolCalc.DesignParameter;
+import org.opensha.sha.cybershake.calc.mcer.Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraSource;
+import org.opensha.sha.cybershake.calc.mcer.Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraType;
 import org.opensha.sha.imr.param.OtherParams.Component;
 import org.opensha.sha.util.component.ComponentConverter;
 

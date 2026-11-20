@@ -58,11 +58,11 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 		
 		boolean fmpj = false;
 		
-		Map<String, Double> vs30Map = new HashMap<>(UGMS_WebToolCalc.vs30Map);
+		Map<String, Double> vs30Map = new HashMap<>(Legacy_ASCE7_16_UGMS_WebToolCalc.vs30Map);
 //		double spacing = 0.02;
 		double spacing = 0.01;
 //		Map<String, Double> vs30Map = new HashMap<>();
-//		vs30Map.put("Wills", UGMS_WebToolCalc.vs30Map.get("Wills"));
+//		vs30Map.put("Wills", Legacy_ASCE7_16_UGMS_WebToolCalc.vs30Map.get("Wills"));
 //		double spacing = 0.001;
 		
 		vs30Map.remove("D_default"); // calculated after the fact
@@ -80,9 +80,9 @@ public class MPJ_GMPE_MCErCacheGenScriptWriter {
 		System.out.println(sites.size()+" sites before TL filter");
 		TLDataLoader tlData = new TLDataLoader(
 				CSVFile.readStream(TLDataLoader.class.getResourceAsStream(
-						"/resources/data/site/USGS_TL/tl-nodes.csv"), true),
+						"/data/site/USGS_TL/tl-nodes.csv"), true),
 				CSVFile.readStream(TLDataLoader.class.getResourceAsStream(
-						"/resources/data/site/USGS_TL/tl-attributes.csv"), true));
+						"/data/site/USGS_TL/tl-attributes.csv"), true));
 		for (int i=sites.size(); --i>=0;) {
 			if (Double.isNaN(tlData.getValue(sites.get(i).getLocation())))
 				sites.remove(i);

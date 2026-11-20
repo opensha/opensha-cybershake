@@ -24,9 +24,9 @@ private static TLDataLoader tlData;
 				try {
 					tlData = new TLDataLoader(
 							CSVFile.readStream(TLDataLoader.class.getResourceAsStream(
-									"/resources/data/site/USGS_TL/tl-nodes.csv"), true),
+									"/data/site/USGS_TL/tl-nodes.csv"), true),
 							CSVFile.readStream(TLDataLoader.class.getResourceAsStream(
-									"/resources/data/site/USGS_TL/tl-attributes.csv"), true));
+									"/data/site/USGS_TL/tl-attributes.csv"), true));
 				} catch (IOException e) {
 					ExceptionUtils.throwAsRuntimeException(e);
 				}

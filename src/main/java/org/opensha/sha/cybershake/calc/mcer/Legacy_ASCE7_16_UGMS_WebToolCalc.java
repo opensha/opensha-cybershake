@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
@@ -662,7 +663,7 @@ public class Legacy_ASCE7_16_UGMS_WebToolCalc {
 		return el;
 	}
 	
-	private synchronized DiscretizedFunc getCalcSpectrum(SpectraType type, SpectraSource source) {
+	synchronized DiscretizedFunc getCalcSpectrum(SpectraType type, SpectraSource source) {
 		if (spectraCache.contains(type, source))
 			return spectraCache.get(type, source);
 		
@@ -957,15 +958,25 @@ public class Legacy_ASCE7_16_UGMS_WebToolCalc {
 		throw new IllegalStateException("Cannot calculate combined spectrum for "+type);
 	}
 	
+	// grid files already read in this JVM, so batch runs (UGMS_GridCalc) read each file once
+	private static final Map<File, Map<Location, ArbitrarilyDiscretizedFunc>> dataCache = new ConcurrentHashMap<>();
+
 	private GriddedSpectrumInterpolator getInterpolator(File dataFile, double spacing) throws Exception {
-		System.out.println("Loading spectrum from "+dataFile.getAbsolutePath());
-		Stopwatch watch = Stopwatch.createStarted();
-		BinaryHazardCurveReader reader = new BinaryHazardCurveReader(dataFile.getAbsolutePath());
-		Map<Location, ArbitrarilyDiscretizedFunc> map = reader.getCurveMap();
-		watch.stop();
-		System.out.println("Took "+watch.elapsed(TimeUnit.SECONDS)+" s to load spectrum");
-		
+		Map<Location, ArbitrarilyDiscretizedFunc> map = dataCache.get(dataFile.getAbsoluteFile());
+		if (map == null) {
+			System.out.println("Loading spectrum from "+dataFile.getAbsolutePath());
+			Stopwatch watch = Stopwatch.createStarted();
+			map = new BinaryHazardCurveReader(dataFile.getAbsolutePath()).getCurveMap();
+			watch.stop();
+			System.out.println("Took "+watch.elapsed(TimeUnit.SECONDS)+" s to load spectrum");
+			dataCache.putIfAbsent(dataFile.getAbsoluteFile(), map);
+		}
 		return getInterpolator(map, spacing);
+	}
+
+	/** Vs30 used for the GMPE side: the user's value or class, or the Wills 2015 value */
+	double getVs30() {
+		return userVs30;
 	}
 	
 	private GriddedSpectrumInterpolator getPGAInterpolator(File dataFile, double spacing) throws Exception {
@@ -1561,7 +1572,7 @@ public class Legacy_ASCE7_16_UGMS_WebToolCalc {
 		return runs;
 	}
 	
-	private static Options createOptions() {
+	static Options createOptions() {
 		Options ops = new Options();
 		
 		Option run = new Option("r", "run-id", true, "CyberShake run ID, if a specific site is wanted");

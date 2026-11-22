@@ -807,6 +807,16 @@ public class UGMS_WebToolCalc {
 		return envelope;
 	}
 	
+	/** site classes queried from USGS: one, the two that bound the Vs30, or the Default envelope classes */
+	List<String> getSiteClassNames() {
+		return siteClassNames;
+	}
+
+	/** Vs30 used for the GMPE side: the user's value or class, or the Thompson 2022 value */
+	double getVs30() {
+		return userVs30;
+	}
+
 	/**
 	 * Supplies a saved USGS reply for a site class, so {@link #getUSGS(String)} uses it instead of querying the service
 	 */

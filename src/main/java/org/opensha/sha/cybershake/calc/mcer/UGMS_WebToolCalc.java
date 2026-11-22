@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
@@ -596,7 +597,7 @@ public class UGMS_WebToolCalc {
 		return el;
 	}
 	
-	private synchronized DiscretizedFunc getCalcSpectrum(SpectraType type, SpectraSource source) {
+	synchronized DiscretizedFunc getCalcSpectrum(SpectraType type, SpectraSource source) {
 		if (spectraCache.contains(type, source))
 			return spectraCache.get(type, source);
 		
@@ -806,10 +807,27 @@ public class UGMS_WebToolCalc {
 		return envelope;
 	}
 	
+	/** site classes queried from USGS: one, the two that bound the Vs30, or the Default envelope classes */
+	List<String> getSiteClassNames() {
+		return siteClassNames;
+	}
+
+	/** Vs30 used for the GMPE side: the user's value or class, or the Thompson 2022 value */
+	double getVs30() {
+		return userVs30;
+	}
+
+	/**
+	 * Supplies a saved USGS reply for a site class, so {@link #getUSGS(String)} uses it instead of querying the service
+	 */
+	synchronized void setUSGS(String siteClass, USGS_ASCE7_22_Client.Response usgs) {
+		usgsResponses.put(siteClass, usgs);
+	}
+
 	/**
 	 * Queries the USGS ASCE 7-22 service once per site class, saving the raw reply to the output directory
 	 */
-	private synchronized USGS_ASCE7_22_Client.Response getUSGS(String siteClass) {
+	synchronized USGS_ASCE7_22_Client.Response getUSGS(String siteClass) {
 		USGS_ASCE7_22_Client.Response usgs = usgsResponses.get(siteClass);
 		if (usgs == null) {
 			System.out.println("Querying USGS ASCE 7-22 service: "+usgsClient.buildURL(loc, siteClass));
@@ -899,14 +917,19 @@ public class UGMS_WebToolCalc {
 				getCalcSpectrum(type, SpectraSource.GMPE));
 	}
 	
+	// grid files already read in this JVM, so batch runs (UGMS_GridCalc) read each file once
+	private static final Map<File, Map<Location, ArbitrarilyDiscretizedFunc>> csDataCache = new ConcurrentHashMap<>();
+
 	private GriddedSpectrumInterpolator getInterpolator(File dataFile, double spacing) throws Exception {
-		System.out.println("Loading spectrum from "+dataFile.getAbsolutePath());
-		Stopwatch watch = Stopwatch.createStarted();
-		BinaryHazardCurveReader reader = new BinaryHazardCurveReader(dataFile.getAbsolutePath());
-		Map<Location, ArbitrarilyDiscretizedFunc> map = reader.getCurveMap();
-		watch.stop();
-		System.out.println("Took "+watch.elapsed(TimeUnit.SECONDS)+" s to load spectrum");
-		
+		Map<Location, ArbitrarilyDiscretizedFunc> map = csDataCache.get(dataFile.getAbsoluteFile());
+		if (map == null) {
+			System.out.println("Loading spectrum from "+dataFile.getAbsolutePath());
+			Stopwatch watch = Stopwatch.createStarted();
+			map = new BinaryHazardCurveReader(dataFile.getAbsolutePath()).getCurveMap();
+			watch.stop();
+			System.out.println("Took "+watch.elapsed(TimeUnit.SECONDS)+" s to load spectrum");
+			csDataCache.putIfAbsent(dataFile.getAbsoluteFile(), map);
+		}
 		return getInterpolator(map, spacing);
 	}
 	
@@ -1227,7 +1250,7 @@ public class UGMS_WebToolCalc {
 		return runs;
 	}
 	
-	private static Options createOptions() {
+	static Options createOptions() {
 		Options ops = new Options();
 		
 		Option run = new Option("r", "run-id", true, "CyberShake run ID, if a specific site is wanted");

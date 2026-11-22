@@ -54,6 +54,7 @@ import org.opensha.commons.util.DataUtils;
 import org.opensha.commons.util.MarkdownUtils;
 import org.opensha.commons.util.MarkdownUtils.TableBuilder;
 import org.opensha.sha.calc.mcer.MCErCalcUtils;
+import org.opensha.sha.cybershake.util.MarkdownToPDF;
 import org.opensha.sha.faultSurface.FaultSection;
 import org.opensha.sha.faultSurface.FaultTrace;
 

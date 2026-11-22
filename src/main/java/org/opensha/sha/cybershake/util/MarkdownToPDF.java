@@ -1,4 +1,4 @@
-package org.opensha.sha.cybershake.calc.mcer;
+package org.opensha.sha.cybershake.util;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -44,11 +44,12 @@ import com.itextpdf.text.pdf.PdfReader;
 import com.itextpdf.text.pdf.PdfWriter;
 
 /**
- * Renders the Markdown subset the UGMS grid report uses (headings, paragraphs, inline code, bold, &lt;sub&gt;, bullet
- * lists, fenced code and GFM tables with images) to a PDF with iText, so the PDF has the same content as the HTML
- * report. The "Table of Contents" section is left out, since its links only work in HTML.
+ * Renders the Markdown subset that report generators write with {@link org.opensha.commons.util.MarkdownUtils}
+ * (headings, paragraphs, inline code, bold, &lt;sub&gt;/&lt;sup&gt;, bullet lists, fenced code and GFM tables with
+ * images) to a PDF with iText, so the PDF has the same content as the HTML report. The "Table of Contents" section is
+ * left out, since its links only work in HTML.
  */
-class MarkdownToPDF {
+public class MarkdownToPDF {
 
 	private static final BaseColor HEADER_BG = new BaseColor(36, 86, 90);
 	private static final BaseColor STRIPE_BG = new BaseColor(241, 243, 242);
@@ -70,7 +71,13 @@ class MarkdownToPDF {
 		this.pageBreak = pageBreak;
 	}
 
-	static void write(List<String> markdownLines, File baseDir, File pdfFile,
+	/**
+	 * @param markdownLines the report Markdown, as passed to {@link org.opensha.commons.util.MarkdownUtils#writeReadmeAndHTML}
+	 * @param baseDir directory that image paths are relative to
+	 * @param pdfFile PDF to write
+	 * @param pageBreak for a heading (level, text): the page size to start a new page with, or null for no break
+	 */
+	public static void write(List<String> markdownLines, File baseDir, File pdfFile,
 			BiFunction<Integer, String, Rectangle> pageBreak) throws IOException {
 		List<Extension> extensions = List.of(TablesExtension.create());
 		Node root = Parser.builder().extensions(extensions).build().parse(String.join("\n", markdownLines));

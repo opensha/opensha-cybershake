@@ -1,5 +1,5 @@
 
-/* UGMS_GridReport: appended to MarkdownUtils' GitHub stylesheet so the HTML matches mcer_report.pdf (MarkdownToPDF) */
+/* UGMS_GridReport: appended to MarkdownUtils' GitHub stylesheet so the HTML matches the PDF report (MarkdownToPDF) */
 body .markdown-body {
   max-width: 1150px;
   font-family: Helvetica, Arial, sans-serif;

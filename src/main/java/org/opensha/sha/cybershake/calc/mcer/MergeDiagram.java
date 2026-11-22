@@ -41,15 +41,16 @@ class MergeDiagram {
 
 	/**
 	 * @param weights the CyberShake weights, written under the blend formula
+	 * @param asce7_16 the ASCE 7-16 tool: options 2 and 3 only, and a GMPE MCER with no stored ingredients
 	 */
-	static void write(File dir, String prefix, String weights) throws IOException {
+	static void write(File dir, String prefix, String weights, boolean asce7_16) throws IOException {
 		int scale = 3;
 		BufferedImage img = new BufferedImage(W*scale, H*scale, BufferedImage.TYPE_INT_RGB);
 		Graphics2D g = img.createGraphics();
 		g.setColor(Color.WHITE);
 		g.fillRect(0, 0, W*scale, H*scale);
 		g.scale(scale, scale);
-		draw(g, weights);
+		draw(g, weights, asce7_16);
 		g.dispose();
 		ImageIO.write(img, "png", new File(dir, prefix+".png"));
 
@@ -58,7 +59,7 @@ class MergeDiagram {
 			PdfWriter writer = PdfWriter.getInstance(doc, out);
 			doc.open();
 			Graphics2D pdf = writer.getDirectContent().createGraphics(W, H);
-			draw(pdf, weights);
+			draw(pdf, weights, asce7_16);
 			pdf.dispose();
 			doc.close();
 		} catch (DocumentException e) {
@@ -66,20 +67,33 @@ class MergeDiagram {
 		}
 	}
 
-	private static void draw(Graphics2D g, String weights) {
+	private static void draw(Graphics2D g, String weights, boolean asce7_16) {
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-		box(g, 10, 10, 340, 120, "CyberShake side: MCER_CS", null, new String[] {
-				"Option 1:  min[ Prob_CS, max( Det_GMPE, Det_LL ) ]",
-				"Option 2:  Prob_CS",
-				"Option 3:  min[ Prob_CS, max( Det_CS, Det_LL ) ]",
-				"It equals one of its terms: the term that sets it."}, new boolean[] {true, true, true, false});
-		box(g, 370, 10, 340, 120, "GMPE side: MCER_GMPE (every option)", null, new String[] {
-				"min[ Prob_GMPE, max( Det_GMPE, Det_LL ) ]",
-				"From the USGS ASCE 7-22 service.",
-				"",
-				"It equals one of its terms: the term that sets it."}, new boolean[] {true, false, false, false});
+		if (asce7_16) {
+			box(g, 10, 10, 340, 120, "CyberShake side: MCER_CS", null, new String[] {
+					"Option 2:  Prob_CS",
+					"Option 3:  min[ Prob_CS, max( Det_CS, Det_LL ) ]",
+					"Option 3 is the tool's, read from its MCER grid.",
+					"It equals one of its terms: the term that sets it."}, new boolean[] {true, true, false, false});
+			box(g, 370, 10, 340, 120, "GMPE side: MCER_GMPE (every option)", null, new String[] {
+					"Precomputed ASCE 7-16 GMPE MCER grid.",
+					"Its ingredients are not stored, so the",
+					"term that sets it is not known.",
+					""}, new boolean[] {false, false, false, false});
+		} else {
+			box(g, 10, 10, 340, 120, "CyberShake side: MCER_CS", null, new String[] {
+					"Option 1:  min[ Prob_CS, max( Det_GMPE, Det_LL ) ]",
+					"Option 2:  Prob_CS",
+					"Option 3:  min[ Prob_CS, max( Det_CS, Det_LL ) ]",
+					"It equals one of its terms: the term that sets it."}, new boolean[] {true, true, true, false});
+			box(g, 370, 10, 340, 120, "GMPE side: MCER_GMPE (every option)", null, new String[] {
+					"min[ Prob_GMPE, max( Det_GMPE, Det_LL ) ]",
+					"From the USGS ASCE 7-22 service.",
+					"",
+					"It equals one of its terms: the term that sets it."}, new boolean[] {true, false, false, false});
+		}
 
 		// the merge test
 		RoundRectangle2D test = new RoundRectangle2D.Double(220, 150, 280, 36, 10, 10);
@@ -99,16 +113,19 @@ class MergeDiagram {
 		g.drawString("yes", 172, 214);
 		g.drawString("no", 524, 214);
 
-		box(g, 10, 230, 340, 140, "Yes: GMPE kept", Term.PROB.hatched(), new String[] {
+		box(g, 10, 230, 340, 140, "Yes: GMPE kept", asce7_16 ? UGMS_GridReport.hatched(Color.GRAY) : Term.PROB.hatched(),
+				new String[] {
 				"Final = MCER_GMPE",
-				"Map: hatched cell, coloured by the GMPE term",
-				"Table row 2: counted by the GMPE term"}, new boolean[] {true, false, false});
+				asce7_16 ? "Map: grey hatched cell" : "Map: hatched cell, coloured by the GMPE term",
+				asce7_16 ? "Table row 2: counted in total" : "Table row 2: counted by the GMPE term"},
+				new boolean[] {true, false, false});
 		box(g, 370, 230, 340, 140, "No: CS raised", Term.PROB.solid(), new String[] {
 				"Final = exp[ w ln MCER_CS + (1 - w) ln MCER_GMPE ]",
 				weights,
 				"Map: solid cell, coloured by the CS term",
 				"Table row 1: counted by the CS term",
-				"Table row 3: the same cells, counted by the GMPE term"}, new boolean[] {true, false, false, false, false});
+				asce7_16 ? "" : "Table row 3: the same cells, counted by the GMPE term"},
+				new boolean[] {true, false, false, false, false});
 	}
 
 	/**

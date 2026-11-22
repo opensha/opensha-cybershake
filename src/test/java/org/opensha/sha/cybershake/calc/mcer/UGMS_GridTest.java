@@ -33,4 +33,18 @@ public class UGMS_GridTest {
 		// no USGS 84th spectrum: no deterministic cap
 		assertEquals(Term.PROB, UGMS_GridReport.control(0.6, Double.POSITIVE_INFINITY, 0.2));
 	}
+
+	@Test
+	public void testASCE7_16Point() {
+		// lat, lon, period, vs30, prob_cs, det_cs, det_ll_cs, prob/det GMPE (none), det_ll, tool CS, GMPE, final
+		List<String> row = List.of("34.05", "-118.25", "2.0", "351.9", "0.57", "1.02", "0.76", "NaN", "NaN", "false",
+				"NaN", "0.5701", "0.5", "0.53");
+		UGMS_GridReport.Point p = new UGMS_GridReport.Point(row, true);
+		assertEquals(Term.PROB, p.csTerm[3]);
+		assertEquals("option 3 is the tool's own MCER_CS", 0.5701, p.cs[3], 0d);
+		assertEquals(0.57, p.cs3Formula, 1e-12);
+		assertNull("no GMPE term without GMPE ingredients", p.gmpeTerm);
+		assertTrue(p.raised[2] && p.raised[3]);
+		assertEquals(MCERDataProductsCalc.calcFinalMCER(0.5701, 0.5, 2d), p.fin[3], 0d);
+	}
 }

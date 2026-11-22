@@ -20,7 +20,6 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.opensha.commons.data.CSVFile;
-import org.opensha.commons.data.function.ArbitrarilyDiscretizedFunc;
 import org.opensha.commons.data.function.DiscretizedFunc;
 import org.opensha.commons.geo.BorderType;
 import org.opensha.commons.geo.Location;
@@ -38,20 +37,25 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 /**
- * Runs the ASCE 7-22 + CyberShake 15.4 UGMS calculation ({@link UGMS_WebToolCalc}) at every multiple of a query
- * spacing inside the v18.4 web-tool region, and writes the spectral ingredients at the CyberShake periods to
- * ingredients.csv for {@link UGMS_GridReport}.
+ * Runs the ASCE 7-22 + CyberShake 15.4 UGMS calculation ({@link UGMS_WebToolCalc}), or with --asce7-16 the legacy
+ * ASCE 7-16 one ({@link Legacy_ASCE7_16_UGMS_WebToolCalc}), at every multiple of a query spacing inside the v18.4
+ * web-tool region, and writes the spectral ingredients at the CyberShake periods to ingredients.csv for
+ * {@link UGMS_GridReport}. Vs30 is one value for every coordinate, or with --vs30 map the tool's own Vs30 map at each
+ * coordinate (Thompson 2022 for ASCE 7-22, Wills 2015 for ASCE 7-16).
  * <p>
  * Each coordinate runs in this JVM, so the CyberShake grid files are read once. Per coordinate it saves the tool's
  * metadata.xml, the raw USGS reply and its own ingredients rows under coordinates/&lt;lat&gt;_&lt;lon&gt;/. Rerunning
  * resumes: coordinates with ingredients rows are skipped, and a saved USGS reply is reused instead of a new query.
  * Each coordinate is checked: the per-side MCER formula and the merge applied to the ingredients must reproduce the
- * tool's own CyberShake, GMPE and final MCERs.
+ * tool's own CyberShake, GMPE and final MCERs. ASCE 7-16 keeps only the GMPE-side MCER on its precomputed grids, so
+ * its GMPE ingredients are NaN, and only the merge is checked (see the CyberShake note in calcCoordinate).
  * <p>
  * Example, from the UGMS-opensha-backend directory:
  * <pre>
  * java -Xmx12G -cp opensha-cybershake-all.jar org.opensha.sha.cybershake.calc.mcer.UGMS_GridCalc \
  *     --data-dir data --output-dir results/grid_0.05deg_vs30_760 --spacing 0.05 --vs30 760
+ * java -Xmx12G -cp opensha-cybershake-all.jar org.opensha.sha.cybershake.calc.mcer.UGMS_GridCalc \
+ *     --data-dir data --output-dir results/grid_0.05deg_asce7-16_wills --spacing 0.05 --vs30 map --asce7-16
  * </pre>
  */
 public class UGMS_GridCalc {
@@ -61,32 +65,38 @@ public class UGMS_GridCalc {
 			new Location(34.15858, -116.99926), new Location(33.29757, -117.58879), new Location(34.08743, -119.28559));
 	/** periods where the CyberShake and GMPE sides are merged */
 	static final double[] CS_PERIODS = {2d, 3d, 4d, 5d, 7.5d, 10d};
-	static final String[] INGREDIENT_HEADER = {"lat", "lon", "period", "prob_cs", "det_cs", "prob_gmpe", "det_gmpe",
-			"det_gmpe_provided", "det_ll", "tool_mcer_cs", "tool_mcer_gmpe", "tool_final"};
+	static final String[] INGREDIENT_HEADER = {"lat", "lon", "period", "vs30", "prob_cs", "det_cs", "det_ll_cs",
+			"prob_gmpe", "det_gmpe", "det_gmpe_provided", "det_ll", "tool_mcer_cs", "tool_mcer_gmpe", "tool_final"};
+	/** --vs30 value for the tool's own Vs30 map */
+	static final String VS30_MAP = "map";
 
 	private static final double CS_SPACING = 0.002;
+	private static final double GMPE_SPACING = 0.01; // ASCE 7-16 GMPE grids in data/gmpe
 	private static final int VEL_MODEL_ID = 5; // CVM-S4.26, CyberShake 15.4
 	private static final double TOL = 1e-9;
 
 	private final File dataDir;
 	private final File outputDir;
-	private final double vs30;
-	private final String siteClass;
-	private final GriddedSpectrumInterpolator detInterp;
+	private final Double vs30; // null: the tool's Vs30 map
+	private final boolean asce7_16;
+	private final GriddedSpectrumInterpolator detInterp; // ASCE 7-22 only
 
-	private UGMS_GridCalc(File dataDir, File outputDir, double vs30) throws Exception {
+	private UGMS_GridCalc(File dataDir, File outputDir, Double vs30, boolean asce7_16) throws Exception {
 		this.dataDir = dataDir;
 		this.outputDir = outputDir;
 		this.vs30 = vs30;
-		// one USGS class per coordinate: other Vs30 values would interpolate two classes' ingredients
-		siteClass = UGMS_WebToolCalc.vs30Map.inverse().get(vs30);
-		Preconditions.checkArgument(siteClass != null && vs30 > 0,
-				"--vs30 must be an ASCE 7-22 site class value %s, got %s", UGMS_WebToolCalc.vs30Map, vs30);
-		// Det_CS: the tool takes only the probabilistic spectrum from CyberShake, so read the deterministic grid here
-		File detFile = new File(csDataDir(), "mcer_det_spectrum_"+(float)CS_SPACING+".bin");
-		Preconditions.checkState(detFile.exists(), "CyberShake deterministic grid not found: %s", detFile);
-		detInterp = new GriddedSpectrumInterpolator(
-				new BinaryHazardCurveReader(detFile.getAbsolutePath()).getCurveMap(), CS_SPACING);
+		this.asce7_16 = asce7_16;
+		Preconditions.checkArgument(vs30 == null || vs30 > 0, "--vs30 must be positive or %s, got %s", VS30_MAP, vs30);
+		if (asce7_16) {
+			detInterp = null;
+		} else {
+			// Det_CS: the ASCE 7-22 tool takes only the probabilistic spectrum from CyberShake, so read the
+			// deterministic grid here
+			File detFile = new File(csDataDir(), "mcer_det_spectrum_"+(float)CS_SPACING+".bin");
+			Preconditions.checkState(detFile.exists(), "CyberShake deterministic grid not found: %s", detFile);
+			detInterp = new GriddedSpectrumInterpolator(
+					new BinaryHazardCurveReader(detFile.getAbsolutePath()).getCurveMap(), CS_SPACING);
+		}
 	}
 
 	private File csDataDir() {
@@ -119,6 +129,11 @@ public class UGMS_GridCalc {
 		return String.format("%.4f_%.4f", loc.getLatitude(), loc.getLongitude());
 	}
 
+	/** One coordinate's spectra from the tool; GMPE ingredients are null for ASCE 7-16 */
+	private record Spectra(double vs30, DiscretizedFunc probCS, DiscretizedFunc detCS, DiscretizedFunc detLLCS,
+			DiscretizedFunc probGMPE, DiscretizedFunc detGMPE, DiscretizedFunc detLLGMPE,
+			DiscretizedFunc toolCS, DiscretizedFunc toolGMPE, DiscretizedFunc toolFinal) {}
+
 	/**
 	 * Ingredient rows for one coordinate, from its saved rows file or by running the tool
 	 */
@@ -127,8 +142,8 @@ public class UGMS_GridCalc {
 		File rowsFile = new File(dir, "ingredients.csv");
 		if (rowsFile.exists()) {
 			CSVFile<String> csv = CSVFile.readFile(rowsFile, true);
-			// a file cut short (run killed while writing it) is recomputed
-			if (csv.getNumRows() == CS_PERIODS.length+1) {
+			// a file cut short (run killed while writing it) or in an older format is recomputed
+			if (csv.getNumRows() == CS_PERIODS.length+1 && csv.getLine(0).equals(List.of(INGREDIENT_HEADER))) {
 				List<List<String>> rows = new ArrayList<>();
 				for (int r=1; r<csv.getNumRows(); r++)
 					rows.add(csv.getLine(r));
@@ -137,41 +152,38 @@ public class UGMS_GridCalc {
 		}
 		Preconditions.checkState(dir.exists() || dir.mkdirs(), "Couldn't create %s", dir);
 		File siteDataDir = new File(dataDir, "site_params");
-		String[] toolArgs = {
+		List<String> toolArgs = new ArrayList<>(List.of(
 				"--cs-data-dir", csDataDir().getAbsolutePath(), "--cs-spacing", (float)CS_SPACING+"",
 				"--vel-model-id", VEL_MODEL_ID+"",
 				"--z10-file", new File(siteDataDir, "CVM4i26_depth_1.0.bin").getAbsolutePath(),
 				"--z25-file", new File(siteDataDir, "CVM4i26_depth_2.5.bin").getAbsolutePath(),
-				"--latitude", loc.getLatitude()+"", "--longitude", loc.getLongitude()+"", "--vs30", vs30+"",
-				"--output-dir", dir.getAbsolutePath()};
-		UGMS_WebToolCalc calc = new UGMS_WebToolCalc(new DefaultParser().parse(UGMS_WebToolCalc.createOptions(), toolArgs));
-		File savedReply = new File(dir, "usgs_asce7-22_"+siteClass+".json");
-		if (savedReply.exists())
-			calc.setUSGS(siteClass, USGS_ASCE7_22_Client.parse(Files.readString(savedReply.toPath())));
-		USGS_ASCE7_22_Client.Response usgs = calc.getUSGS(siteClass);
-		DiscretizedFunc probCS = calc.getCalcSpectrum(SpectraType.MCER_PROB, SpectraSource.CYBERSHAKE);
-		DiscretizedFunc toolCS = calc.getCalcSpectrum(SpectraType.MCER, SpectraSource.CYBERSHAKE);
-		DiscretizedFunc toolGMPE = calc.getCalcSpectrum(SpectraType.MCER, SpectraSource.GMPE);
-		DiscretizedFunc toolFinal = calc.getCalcSpectrum(SpectraType.MCER, SpectraSource.COMBINED);
-		calc.writeMetadata();
-		DiscretizedFunc detCS = detInterp.getInterpolated(loc);
-		ArbitrarilyDiscretizedFunc eightyFourth = usgs.getEightyFourthSpectrum(); // null where USGS gives none
+				"--latitude", loc.getLatitude()+"", "--longitude", loc.getLongitude()+"",
+				"--output-dir", dir.getAbsolutePath()));
+		if (vs30 != null)
+			toolArgs.addAll(List.of("--vs30", vs30+""));
+		Spectra sp = asce7_16 ? runASCE7_16(loc, toolArgs, siteDataDir) : runASCE7_22(loc, toolArgs, dir);
 
 		List<List<String>> rows = new ArrayList<>();
 		for (double t : CS_PERIODS) {
-			double pc = probCS.getY(t), dc = detCS.getY(t);
-			double pg = usgs.getRiskTargetedSpectrum().getY(t), ll = usgs.getDetLowerLimitSpectrum().getY(t);
-			// no USGS 84th: no deterministic cap, as in UGMS_WebToolCalc.noDeterministicCap()
-			double dg = eightyFourth == null ? Double.POSITIVE_INFINITY : eightyFourth.getY(t);
-			// the tool's formula, applied to the ingredients, must give the tool's own MCERs
-			double mcerCS = MCErCalcUtils.calcMCER(dg, pc, ll), mcerG = MCErCalcUtils.calcMCER(dg, pg, ll);
-			double fin = MCERDataProductsCalc.calcFinalMCER(mcerCS, mcerG, t);
-			Preconditions.checkState(Math.abs(mcerCS - toolCS.getY(t)) < TOL && Math.abs(mcerG - toolGMPE.getY(t)) < TOL
-					&& Math.abs(fin - toolFinal.getY(t)) < TOL,
+			double pc = sp.probCS.getY(t), dc = sp.detCS.getY(t), llc = sp.detLLCS.getY(t);
+			double pg = Double.NaN, dg = Double.NaN, ll = Double.NaN;
+			if (!asce7_16) {
+				pg = sp.probGMPE.getY(t);
+				dg = sp.detGMPE.getY(t); // +infinity where USGS gives no 84th (UGMS_WebToolCalc.noDeterministicCap)
+				ll = sp.detLLGMPE.getY(t);
+			}
+			double toolCS = sp.toolCS.getY(t), toolGMPE = sp.toolGMPE.getY(t), toolFinal = sp.toolFinal.getY(t);
+			// the tool's formulas, applied to the ingredients, must give the tool's own MCERs. ASCE 7-16 reads its
+			// CyberShake MCER from its own precomputed grid, which differs from the formula applied to the ingredient
+			// grids (mostly <0.5%, up to ~11% where Det controls); UGMS_GridReport reports that difference instead
+			Preconditions.checkState(asce7_16 || Math.abs(MCErCalcUtils.calcMCER(dg, pc, ll) - toolCS) < TOL
+					&& Math.abs(MCErCalcUtils.calcMCER(dg, pg, ll) - toolGMPE) < TOL,
 					"Ingredients don't reproduce the tool's MCERs at %s, %s s", loc, t);
+			Preconditions.checkState(Math.abs(MCERDataProductsCalc.calcFinalMCER(toolCS, toolGMPE, t) - toolFinal) < TOL,
+					"The merge doesn't reproduce the tool's final MCER at %s, %s s", loc, t);
 			rows.add(List.of(String.format("%.4f", loc.getLatitude()), String.format("%.4f", loc.getLongitude()),
-					(float)t+"", pc+"", dc+"", pg+"", dg+"", (eightyFourth != null)+"", ll+"",
-					toolCS.getY(t)+"", toolGMPE.getY(t)+"", toolFinal.getY(t)+""));
+					(float)t+"", sp.vs30+"", pc+"", dc+"", llc+"", pg+"", dg+"", Double.isFinite(dg)+"", ll+"",
+					toolCS+"", toolGMPE+"", toolFinal+""));
 		}
 		CSVFile<String> csv = new CSVFile<>(true);
 		csv.addLine(INGREDIENT_HEADER);
@@ -179,6 +191,49 @@ public class UGMS_GridCalc {
 			csv.addLine(row);
 		csv.writeToFile(rowsFile);
 		return rows;
+	}
+
+	private Spectra runASCE7_22(Location loc, List<String> toolArgs, File dir) throws Exception {
+		UGMS_WebToolCalc calc = new UGMS_WebToolCalc(new DefaultParser().parse(UGMS_WebToolCalc.createOptions(),
+				toolArgs.toArray(new String[0])));
+		for (String siteClass : calc.getSiteClassNames()) {
+			File savedReply = new File(dir, "usgs_asce7-22_"+siteClass+".json");
+			if (savedReply.exists())
+				calc.setUSGS(siteClass, USGS_ASCE7_22_Client.parse(Files.readString(savedReply.toPath())));
+		}
+		// GMPE ingredients after the tool's Vs30 interpolation between the two bounding classes, if any
+		DiscretizedFunc detLL = calc.getCalcSpectrum(SpectraType.MCER_DET_LOWER, SpectraSource.GMPE);
+		Spectra sp = new Spectra(calc.getVs30(), calc.getCalcSpectrum(SpectraType.MCER_PROB, SpectraSource.CYBERSHAKE),
+				detInterp.getInterpolated(loc), detLL,
+				calc.getCalcSpectrum(SpectraType.MCER_PROB, SpectraSource.GMPE),
+				calc.getCalcSpectrum(SpectraType.MCER_DET, SpectraSource.GMPE), detLL,
+				calc.getCalcSpectrum(SpectraType.MCER, SpectraSource.CYBERSHAKE),
+				calc.getCalcSpectrum(SpectraType.MCER, SpectraSource.GMPE),
+				calc.getCalcSpectrum(SpectraType.MCER, SpectraSource.COMBINED));
+		calc.writeMetadata();
+		return sp;
+	}
+
+	private Spectra runASCE7_16(Location loc, List<String> toolArgs, File siteDataDir) throws Exception {
+		toolArgs.addAll(List.of("--gmpe-dir", new File(dataDir, "gmpe").getAbsolutePath(), "--gmpe-erf", "UCERF3",
+				"--gmpe-spacing", GMPE_SPACING+""));
+		if (vs30 == null)
+			toolArgs.addAll(List.of("--wills-file", new File(siteDataDir, "wills_2015_vs30.flt").getAbsolutePath(),
+					"--wills-header", new File(siteDataDir, "wills_2015_vs30.hdr").getAbsolutePath()));
+		Legacy_ASCE7_16_UGMS_WebToolCalc calc = new Legacy_ASCE7_16_UGMS_WebToolCalc(new DefaultParser().parse(
+				Legacy_ASCE7_16_UGMS_WebToolCalc.createOptions(), toolArgs.toArray(new String[0])));
+		Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraSource cs = Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraSource.CYBERSHAKE;
+		Spectra sp = new Spectra(calc.getVs30(),
+				calc.getCalcSpectrum(Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraType.MCER_PROB, cs),
+				calc.getCalcSpectrum(Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraType.MCER_DET, cs),
+				calc.getCalcSpectrum(Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraType.MCER_DET_LOWER, cs), null, null, null,
+				calc.getCalcSpectrum(Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraType.MCER, cs),
+				calc.getCalcSpectrum(Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraType.MCER,
+						Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraSource.GMPE),
+				calc.getCalcSpectrum(Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraType.MCER,
+						Legacy_ASCE7_16_UGMS_WebToolCalc.SpectraSource.COMBINED));
+		calc.writeMetadata();
+		return sp;
 	}
 
 	private record Result(Location loc, List<List<String>> rows, double seconds, String error) {}
@@ -240,7 +295,10 @@ public class UGMS_GridCalc {
 		ops.addOption(Option.builder().longOpt("spacing").hasArg()
 				.desc("Query spacing in degrees: every multiple inside the region is run (default 0.05)").get());
 		ops.addOption(Option.builder().longOpt("vs30").hasArg()
-				.desc("Vs30 for every coordinate, an ASCE 7-22 class value (default 760 = class BC)").get());
+				.desc("Vs30 (m/s) for every coordinate, or '"+VS30_MAP+"' for the tool's Vs30 map at each coordinate "
+						+ "(Thompson 2022 for ASCE 7-22, Wills 2015 for ASCE 7-16; default 760)").get());
+		ops.addOption(Option.builder().longOpt("asce7-16")
+				.desc("Run the legacy ASCE 7-16 calculator (Legacy_ASCE7_16_UGMS_WebToolCalc) instead of ASCE 7-22").get());
 		ops.addOption(Option.builder().longOpt("threads").hasArg()
 				.desc("Coordinates run in parallel; each queries the public USGS service (default 2)").get());
 		ops.addOption(Option.builder().longOpt("limit").hasArg().desc("Only the first N coordinates (for testing)").get());
@@ -263,7 +321,10 @@ public class UGMS_GridCalc {
 		File dataDir = new File(cmd.getOptionValue("data-dir"));
 		File outputDir = new File(cmd.getOptionValue("output-dir"));
 		double spacing = Double.parseDouble(cmd.getOptionValue("spacing", "0.05"));
-		double vs30 = Double.parseDouble(cmd.getOptionValue("vs30", "760"));
+		String vs30Arg = cmd.getOptionValue("vs30", "760");
+		Double vs30 = vs30Arg.equals(VS30_MAP) ? null : Double.valueOf(vs30Arg);
+		boolean asce7_16 = cmd.hasOption("asce7-16");
+		String standard = asce7_16 ? "ASCE7-16" : "ASCE7-22";
 		int threads = Integer.parseInt(cmd.getOptionValue("threads", "2"));
 		Preconditions.checkState(outputDir.exists() || outputDir.mkdirs(), "Couldn't create %s", outputDir);
 
@@ -278,21 +339,31 @@ public class UGMS_GridCalc {
 					locs.add(loc);
 			}
 		}
-		System.out.println(locs.size()+" coordinates, spacing "+spacing+" deg, Vs30 "+vs30+" m/s, "+threads+" threads");
+		System.out.println(locs.size()+" coordinates, "+standard+", spacing "+spacing+" deg, Vs30 "+vs30Arg+", "
+				+threads+" threads");
 
-		// saved coordinates are reused, so an existing output directory must have been run with the same grid and Vs30
+		// saved coordinates are reused, so an existing output directory must have been run with the same grid, Vs30
+		// and standard (runs from before the standard was recorded are ASCE 7-22)
 		File configFile = new File(outputDir, "run_config.json");
 		if (configFile.exists()) {
 			JsonObject prev = JsonParser.parseString(Files.readString(configFile.toPath())).getAsJsonObject();
-			if (prev.get("spacing_deg").getAsDouble() != spacing || prev.get("vs30").getAsDouble() != vs30) {
-				System.err.println(outputDir+" was run with --spacing "+prev.get("spacing_deg")+" --vs30 "+prev.get("vs30")
-						+"; use a new --output-dir for --spacing "+spacing+" --vs30 "+vs30);
+			String prevStandard = prev.has("standard") ? prev.get("standard").getAsString() : "ASCE7-22";
+			String prevVs30 = prev.get("vs30").getAsString();
+			if (prev.get("spacing_deg").getAsDouble() != spacing || !prevStandard.equals(standard)
+					|| !(prevVs30.equals(vs30Arg) || vs30 != null && prevVs30.matches("[0-9.]+")
+							&& Double.parseDouble(prevVs30) == vs30)) {
+				System.err.println(outputDir+" was run with "+prevStandard+" --spacing "+prev.get("spacing_deg")
+						+" --vs30 "+prevVs30+"; use a new --output-dir for "+standard+" --spacing "+spacing+" --vs30 "+vs30Arg);
 				System.exit(2);
 			}
 		}
 		JsonObject config = new JsonObject();
+		config.addProperty("standard", standard);
 		config.addProperty("spacing_deg", spacing);
-		config.addProperty("vs30", vs30);
+		if (vs30 == null)
+			config.addProperty("vs30", VS30_MAP);
+		else
+			config.addProperty("vs30", vs30);
 		config.addProperty("threads", threads);
 		config.addProperty("n_coordinates", locs.size());
 		JsonArray region = new JsonArray();
@@ -314,7 +385,7 @@ public class UGMS_GridCalc {
 		Files.writeString(configFile.toPath(),
 				new GsonBuilder().setPrettyPrinting().create().toJson(config));
 
-		new UGMS_GridCalc(dataDir, outputDir, vs30).run(locs, threads);
+		new UGMS_GridCalc(dataDir, outputDir, vs30, asce7_16).run(locs, threads);
 		System.exit(0);
 	}
 }

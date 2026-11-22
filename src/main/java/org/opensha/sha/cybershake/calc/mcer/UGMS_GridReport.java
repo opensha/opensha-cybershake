@@ -80,6 +80,12 @@ import scratch.UCERF3.enumTreeBranches.FaultModels;
  * Each period gets one page section with all six maps. The report is only written if option 1 reproduces the tool's
  * own CyberShake, GMPE and final MCERs at every coordinate.
  * <p>
+ * A run of the ASCE 7-16 tool ({@link Legacy_ASCE7_16_UGMS_WebToolCalc}, run_config.json standard ASCE7-16) has only
+ * options 2 and 3: option 3 is that tool's formula, with the CyberShake Det_LL, and option 1 needs Det_GMPE, which
+ * its precomputed GMPE grids don't store. Its GMPE side is the tool's GMPE MCER with no controlling term, and its
+ * option 3 MCER_CS is the tool's own (read from its MCER grid; mostly within 0.5% of the formula applied to the
+ * ingredient grids, but up to ~11% where the deterministic term controls; the report gives the difference). With a Vs30 map (run_config.json vs30 "map") the report adds a map of the Vs30 used.
+ * <p>
  * Usage: UGMS_GridReport &lt;grid output dir&gt; [author]
  */
 public class UGMS_GridReport {
@@ -102,25 +108,34 @@ public class UGMS_GridReport {
 
 		/** hatched fill, for final-map coordinates where the GMPE value is kept */
 		Paint hatched() {
-			int n = 32; // pixels per tile, drawn over HATCH_SPACING points
-			BufferedImage img = new BufferedImage(n, n, BufferedImage.TYPE_INT_ARGB);
-			Graphics2D g = img.createGraphics();
-			g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			g.setColor(withAlpha(color, 0.15));
-			g.fillRect(0, 0, n, n);
-			g.setColor(withAlpha(color, 0.85));
-			g.setStroke(new BasicStroke(n/7f));
-			for (int off=-n; off<=n; off+=n)
-				g.drawLine(off, n, off+n, 0); // 45 degree lines that join across tiles
-			g.dispose();
-			return new TexturePaint(img, new Rectangle2D.Double(0, 0, HATCH_SPACING, HATCH_SPACING));
+			return UGMS_GridReport.hatched(color);
 		}
 	}
 
-	private static final int[] OPTIONS = {1, 2, 3};
+	/** hatched fill in a colour */
+	static Paint hatched(Color color) {
+		int n = 32; // pixels per tile, drawn over HATCH_SPACING points
+		BufferedImage img = new BufferedImage(n, n, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = img.createGraphics();
+		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		g.setColor(withAlpha(color, 0.15));
+		g.fillRect(0, 0, n, n);
+		g.setColor(withAlpha(color, 0.85));
+		g.setStroke(new BasicStroke(n/7f));
+		for (int off=-n; off<=n; off+=n)
+			g.drawLine(off, n, off+n, 0); // 45 degree lines that join across tiles
+		g.dispose();
+		return new TexturePaint(img, new Rectangle2D.Double(0, 0, HATCH_SPACING, HATCH_SPACING));
+	}
+
+	private static final int[] OPTIONS_7_22 = {1, 2, 3}, OPTIONS_7_16 = {2, 3};
+	/** Vs30 map bins (m/s): upper bounds, and each bin's colour from soft soil (brown) to rock (teal) */
+	private static final double[] VS30_BINS = {180, 270, 360, 490, 620, 760};
+	private static final Color[] VS30_COLORS = {new Color(122, 59, 22), new Color(184, 100, 26), new Color(222, 160, 60),
+			new Color(232, 214, 140), new Color(150, 196, 180), new Color(58, 140, 150), new Color(36, 86, 90)};
+	private static final Color VS30_NONE = new Color(150, 150, 150);
 	private static final Color[] OPTION_COLORS = {new Color(36, 86, 90), new Color(184, 100, 26), new Color(106, 76, 156)};
 	private static final double TOL = 1e-9;
-	private static final String PDF_NAME = "mcer_report.pdf";
 	/** reference places drawn on every map */
 	private static final Map<String, Location> PLACES = new TreeMap<>(Map.ofEntries(
 			Map.entry("Los Angeles", new Location(34.052, -118.244)), Map.entry("Long Beach", new Location(33.770, -118.194)),
@@ -152,43 +167,58 @@ public class UGMS_GridReport {
 
 	/**
 	 * One coordinate at one period: its ingredients, both sides' MCERs and controlling terms, and the final MCER for
-	 * each option (index 1-3; index 0 unused)
+	 * each option (index 1-3; index 0 unused). For ASCE 7-16 the GMPE term and option 1 are null/NaN.
 	 */
 	static class Point {
 		final Location loc;
 		final double period;
+		final double vs30;
 		final boolean detGMPEProvided;
-		final double detLL, probCS, detGMPE;
+		final double detLL, detLLCS, probCS, detCS, detGMPE;
 		final double gmpe;
 		final Term gmpeTerm;
 		final double[] cs = new double[4], fin = new double[4];
 		final Term[] csTerm = new Term[4];
 		final boolean[] raised = new boolean[4];
 		final double toolCS, toolGMPE, toolFinal;
+		/** option 3 formula applied to the ingredients; for ASCE 7-16 it can differ slightly from the tool's MCER_CS */
+		final double cs3Formula;
 
-		Point(List<String> row) {
+		Point(List<String> row, boolean asce7_16) {
 			loc = new Location(Double.parseDouble(row.get(0)), Double.parseDouble(row.get(1)));
 			period = Double.parseDouble(row.get(2));
-			double pc = Double.parseDouble(row.get(3)), dc = Double.parseDouble(row.get(4));
-			double pg = Double.parseDouble(row.get(5)), dg = Double.parseDouble(row.get(6));
-			detGMPEProvided = Boolean.parseBoolean(row.get(7));
-			double ll = Double.parseDouble(row.get(8));
+			vs30 = Double.parseDouble(row.get(3));
+			double pc = Double.parseDouble(row.get(4)), dc = Double.parseDouble(row.get(5));
+			double llc = Double.parseDouble(row.get(6));
+			double pg = Double.parseDouble(row.get(7)), dg = Double.parseDouble(row.get(8));
+			detGMPEProvided = Boolean.parseBoolean(row.get(9));
+			double ll = Double.parseDouble(row.get(10));
 			detLL = ll;
+			detLLCS = llc;
 			probCS = pc;
+			detCS = dc;
 			detGMPE = dg;
-			toolCS = Double.parseDouble(row.get(9));
-			toolGMPE = Double.parseDouble(row.get(10));
-			toolFinal = Double.parseDouble(row.get(11));
+			toolCS = Double.parseDouble(row.get(11));
+			toolGMPE = Double.parseDouble(row.get(12));
+			toolFinal = Double.parseDouble(row.get(13));
 
-			gmpe = MCErCalcUtils.calcMCER(dg, pg, ll);
-			gmpeTerm = control(pg, dg, ll);
-			cs[1] = MCErCalcUtils.calcMCER(dg, pc, ll);
-			csTerm[1] = control(pc, dg, ll);
 			cs[2] = pc;
 			csTerm[2] = Term.PROB;
-			cs[3] = MCErCalcUtils.calcMCER(dc, pc, ll);
-			csTerm[3] = control(pc, dc, ll);
-			for (int o : OPTIONS) {
+			cs3Formula = MCErCalcUtils.calcMCER(dc, pc, llc);
+			csTerm[3] = control(pc, dc, llc);
+			if (asce7_16) {
+				gmpe = toolGMPE;
+				gmpeTerm = null;
+				cs[1] = Double.NaN;
+				cs[3] = toolCS;
+			} else {
+				gmpe = MCErCalcUtils.calcMCER(dg, pg, ll);
+				gmpeTerm = control(pg, dg, ll);
+				cs[1] = MCErCalcUtils.calcMCER(dg, pc, ll);
+				csTerm[1] = control(pc, dg, ll);
+				cs[3] = cs3Formula;
+			}
+			for (int o : asce7_16 ? OPTIONS_7_16 : OPTIONS_7_22) {
 				fin[o] = MCERDataProductsCalc.calcFinalMCER(cs[o], gmpe, period);
 				raised[o] = cs[o] > gmpe; // calcFinalMCER keeps the GMPE value when it is >= CyberShake
 			}
@@ -197,10 +227,16 @@ public class UGMS_GridReport {
 
 	private final File outputDir;
 	private final JsonObject config;
+	private final boolean asce7_16, vs30Map;
+	/** options this tool's data supports, and the one the tool implements */
+	private final int[] options;
+	private final int toolOption;
 	private final double spacing;
 	private final Region region;
 	private final Map<Double, List<Point>> byPeriod = new TreeMap<>();
 	private final int numFailed;
+	/** failed coordinates by reason */
+	private final Map<String, Integer> failReasons = new TreeMap<>();
 	private final List<? extends FaultSection> faults = FaultModels.FM3_1.getFaultSections();
 	// Esri basemap layers over mapRegion, or null when the tiles can't be fetched (drawn land and labels instead)
 	private BufferedImage basemap, basemapLabels;
@@ -210,26 +246,34 @@ public class UGMS_GridReport {
 		config = JsonParser.parseString(Files.readString(new File(outputDir, "run_config.json").toPath()))
 				.getAsJsonObject();
 		spacing = config.get("spacing_deg").getAsDouble();
+		// runs from before the standard was recorded are ASCE 7-22
+		asce7_16 = config.has("standard") && config.get("standard").getAsString().equals("ASCE7-16");
+		vs30Map = config.get("vs30").getAsString().equals(UGMS_GridCalc.VS30_MAP);
+		options = asce7_16 ? OPTIONS_7_16 : OPTIONS_7_22;
+		toolOption = asce7_16 ? 3 : 1;
 		region = new Region(UGMS_GridCalc.REGION_BORDER, BorderType.MERCATOR_LINEAR);
 		CSVFile<String> csv = CSVFile.readFile(new File(outputDir, "ingredients.csv"), true);
 		Preconditions.checkState(csv.getLine(0).equals(List.of(UGMS_GridCalc.INGREDIENT_HEADER)),
 				"Unexpected ingredients.csv header; rerun UGMS_GridCalc");
 		for (int r=1; r<csv.getNumRows(); r++) {
-			Point p = new Point(csv.getLine(r));
+			Point p = new Point(csv.getLine(r), asce7_16);
 			byPeriod.computeIfAbsent(p.period, k -> new ArrayList<>()).add(p);
 		}
-		for (double t : UGMS_GridCalc.CS_PERIODS) {
+		for (double t : UGMS_GridCalc.CS_PERIODS)
 			Preconditions.checkState(byPeriod.containsKey(t), "ingredients.csv has no rows at %s s", t);
-			// Det_LL depends on site class, not location, so it is reported as one value per period
-			double ll = byPeriod.get(t).get(0).detLL;
-			Preconditions.checkState(byPeriod.get(t).stream().allMatch(p -> p.detLL == ll),
-					"Det_LL varies by coordinate at %s s", t);
-		}
 		CSVFile<String> coords = CSVFile.readFile(new File(outputDir, "coordinates.csv"), true);
 		int failed = 0;
-		for (int r=1; r<coords.getNumRows(); r++)
-			if (!coords.get(r, 2).equals("ok"))
+		for (int r=1; r<coords.getNumRows(); r++) {
+			if (!coords.get(r, 2).equals("ok")) {
 				failed++;
+				// known offshore stops: the ASCE 7-22 tool with no Thompson 2022 Vs30, the ASCE 7-16 tool beyond its
+				// onshore GMPE grids
+				String error = coords.get(r, 4);
+				String reason = error.contains("Bad Vs30: NaN") ? "the Thompson 2022 map has no Vs30"
+						: error.contains("closest grid loc") ? "the tool's GMPE grid has no value nearby" : "other errors";
+				failReasons.merge(reason, 1, Integer::sum);
+			}
+		}
 		numFailed = failed;
 	}
 
@@ -254,21 +298,40 @@ public class UGMS_GridReport {
 	}
 
 	/**
-	 * Max differences between option 1 evaluated here and the tool's own MCERs (CyberShake, GMPE, final)
+	 * Max differences between the tool's option evaluated here and the tool's own MCERs (CyberShake, GMPE, final).
+	 * For ASCE 7-16 the GMPE MCER is the tool's own (difference 0), and the CyberShake entry is instead the max relative
+	 * difference between the option 3 formula and the tool's MCER_CS, which is reported but not required to vanish.
 	 */
 	private double[] validate() {
 		double[] diffs = new double[3];
 		for (List<Point> pts : byPeriod.values()) {
 			for (Point p : pts) {
-				diffs[0] = Math.max(diffs[0], Math.abs(p.cs[1] - p.toolCS));
+				int o = toolOption;
+				diffs[0] = Math.max(diffs[0], asce7_16 ? formulaDiff(p) : Math.abs(p.cs[o] - p.toolCS));
 				diffs[1] = Math.max(diffs[1], Math.abs(p.gmpe - p.toolGMPE));
-				diffs[2] = Math.max(diffs[2], Math.abs(p.fin[1] - p.toolFinal));
+				diffs[2] = Math.max(diffs[2], Math.abs(p.fin[o] - p.toolFinal));
 			}
 		}
-		Preconditions.checkState(diffs[0] < TOL && diffs[1] < TOL && diffs[2] < TOL,
-				"Option 1 doesn't reproduce the tool's MCERs (max differences CS %s, GMPE %s, final %s)",
-				diffs[0], diffs[1], diffs[2]);
+		Preconditions.checkState((asce7_16 || diffs[0] < TOL) && diffs[1] < TOL && diffs[2] < TOL,
+				"Option %s doesn't reproduce the tool's MCERs (max differences CS %s, GMPE %s, final %s)",
+				toolOption, diffs[0], diffs[1], diffs[2]);
 		return diffs;
+	}
+
+	/** ASCE 7-16: relative difference between the option 3 formula and the tool's MCER_CS */
+	private static double formulaDiff(Point p) {
+		return Math.abs(p.cs3Formula/p.toolCS - 1);
+	}
+
+	/** ASCE 7-16: share (%) of coordinate-periods matching pred whose formula is within 0.5% of the tool's MCER_CS */
+	private double shareWithinHalfPct(Predicate<Point> pred) {
+		return share(byPeriod.values().stream().flatMap(List::stream).filter(pred).toList(), p -> formulaDiff(p) < 0.005);
+	}
+
+	/** ASCE 7-16: coordinate-periods where the option 3 formula, instead of the tool's MCER_CS, flips raised/kept */
+	private long formulaFlips() {
+		return byPeriod.values().stream().flatMap(List::stream)
+				.filter(p -> (p.cs3Formula > p.gmpe) != p.raised[3]).count();
 	}
 
 	// ------------------------------------------------------------------ figures
@@ -429,6 +492,13 @@ public class UGMS_GridReport {
 			// option 2's CyberShake side is Prob_CS only
 			legend.add(o == 2 && t != Term.PROB ? null : "CS raised, "+csTerms(o).get(t.ordinal()));
 		}
+		if (asce7_16) {
+			// no GMPE controlling term: one hatched category
+			fills.add(hatched(Color.GRAY));
+			legend.add("GMPE kept");
+			map(prefix, pts, p -> p.raised[o] ? p.csTerm[o].ordinal() : 3, fills, legend);
+			return;
+		}
 		for (Term t : Term.values()) {
 			fills.add(t.hatched());
 			legend.add("GMPE kept, "+GMPE_TERMS.get(t.ordinal()));
@@ -436,12 +506,43 @@ public class UGMS_GridReport {
 		map(prefix, pts, p -> p.raised[o] ? p.csTerm[o].ordinal() : 3 + p.gmpeTerm.ordinal(), fills, legend);
 	}
 
+	/** Vs30 bin index of a coordinate, or the last index where the map has no value */
+	private static int vs30Bin(double vs30) {
+		if (!Double.isFinite(vs30))
+			return VS30_BINS.length+1;
+		int i = 0;
+		while (i < VS30_BINS.length && vs30 >= VS30_BINS[i])
+			i++;
+		return i;
+	}
+
+	private static List<String> vs30BinNames() {
+		List<String> names = new ArrayList<>();
+		names.add("< "+(int)VS30_BINS[0]+" m/s");
+		for (int i=1; i<VS30_BINS.length; i++)
+			names.add((int)VS30_BINS[i-1]+"-"+(int)VS30_BINS[i]+" m/s");
+		names.add(">= "+(int)VS30_BINS[VS30_BINS.length-1]+" m/s");
+		names.add("no map value");
+		return names;
+	}
+
+	private void vs30MapFigure(String prefix, List<Point> pts) throws IOException {
+		List<Paint> fills = new ArrayList<>();
+		for (Color c : VS30_COLORS)
+			fills.add(withAlpha(c, 0.75));
+		fills.add(withAlpha(VS30_NONE, 0.75));
+		List<String> legend = new ArrayList<>(vs30BinNames());
+		if (pts.stream().allMatch(p -> Double.isFinite(p.vs30)))
+			legend.set(legend.size()-1, null);
+		map(prefix, pts, p -> vs30Bin(p.vs30), fills, legend);
+	}
+
 	private void overviewChart(String prefix, String title, Predicate<Point>[] preds) throws IOException {
 		List<XY_DataSet> funcs = new ArrayList<>();
 		List<PlotCurveCharacterstics> chars = new ArrayList<>();
 		PlotLineType[] lines = {PlotLineType.SOLID, PlotLineType.DASHED, PlotLineType.DOTTED};
 		PlotSymbol[] symbols = {PlotSymbol.FILLED_CIRCLE, PlotSymbol.FILLED_SQUARE, PlotSymbol.FILLED_TRIANGLE};
-		for (int o : OPTIONS) {
+		for (int o : options) {
 			ArbitrarilyDiscretizedFunc func = new ArbitrarilyDiscretizedFunc("Option "+o);
 			for (double t : UGMS_GridCalc.CS_PERIODS)
 				func.set(t, share(at(t), preds[o]));
@@ -457,6 +558,42 @@ public class UGMS_GridReport {
 
 	// ------------------------------------------------------------------ report
 
+	/**
+	 * PDF name from the run's inputs, e.g. mcer_report_asce7-16_vs30-wills2015_0.05deg.pdf or
+	 * mcer_report_asce7-22_vs30-760_0.05deg.pdf
+	 */
+	String pdfName() {
+		String vs30 = vs30Map ? (asce7_16 ? "wills2015" : "thompson2022")
+				: new DecimalFormat("0.##").format(config.get("vs30").getAsDouble());
+		return "mcer_report_"+(asce7_16 ? "asce7-16" : "asce7-22")+"_vs30-"+vs30+"_"
+				+ new DecimalFormat("0.####").format(spacing)+"deg.pdf";
+	}
+
+	/** e.g. "ASCE 7-16, Vs30 from Wills 2015" */
+	private String caseName() {
+		String vs30 = vs30Map ? (asce7_16 ? "Vs30 from Wills 2015" : "Vs30 from Thompson 2022")
+				: "Vs30 = "+(int)config.get("vs30").getAsDouble()+" m/s";
+		return (asce7_16 ? "ASCE 7-16" : "ASCE 7-22")+", "+vs30;
+	}
+
+	/** "a, b and c g" for values that are the same at every coordinate, else "from min to max g" per period */
+	private String perPeriodValues(ToDoubleFunction<Point> val) {
+		List<String> vals = new ArrayList<>();
+		boolean constant = true;
+		for (double t : UGMS_GridCalc.CS_PERIODS) {
+			double[] v = at(t).stream().mapToDouble(val).toArray();
+			constant &= DataUtils.min(v) == DataUtils.max(v);
+			vals.add(String.format("%.3g-%.3g", DataUtils.min(v), DataUtils.max(v)));
+		}
+		if (constant) {
+			vals.clear();
+			for (double t : UGMS_GridCalc.CS_PERIODS)
+				vals.add((float)val.applyAsDouble(at(t).get(0))+"");
+			return String.join(", ", vals)+" g at the six periods";
+		}
+		return "it ranges over "+String.join(", ", vals)+" g at the six periods";
+	}
+
 	private void write(String author) throws IOException {
 		double[] diffs = validate();
 		loadBasemap();
@@ -465,14 +602,25 @@ public class UGMS_GridReport {
 		List<Point> first = at(periods[0]);
 		int n = first.size();
 		long no84 = first.stream().filter(p -> !p.detGMPEProvided).count();
-		List<String> weights = new ArrayList<>(), llVals = new ArrayList<>();
-		for (double t : periods) {
+		long noVs30 = first.stream().filter(p -> !Double.isFinite(p.vs30)).count();
+		List<String> weights = new ArrayList<>();
+		for (double t : periods)
 			weights.add((float)CyberShakeWeightProvider.calcCyberShakeWeight(t)+"");
-			llVals.add((float)at(t).get(0).detLL+"");
+		String tool = asce7_16 ? "`Legacy_ASCE7_16_UGMS_WebToolCalc` (ASCE 7-16 with CyberShake 15.4)"
+				: "`UGMS_WebToolCalc` (ASCE 7-22 with CyberShake 15.4)";
+		String failedText;
+		if (numFailed == 0) {
+			failedText = "Every coordinate completed.";
+		} else {
+			List<String> reasons = new ArrayList<>();
+			failReasons.forEach((reason, count) -> reasons.add(count+(reason.equals("other errors") ? " with " : " where ")
+					+ reason));
+			failedText = numFailed+" coordinates stop the tool and are excluded ("+String.join("; ", reasons)
+					+ (failReasons.containsKey("other errors") ? "" : "; all offshore")+"), leaving "+n+".";
 		}
 
 		List<String> lines = new ArrayList<>();
-		lines.add("# MCE<sub>R</sub> controlling terms: CyberShake 15.4 with ASCE 7-22");
+		lines.add("# MCE<sub>R</sub> controlling terms: CyberShake 15.4 with "+caseName());
 		lines.add("");
 		lines.add(author+", "+LocalDate.now().format(DateTimeFormatter.ofPattern("MMMM d, yyyy")));
 		lines.add("");
@@ -481,27 +629,75 @@ public class UGMS_GridReport {
 		lines.add("## Purpose");
 		lines.add("");
 		lines.add("This document presents, at each queried coordinate and CyberShake period, which term sets the "
-				+ "CyberShake-side and GMPE-side MCE<sub>R</sub> and the final MCE<sub>R</sub> after the two are merged, "
-				+ "under three candidate formulas for the CyberShake side. [Results](#results) gives summary tables and "
-				+ "one section of maps per period; [Validation](#validation) records the checks against the tool.");
+				+ (asce7_16 ? "CyberShake-side MCE<sub>R</sub>, and whether CyberShake raises the final MCE<sub>R</sub> "
+						+ "above the GMPE-side value when the two are merged, under two candidate formulas for the "
+						+ "CyberShake side. "
+						: "CyberShake-side and GMPE-side MCE<sub>R</sub> and the final MCE<sub>R</sub> after the two are "
+						+ "merged, under three candidate formulas for the CyberShake side. ")
+				+ "It uses "+caseName()+". [Results](#results) gives summary tables and one section of maps per period; "
+				+ "[Validation](#validation) records the checks against the tool.");
 		lines.add("");
 
 		lines.add("## Data and methods");
 		lines.add("");
 		lines.add("### Coordinates");
 		lines.add("");
-		lines.add("We queried the USGS ASCE 7-22 service and the CyberShake 15.4 grid files at every multiple of "
-				+ (float)spacing+"&deg; in latitude and longitude inside the v18.4 web-tool region (the dashed outline in "
-				+ "every map), "+n+" coordinates in all. This query spacing is our choice; it is not the resolution of "
-				+ "the underlying data (the CyberShake grids are at 0.002&deg;). Every coordinate uses Vs30 = "
-				+ (int)config.get("vs30").getAsDouble()+" m/s, which is exactly ASCE 7-22 site class BC, so each needs "
-				+ "one USGS service call and no Vs30 interpolation. Each coordinate was run through `UGMS_WebToolCalc` "
-				+ "(ASCE 7-22 with CyberShake 15.4); "
-				+ (numFailed > 0 ? numFailed+" coordinates failed and are excluded." : "every coordinate completed.")
-				+ " At "+no84+" coordinates the USGS service returns no 84th-percentile spectrum; it applies no "
-				+ "deterministic cap there, so its MCE<sub>R</sub> equals the probabilistic spectrum. We treat "
-				+ "Det_GMPE as unbounded at those coordinates.");
+		String vs30Text;
+		if (!vs30Map && !asce7_16)
+			vs30Text = "Every coordinate uses Vs30 = "+(int)config.get("vs30").getAsDouble()+" m/s, which is exactly "
+					+ "ASCE 7-22 site class BC, so each needs one USGS service call and no Vs30 interpolation.";
+		else if (!vs30Map)
+			vs30Text = "Every coordinate uses Vs30 = "+(int)config.get("vs30").getAsDouble()+" m/s, which is exactly "
+					+ "ASCE 7-16 site class BC, so the GMPE side is read from one precomputed class grid, with no Vs30 "
+					+ "interpolation.";
+		else if (asce7_16)
+			vs30Text = "Vs30 is the Wills 2015 map value at each coordinate, as the ASCE 7-16 tool uses when no site "
+					+ "class or Vs30 is given (see [Vs30](#vs30)). The GMPE side is then read from the tool's "
+					+ "precomputed Wills 2015 GMPE grid, which was computed with the map's Vs30 at each grid point, so "
+					+ "there is no interpolation between site classes."
+					+ (noVs30 > 0 ? " At "+noVs30+" coordinates (offshore) the Wills map has no value; the tool still "
+							+ "returns GMPE values there, from the nearest defined point of its Wills GMPE grid." : "");
+		else
+			vs30Text = "Vs30 is the Thompson 2022 map value at each coordinate, as the ASCE 7-22 tool uses when no site "
+					+ "class or Vs30 is given (see [Vs30](#vs30)). The USGS service takes site classes only, so the tool "
+					+ "queries the two classes whose Vs30 bound the coordinate's value and interpolates every GMPE "
+					+ "ingredient log-log in Vs30 (one class where the value is a class value, or outside 150-1500 m/s, "
+					+ "where it is clamped).";
+		lines.add("We ran "+tool+" at every multiple of "+(float)spacing+"&deg; in latitude and longitude inside the "
+				+ "v18.4 web-tool region (the dashed outline in every map), "+(n+numFailed)+" coordinates in all. This query spacing "
+				+ "is our choice; it is not the resolution of the underlying data (the CyberShake grids are at "
+				+ "0.002&deg;"+(asce7_16 ? ", the ASCE 7-16 GMPE grids at "+(float)0.01+"&deg;" : "")+"). "+vs30Text+" "
+				+ failedText
+				+ (asce7_16 ? "" : " At "+no84+" coordinates the USGS service returns no 84th-percentile spectrum; it "
+						+ "applies no deterministic cap there, so its MCE<sub>R</sub> equals the probabilistic spectrum. "
+						+ "We treat Det_GMPE as unbounded at those coordinates."));
 		lines.add("");
+		if (vs30Map) {
+			lines.add("### Vs30");
+			lines.add("");
+			vs30MapFigure("vs30_map", first);
+			lines.add("![Vs30](resources/vs30_map.png)");
+			lines.add("");
+			TableBuilder table = MarkdownUtils.tableBuilder();
+			List<String> names = vs30BinNames();
+			table.initNewLine();
+			for (int i=0; i<names.size(); i++)
+				table.addColumn(names.get(i));
+			table.finalizeLine();
+			table.initNewLine();
+			for (int i=0; i<names.size(); i++) {
+				int bin = i;
+				table.addColumn(count(first, p -> vs30Bin(p.vs30) == bin));
+			}
+			table.finalizeLine();
+			lines.addAll(table.build());
+			lines.add("");
+			double[] v = first.stream().mapToDouble(p -> p.vs30).filter(Double::isFinite).toArray();
+			lines.add("Vs30 used at each coordinate ("+(asce7_16 ? "Wills 2015" : "Thompson 2022")+"), in m/s: "
+					+ "median "+(int)DataUtils.median(v)+", range "+(int)DataUtils.min(v)+" to "+(int)DataUtils.max(v)
+					+ ". Coordinates per bin, with their share in brackets.");
+			lines.add("");
+		}
 		lines.add("### Spectral ingredients");
 		lines.add("");
 		lines.add("All are evaluated at the CyberShake periods "+String.join(", ", tStrs(periods))+" s, where the two "
@@ -511,29 +707,69 @@ public class UGMS_GridReport {
 		table.addLine("Term", "Meaning", "Source");
 		table.addLine("Prob_CS", "CyberShake risk-targeted probabilistic",
 				"CyberShake 15.4 grid (0.002&deg;), as used by the tool");
-		table.addLine("Det_CS", "CyberShake 84th-percentile deterministic", "CyberShake 15.4 deterministic grid (0.002&deg;)");
-		table.addLine("Prob_GMPE", "GMPE risk-targeted probabilistic", "USGS ASCE 7-22 service, `riskTargetedSpectrum`");
-		table.addLine("Det_GMPE", "GMPE 84th-percentile deterministic", "USGS service, `eightyFourthSpectrum`");
-		table.addLine("Det_LL", "Deterministic lower limit", "USGS service, `metadata.sadFloor` (class BC)");
+		table.addLine("Det_CS", "CyberShake 84th-percentile deterministic", "CyberShake 15.4 deterministic grid (0.002&deg;)"
+				+ (asce7_16 ? ", as used by the tool" : ""));
+		if (asce7_16) {
+			table.addLine("Det_LL", "Deterministic lower limit", "CyberShake 15.4 lower-limit grid (0.002&deg;), as used by "
+					+ "the tool");
+			table.addLine("MCER_GMPE", "GMPE-side MCE<sub>R</sub>", "The tool's precomputed UCERF3 GMPE MCER grid ("
+					+ (vs30Map ? "Wills 2015 Vs30" : "class BC")+", 0.01&deg;); its ingredients are not stored");
+		} else {
+			table.addLine("Prob_GMPE", "GMPE risk-targeted probabilistic", "USGS ASCE 7-22 service, `riskTargetedSpectrum`");
+			table.addLine("Det_GMPE", "GMPE 84th-percentile deterministic", "USGS service, `eightyFourthSpectrum`");
+			table.addLine("Det_LL", "Deterministic lower limit", "USGS service, `metadata.sadFloor`"
+					+ (vs30Map ? "" : " (class BC)"));
+		}
 		lines.addAll(table.build());
 		lines.add("");
-		lines.add("Det_LL depends on site class but not location; at class BC it is "+String.join(", ", llVals)
-				+ " g at the six periods.");
+		if (asce7_16)
+			lines.add("Det_LL is the CyberShake lower-limit grid the ASCE 7-16 tool reads; "
+					+ perPeriodValues(p -> p.detLLCS)+". It does not change with the Vs30 used for the GMPE side.");
+		else if (vs30Map)
+			lines.add("Det_LL depends on site class, so here it varies with the Vs30 at each coordinate; "
+					+ perPeriodValues(p -> p.detLL)+".");
+		else
+			lines.add("Det_LL depends on site class but not location; at class BC it is "
+					+ perPeriodValues(p -> p.detLL)+".");
 		lines.add("");
-		lines.add("### Per-side MCER and the three options");
+		lines.add("### Per-side MCER and the "+(asce7_16 ? "two" : "three")+" options");
 		lines.add("");
-		lines.add("Each side's MCE<sub>R</sub> is the smaller of its probabilistic spectrum and the larger of a "
-				+ "deterministic spectrum and the lower limit (`MCErCalcUtils.calcMCER`). The GMPE side is the same in "
-				+ "every case, and the three candidate formulas for the CyberShake side are:");
+		if (asce7_16) {
+			lines.add("The CyberShake-side MCE<sub>R</sub> is the smaller of its probabilistic spectrum and the larger of "
+					+ "its deterministic spectrum and the lower limit (`MCErCalcUtils.calcMCER`). The GMPE side is the "
+					+ "tool's GMPE MCE<sub>R</sub> in every case; its ingredients are not stored, so its controlling term "
+					+ "is not shown. Option 1 of the ASCE 7-22 reports needs Det_GMPE and is not available here. The two "
+					+ "candidate formulas for the CyberShake side are:");
+		} else {
+			lines.add("Each side's MCE<sub>R</sub> is the smaller of its probabilistic spectrum and the larger of a "
+					+ "deterministic spectrum and the lower limit (`MCErCalcUtils.calcMCER`). The GMPE side is the same "
+					+ "in every case, and the three candidate formulas for the CyberShake side are:");
+		}
 		lines.add("");
 		table = MarkdownUtils.tableBuilder();
 		table.addLine("", "Formula");
-		table.addLine("GMPE side (every option)", "`MCER_GMPE = min[Prob_GMPE, max(Det_GMPE, Det_LL)]`");
-		table.addLine("Option 1 (current ASCE 7-22 tool)", "`MCER_CS = min[Prob_CS, max(Det_GMPE, Det_LL)]`");
-		table.addLine("Option 2", "`MCER_CS = Prob_CS`");
-		table.addLine("Option 3", "`MCER_CS = min[Prob_CS, max(Det_CS, Det_LL)]`");
+		if (asce7_16) {
+			table.addLine("GMPE side (every option)", "`MCER_GMPE` from the tool's GMPE grid");
+			table.addLine("Option 2", "`MCER_CS = Prob_CS`");
+			table.addLine("Option 3 (current ASCE 7-16 tool)", "`MCER_CS = min[Prob_CS, max(Det_CS, Det_LL)]`");
+		} else {
+			table.addLine("GMPE side (every option)", "`MCER_GMPE = min[Prob_GMPE, max(Det_GMPE, Det_LL)]`");
+			table.addLine("Option 1 (current ASCE 7-22 tool)", "`MCER_CS = min[Prob_CS, max(Det_GMPE, Det_LL)]`");
+			table.addLine("Option 2", "`MCER_CS = Prob_CS`");
+			table.addLine("Option 3", "`MCER_CS = min[Prob_CS, max(Det_CS, Det_LL)]`");
+		}
 		lines.addAll(table.build());
 		lines.add("");
+		if (asce7_16) {
+			lines.add("The ASCE 7-16 tool reads its MCER_CS from its own precomputed CyberShake MCER grid rather than "
+					+ "applying the formula to the ingredient grids. The two agree to within 0.5% at "
+					+ pct(shareWithinHalfPct(p -> true))+"% of coordinate-periods, but differ by up to "
+					+ String.format("%.2g", 100*diffs[0])+"%, mostly where the deterministic term controls (within 0.5% "
+					+ "at only "+pct(shareWithinHalfPct(p -> p.csTerm[3] != Term.PROB))+"% of those); see "
+					+ "[Validation](#validation). We use the tool's value for option 3 and the ingredients only to find "
+					+ "the term that sets it, so that term is less certain where Det_CS or Det_LL controls.");
+			lines.add("");
+		}
 		lines.add("### Combining the two sides");
 		lines.add("");
 		lines.add("The final MCE<sub>R</sub> follows `MCERDataProductsCalc.calcFinalMCER`: the GMPE value is kept unless "
@@ -553,9 +789,10 @@ public class UGMS_GridReport {
 				+ "that sets that side's MCE<sub>R</sub>: blue the probabilistic term, red the deterministic term, green "
 				+ "Det_LL (ties go to the probabilistic term). In maps of the final MCE<sub>R</sub>, a solid cell "
 				+ "means CyberShake raised the final value, coloured by the CyberShake term that set MCER_CS; a hatched "
-				+ "cell means the GMPE value was kept, coloured by the GMPE term that set MCER_GMPE. Solid blue "
-				+ "therefore marks the coordinates where CyberShake simulation values reach the final MCE<sub>R</sub>. "
-				+ "Thin grey lines are UCERF3 FM3.1 fault traces, for reference. Basemap: "
+				+ "cell means the GMPE value was kept"
+				+ (asce7_16 ? " (grey, as the GMPE term is not known)" : ", coloured by the GMPE term that set MCER_GMPE")
+				+ ". Solid blue therefore marks the coordinates where CyberShake simulation values reach the final "
+				+ "MCE<sub>R</sub>. Thin grey lines are UCERF3 FM3.1 fault traces, for reference. Basemap: "
 				+ (basemap != null ? EsriBasemap.ATTRIBUTION+"." : "coastline from OpenSHA's political boundaries "
 						+ "(the Esri basemap could not be downloaded)."));
 		lines.add("");
@@ -567,7 +804,7 @@ public class UGMS_GridReport {
 		lines.add("");
 		@SuppressWarnings("unchecked")
 		Predicate<Point>[] raisedAny = new Predicate[4], raisedProb = new Predicate[4];
-		for (int o : OPTIONS) {
+		for (int o : options) {
 			raisedAny[o] = p -> p.raised[o];
 			raisedProb[o] = p -> p.raised[o] && p.csTerm[o] == Term.PROB;
 		}
@@ -583,20 +820,22 @@ public class UGMS_GridReport {
 				+ "MCE<sub>R</sub>.");
 		lines.add("");
 
-		lines.add("**Controlling term of each side's MCE<sub>R</sub>** (% of coordinates). Under option 2, MCER_CS = "
-				+ "Prob_CS at every coordinate.");
+		lines.add("**Controlling term of "+(asce7_16 ? "the CyberShake-side" : "each side's")+" MCE<sub>R</sub>** "
+				+ "(% of coordinates). Under option 2, MCER_CS = Prob_CS at every coordinate.");
 		lines.add("");
+		List<String> sideNames = asce7_16 ? List.of("Option 3 CS") : List.of("Option 1 CS", "GMPE", "Option 3 CS");
+		List<ToIntFunction<Point>> sides = asce7_16 ? List.of(p -> p.csTerm[3].ordinal())
+				: List.of(p -> p.csTerm[1].ordinal(), p -> p.gmpeTerm.ordinal(), p -> p.csTerm[3].ordinal());
 		table = MarkdownUtils.tableBuilder();
 		table.initNewLine().addColumn("T (s)");
-		for (String side : List.of("Option 1 CS", "GMPE", "Option 3 CS"))
+		for (String side : sideNames)
 			for (String name : side.equals("GMPE") ? GMPE_TERMS : side.startsWith("Option 1") ? CS_OPT1_TERMS
 					: CS_OPT3_TERMS)
 				table.addColumn(side+": "+name);
 		table.finalizeLine();
 		for (double t : periods) {
 			table.initNewLine().addColumn(tStr(t));
-			for (ToIntFunction<Point> side : List.<ToIntFunction<Point>>of(p -> p.csTerm[1].ordinal(),
-					p -> p.gmpeTerm.ordinal(), p -> p.csTerm[3].ordinal()))
+			for (ToIntFunction<Point> side : sides)
 				for (Term term : Term.values())
 					table.addColumn(pct(share(at(t), p -> side.applyAsInt(p) == term.ordinal())));
 			table.finalizeLine();
@@ -608,13 +847,13 @@ public class UGMS_GridReport {
 		lines.add("");
 		table = MarkdownUtils.tableBuilder();
 		table.initNewLine().addColumn("T (s)");
-		for (int o : OPTIONS)
+		for (int o : options)
 			table.addColumns("Opt "+o+": GMPE kept", "Opt "+o+": "+csTerms(o).get(0),
 					"Opt "+o+": "+(o == 2 ? "n/a" : csTerms(o).get(1)), "Opt "+o+": "+(o == 2 ? "n/a" : csTerms(o).get(2)));
 		table.finalizeLine();
 		for (double t : periods) {
 			table.initNewLine().addColumn(tStr(t));
-			for (int o : OPTIONS) {
+			for (int o : options) {
 				table.addColumn(pct(share(at(t), p -> !p.raised[o])));
 				for (Term term : Term.values())
 					table.addColumn(o == 2 && term != Term.PROB ? "-"
@@ -633,19 +872,29 @@ public class UGMS_GridReport {
 			String tag = "T"+tStr(t).replace('.', 'p')+"s";
 			lines.add("#### T = "+tStr(t)+" s: maps");
 			lines.add("");
-			sideMap(tag+"_cs_opt1", pts, p -> p.csTerm[1].ordinal(), CS_OPT1_TERMS);
-			sideMap(tag+"_gmpe", pts, p -> p.gmpeTerm.ordinal(), GMPE_TERMS);
-			sideMap(tag+"_cs_opt3", pts, p -> p.csTerm[3].ordinal(), CS_OPT3_TERMS);
-			for (int o : OPTIONS)
-				finalMap(tag+"_final_opt"+o, pts, o);
 			table = MarkdownUtils.tableBuilder();
-			table.addLine("(a) MCER_CS, option 1", "(b) MCER_GMPE (all options)", "(c) MCER_CS, option 3");
-			table.addLine("![a](resources/"+tag+"_cs_opt1.png)", "![b](resources/"+tag+"_gmpe.png)",
-					"![c](resources/"+tag+"_cs_opt3.png)");
-			table.addLine("(d) Final MCE<sub>R</sub>, option 1", "(e) Final MCE<sub>R</sub>, option 2",
-					"(f) Final MCE<sub>R</sub>, option 3");
-			table.addLine("![d](resources/"+tag+"_final_opt1.png)", "![e](resources/"+tag+"_final_opt2.png)",
-					"![f](resources/"+tag+"_final_opt3.png)");
+			if (asce7_16) {
+				sideMap(tag+"_cs_opt3", pts, p -> p.csTerm[3].ordinal(), CS_OPT3_TERMS);
+				finalMap(tag+"_final_opt3", pts, 3);
+				finalMap(tag+"_final_opt2", pts, 2);
+				table.addLine("(a) MCER_CS, option 3", "(b) Final MCE<sub>R</sub>, option 3",
+						"(c) Final MCE<sub>R</sub>, option 2");
+				table.addLine("![a](resources/"+tag+"_cs_opt3.png)", "![b](resources/"+tag+"_final_opt3.png)",
+						"![c](resources/"+tag+"_final_opt2.png)");
+			} else {
+				sideMap(tag+"_cs_opt1", pts, p -> p.csTerm[1].ordinal(), CS_OPT1_TERMS);
+				sideMap(tag+"_gmpe", pts, p -> p.gmpeTerm.ordinal(), GMPE_TERMS);
+				sideMap(tag+"_cs_opt3", pts, p -> p.csTerm[3].ordinal(), CS_OPT3_TERMS);
+				for (int o : options)
+					finalMap(tag+"_final_opt"+o, pts, o);
+				table.addLine("(a) MCER_CS, option 1", "(b) MCER_GMPE (all options)", "(c) MCER_CS, option 3");
+				table.addLine("![a](resources/"+tag+"_cs_opt1.png)", "![b](resources/"+tag+"_gmpe.png)",
+						"![c](resources/"+tag+"_cs_opt3.png)");
+				table.addLine("(d) Final MCE<sub>R</sub>, option 1", "(e) Final MCE<sub>R</sub>, option 2",
+						"(f) Final MCE<sub>R</sub>, option 3");
+				table.addLine("![d](resources/"+tag+"_final_opt1.png)", "![e](resources/"+tag+"_final_opt2.png)",
+						"![f](resources/"+tag+"_final_opt3.png)");
+			}
 			lines.addAll(table.build());
 			lines.add("");
 
@@ -655,21 +904,34 @@ public class UGMS_GridReport {
 			table.addLine("Panel", "Coordinates", "Prob", "Det_GMPE", "Det_CS", "Det_LL", "Total", "Median MCER (g)",
 					"Final / GMPE, raised: median", "max");
 			String any = "all: term that sets it";
-			addRow(table, "(a) MCER_CS, option 1", any, pts, p -> true, p -> p.csTerm[1], false, false,
-					median(pts, p -> p.cs[1]), null);
-			addRow(table, "(b) MCER_GMPE", any, pts, p -> true, p -> p.gmpeTerm, false, false,
-					median(pts, p -> p.gmpe), null);
-			addRow(table, "(c) MCER_CS, option 3", any, pts, p -> true, p -> p.csTerm[3], true, false,
-					median(pts, p -> p.cs[3]), null);
-			for (int o : OPTIONS) {
-				double[] ratios = pts.stream().filter(p -> p.raised[o]).mapToDouble(p -> p.fin[o]/p.gmpe).toArray();
-				String panel = "("+(char)('c'+o)+") Final MCER, option "+o;
-				addRow(table, panel, "1. CS raised: CS term", pts, p -> p.raised[o],
-						p -> p.csTerm[o], o == 3, o == 2, median(pts, p -> p.fin[o]), ratios);
-				addRow(table, "", "2. GMPE kept: GMPE term", pts, p -> !p.raised[o], p -> p.gmpeTerm,
-						false, false, Double.NaN, null);
-				addRow(table, "", "3. CS raised: GMPE term", pts, p -> p.raised[o],
-						p -> p.gmpeTerm, false, false, Double.NaN, null);
+			if (asce7_16) {
+				addRow(table, "(a) MCER_CS, option 3", any, pts, p -> true, p -> p.csTerm[3], true, false,
+						median(pts, p -> p.cs[3]), null);
+				addRow(table, "MCER_GMPE", "all", pts, p -> true, null, false, false, median(pts, p -> p.gmpe), null);
+				String[] panels = {null, null, "(c) Final MCER, option 2", "(b) Final MCER, option 3"};
+				for (int o : new int[] {3, 2}) {
+					double[] ratios = pts.stream().filter(p -> p.raised[o]).mapToDouble(p -> p.fin[o]/p.gmpe).toArray();
+					addRow(table, panels[o], "1. CS raised: CS term", pts, p -> p.raised[o], p -> p.csTerm[o], o == 3,
+							o == 2, median(pts, p -> p.fin[o]), ratios);
+					addRow(table, "", "2. GMPE kept", pts, p -> !p.raised[o], null, false, false, Double.NaN, null);
+				}
+			} else {
+				addRow(table, "(a) MCER_CS, option 1", any, pts, p -> true, p -> p.csTerm[1], false, false,
+						median(pts, p -> p.cs[1]), null);
+				addRow(table, "(b) MCER_GMPE", any, pts, p -> true, p -> p.gmpeTerm, false, false,
+						median(pts, p -> p.gmpe), null);
+				addRow(table, "(c) MCER_CS, option 3", any, pts, p -> true, p -> p.csTerm[3], true, false,
+						median(pts, p -> p.cs[3]), null);
+				for (int o : options) {
+					double[] ratios = pts.stream().filter(p -> p.raised[o]).mapToDouble(p -> p.fin[o]/p.gmpe).toArray();
+					String panel = "("+(char)('c'+o)+") Final MCER, option "+o;
+					addRow(table, panel, "1. CS raised: CS term", pts, p -> p.raised[o],
+							p -> p.csTerm[o], o == 3, o == 2, median(pts, p -> p.fin[o]), ratios);
+					addRow(table, "", "2. GMPE kept: GMPE term", pts, p -> !p.raised[o], p -> p.gmpeTerm,
+							false, false, Double.NaN, null);
+					addRow(table, "", "3. CS raised: GMPE term", pts, p -> p.raised[o],
+							p -> p.gmpeTerm, false, false, Double.NaN, null);
+				}
 			}
 			lines.addAll(table.build());
 			lines.add("");
@@ -679,25 +941,55 @@ public class UGMS_GridReport {
 
 		lines.add("## Notes on the data");
 		lines.add("");
-		lines.add("Each cell is a point sample at its centre; features smaller than the "+(float)spacing+"&deg; query "
-				+ "spacing are not resolved. All coordinates use site class BC; other classes change Prob_GMPE, "
-				+ "Det_GMPE and Det_LL. Det_LL is the ASCE 7-22 lower limit for the site class and does not vary across "
-				+ "the region. Where USGS gives no 84th-percentile spectrum ("+no84+" coordinates), Det_GMPE is "
-				+ "unbounded, so option 1 and the GMPE side are set by their probabilistic terms.");
+		String notes = "Each cell is a point sample at its centre; features smaller than the "+(float)spacing+"&deg; query "
+				+ "spacing are not resolved. ";
+		if (asce7_16)
+			notes += (vs30Map ? "The Wills 2015 Vs30 changes only the GMPE side; " : "All coordinates use site class BC, "
+					+ "which sets only the GMPE side; ")
+					+ "the ASCE 7-16 tool's CyberShake side, including Det_LL, comes from fixed precomputed grids. The "
+					+ "GMPE side's controlling term cannot be shown, because the tool's GMPE grids store only the "
+					+ "MCE<sub>R</sub>. MCER_CS is the tool's precomputed value, which can differ slightly from the "
+					+ "formula applied to the ingredient grids, so near a tie its controlling term is uncertain.";
+		else
+			notes += (vs30Map ? "Vs30 follows the Thompson 2022 map, so Prob_GMPE, Det_GMPE and Det_LL vary with it, "
+					+ "interpolated between the two bounding site classes. " : "All coordinates use site class BC; other "
+					+ "classes change Prob_GMPE, Det_GMPE and Det_LL. Det_LL is the ASCE 7-22 lower limit for the site "
+					+ "class and does not vary across the region. ")
+					+ "Where USGS gives no 84th-percentile spectrum ("+no84+" coordinates), Det_GMPE is unbounded, so "
+					+ "option 1 and the GMPE side are set by their probabilistic terms.";
+		lines.add(notes);
 		lines.add("");
 
 		lines.add("## Validation");
 		lines.add("");
-		lines.add("Option 1 is the formula `UGMS_WebToolCalc` implements, so evaluating it from the ingredients must "
-				+ "reproduce the tool's own values at full precision. The report is only built if all three checks pass "
-				+ "at every coordinate and period (tolerance "+TOL+" g):");
-		lines.add("");
-		table = MarkdownUtils.tableBuilder();
-		table.addLine("Check (option 1, all coordinates and periods)", "Max. difference (g)");
-		table.addLine("MCER_CS from the ingredients vs. the tool's CyberShake MCE<sub>R</sub>", String.format("%.1e", diffs[0]));
-		table.addLine("MCER_GMPE from the ingredients vs. the tool's GMPE MCE<sub>R</sub>", String.format("%.1e", diffs[1]));
-		table.addLine("Final MCE<sub>R</sub> from the merge rule vs. the tool's final MCE<sub>R</sub>",
-				String.format("%.1e", diffs[2]));
+		if (asce7_16) {
+			lines.add("Option 3 is the formula `Legacy_ASCE7_16_UGMS_WebToolCalc` implements, but the tool reads its "
+					+ "result from its own precomputed CyberShake MCER grid, so the formula applied to the ingredient "
+					+ "grids reproduces it only approximately. The merge must reproduce the tool's final values exactly; "
+					+ "the report is only built if it does at every coordinate and period (tolerance "+TOL+" g):");
+			lines.add("");
+			table = MarkdownUtils.tableBuilder();
+			table.addLine("Check (all coordinates and periods)", "Max. difference");
+			table.addLine("Option 3 formula from the ingredients vs. the tool's CyberShake MCE<sub>R</sub>, max (reported "
+					+ "only)", String.format("%.2g%%", 100*diffs[0]));
+			table.addLine("Coordinate-periods where they agree within 0.5% (reported only)",
+					pct(shareWithinHalfPct(p -> true))+"%");
+			table.addLine("Coordinate-periods where using the formula instead would change raised / kept (reported only)",
+					formulaFlips()+" of "+byPeriod.values().stream().mapToInt(List::size).sum());
+			table.addLine("Final MCE<sub>R</sub> from the merge rule vs. the tool's final MCE<sub>R</sub>",
+					String.format("%.1e g", diffs[2]));
+		} else {
+			lines.add("Option 1 is the formula `UGMS_WebToolCalc` implements, so evaluating it from the ingredients must "
+					+ "reproduce the tool's own values at full precision. The report is only built if all three checks "
+					+ "pass at every coordinate and period (tolerance "+TOL+" g):");
+			lines.add("");
+			table = MarkdownUtils.tableBuilder();
+			table.addLine("Check (option 1, all coordinates and periods)", "Max. difference (g)");
+			table.addLine("MCER_CS from the ingredients vs. the tool's CyberShake MCE<sub>R</sub>", String.format("%.1e", diffs[0]));
+			table.addLine("MCER_GMPE from the ingredients vs. the tool's GMPE MCE<sub>R</sub>", String.format("%.1e", diffs[1]));
+			table.addLine("Final MCE<sub>R</sub> from the merge rule vs. the tool's final MCE<sub>R</sub>",
+					String.format("%.1e", diffs[2]));
+		}
 		lines.addAll(table.build());
 		lines.add("");
 
@@ -715,7 +1007,7 @@ public class UGMS_GridReport {
 		}
 		// same content as PDF: Results and Notes start portrait pages; each period's maps, and its statistics, get a
 		// landscape page
-		File pdf = new File(reportDir, PDF_NAME);
+		File pdf = new File(reportDir, pdfName());
 		MarkdownToPDF.write(lines, reportDir, pdf, (level, title) -> {
 			if (level >= 4)
 				return PageSize.LETTER.rotate();
@@ -723,7 +1015,7 @@ public class UGMS_GridReport {
 				return PageSize.LETTER;
 			return null;
 		});
-		System.out.println("Wrote index.html and "+PDF_NAME+" to "+reportDir.getAbsolutePath());
+		System.out.println("Wrote index.html and "+pdf.getName()+" to "+reportDir.getAbsolutePath());
 	}
 
 	/**
@@ -732,46 +1024,67 @@ public class UGMS_GridReport {
 	 */
 	private List<String> mapsGuide() throws IOException {
 		List<String> lines = new ArrayList<>();
-		lines.add("For each period there is one page of six maps and one statistics table. Each map cell is one "
-				+ "coordinate.");
+		lines.add("For each period there is one page of "+(asce7_16 ? "three" : "six")+" maps and one statistics table. "
+				+ "Each map cell is one coordinate.");
 		lines.add("");
 		lines.add("**What each map shows**");
 		lines.add("");
 		TableBuilder table = MarkdownUtils.tableBuilder();
 		table.addLine("Panel", "Shows", "Cell colour");
-		table.addLine("(a) MCER_CS, option 1", "Which term sets the CyberShake-side MCE<sub>R</sub>",
-				"blue Prob_CS · red Det_GMPE · green Det_LL");
-		table.addLine("(b) MCER_GMPE", "Which term sets the GMPE-side MCE<sub>R</sub>; the same for every option",
-				"blue Prob_GMPE · red Det_GMPE · green Det_LL");
-		table.addLine("(c) MCER_CS, option 3", "Which term sets the CyberShake-side MCE<sub>R</sub>",
-				"blue Prob_CS · red Det_CS · green Det_LL");
-		table.addLine("(d) (e) (f) Final MCE<sub>R</sub>, options 1, 2, 3", "Whether CyberShake raised the final value",
-				"**solid**: CS raised, coloured by the term that set MCER_CS · **hatched**: GMPE kept, coloured by the "
-				+ "term that set MCER_GMPE");
+		String finalColours = "**solid**: CS raised, coloured by the term that set MCER_CS · **hatched**: GMPE kept"
+				+ (asce7_16 ? " (grey)" : ", coloured by the term that set MCER_GMPE");
+		if (asce7_16) {
+			table.addLine("(a) MCER_CS, option 3", "Which term sets the CyberShake-side MCE<sub>R</sub>",
+					"blue Prob_CS · red Det_CS · green Det_LL");
+			table.addLine("(b) (c) Final MCE<sub>R</sub>, options 3, 2", "Whether CyberShake raised the final value",
+					finalColours);
+		} else {
+			table.addLine("(a) MCER_CS, option 1", "Which term sets the CyberShake-side MCE<sub>R</sub>",
+					"blue Prob_CS · red Det_GMPE · green Det_LL");
+			table.addLine("(b) MCER_GMPE", "Which term sets the GMPE-side MCE<sub>R</sub>; the same for every option",
+					"blue Prob_GMPE · red Det_GMPE · green Det_LL");
+			table.addLine("(c) MCER_CS, option 3", "Which term sets the CyberShake-side MCE<sub>R</sub>",
+					"blue Prob_CS · red Det_CS · green Det_LL");
+			table.addLine("(d) (e) (f) Final MCE<sub>R</sub>, options 1, 2, 3", "Whether CyberShake raised the final value",
+					finalColours);
+		}
 		lines.addAll(table.build());
 		lines.add("");
 
 		lines.add("**From ingredients to the final MCE<sub>R</sub>**");
 		lines.add("");
-		MergeDiagram.write(resourcesDir(), "merge_diagram", weightsText());
+		MergeDiagram.write(resourcesDir(), "merge_diagram", weightsText(), asce7_16);
 		lines.add("![From ingredients to the final MCER](resources/merge_diagram.png)");
 		lines.add("");
 		lines.addAll(workedExample());
 
 		lines.add("**Reading the statistics tables**");
 		lines.add("");
-		lines.add("* Rows (a) to (c) count every coordinate by the term that sets that side's MCE<sub>R</sub>.");
-		lines.add("* **1. CS raised: CS term**: coordinates where MCER_CS is higher, so the final is the blend, counted "
-				+ "by the term that set MCER_CS. Its Prob cell is where CyberShake simulation values reach the final.");
-		lines.add("* **2. GMPE kept: GMPE term**: coordinates where the final equals MCER_GMPE, counted by the term "
-				+ "that set MCER_GMPE.");
-		lines.add("* **3. CS raised: GMPE term**: the same coordinates as row 1, counted by the term that set "
-				+ "MCER_GMPE, the other input to the blend.");
-		lines.add("* Rows 1 and 2 cover every coordinate once; row 3 is a second view of row 1. Prob means Prob_CS in "
-				+ "row 1 and Prob_GMPE in rows 2 and 3. Each cell is a count, with its share of all coordinates in "
-				+ "brackets; \"-\" means the term does not exist for that row. Median MCER is over all coordinates; "
-				+ "Final / GMPE is over the raised coordinates only, and shows how much the merge raises the GMPE "
-				+ "value.");
+		if (asce7_16) {
+			lines.add("* Row (a) counts every coordinate by the term that sets MCER_CS; the MCER_GMPE row gives its "
+					+ "median only, as its term is not known.");
+			lines.add("* **1. CS raised: CS term**: coordinates where MCER_CS is higher, so the final is the blend, "
+					+ "counted by the term that set MCER_CS. Its Prob cell is where CyberShake simulation values reach "
+					+ "the final.");
+			lines.add("* **2. GMPE kept**: coordinates where the final equals MCER_GMPE (total only).");
+			lines.add("* Rows 1 and 2 cover every coordinate once. Each cell is a count, with its share of all "
+					+ "coordinates in brackets; \"-\" means the term does not exist for that row. Median MCER is over "
+					+ "all coordinates; Final / GMPE is over the raised coordinates only, and shows how much the merge "
+					+ "raises the GMPE value.");
+		} else {
+			lines.add("* Rows (a) to (c) count every coordinate by the term that sets that side's MCE<sub>R</sub>.");
+			lines.add("* **1. CS raised: CS term**: coordinates where MCER_CS is higher, so the final is the blend, counted "
+					+ "by the term that set MCER_CS. Its Prob cell is where CyberShake simulation values reach the final.");
+			lines.add("* **2. GMPE kept: GMPE term**: coordinates where the final equals MCER_GMPE, counted by the term "
+					+ "that set MCER_GMPE.");
+			lines.add("* **3. CS raised: GMPE term**: the same coordinates as row 1, counted by the term that set "
+					+ "MCER_GMPE, the other input to the blend.");
+			lines.add("* Rows 1 and 2 cover every coordinate once; row 3 is a second view of row 1. Prob means Prob_CS in "
+					+ "row 1 and Prob_GMPE in rows 2 and 3. Each cell is a count, with its share of all coordinates in "
+					+ "brackets; \"-\" means the term does not exist for that row. Median MCER is over all coordinates; "
+					+ "Final / GMPE is over the raised coordinates only, and shows how much the merge raises the GMPE "
+					+ "value.");
+		}
 		lines.add("");
 		return lines;
 	}
@@ -784,20 +1097,28 @@ public class UGMS_GridReport {
 	}
 
 	/**
-	 * One coordinate at the first period where option 1's capped MCER_CS still raised the final value, written out
+	 * One coordinate at the first period where the tool's capped MCER_CS still raised the final value, written out
 	 */
 	private List<String> workedExample() {
 		double t = UGMS_GridCalc.CS_PERIODS[0];
+		int o = toolOption;
 		for (Point p : at(t)) {
-			if (!p.raised[1] || p.csTerm[1] != Term.DET)
+			// a clear margin so the rounded arithmetic reads correctly, and for ASCE 7-16 a tool MCER_CS close to
+			// the formula
+			if (!p.raised[o] || p.csTerm[o] != Term.DET || p.cs[o] < 1.02*p.gmpe || asce7_16 && formulaDiff(p) >= 0.005)
 				continue;
 			double w = CyberShakeWeightProvider.calcCyberShakeWeight(t);
 			String loc = String.format("%.2f&deg;N, %.2f&deg;W", p.loc.getLatitude(), -p.loc.getLongitude());
-			return List.of("Example, "+loc+", T = "+tStr(t)+" s, option 1: Prob_CS "+g(p.probCS)+" is above Det_GMPE "
-					+ g(p.detGMPE)+", so MCER_CS is capped at "+g(p.cs[1])+". MCER_GMPE = Prob_GMPE "+g(p.gmpe)+". "
-					+ g(p.cs[1])+" > "+g(p.gmpe)+", so CS raised: Final = "+g(p.cs[1])+"<sup>"+(float)w+"</sup> × "
-					+ g(p.gmpe)+"<sup>"+(float)(1-w)+"</sup> = "+g(p.fin[1])+". It is counted in row 1 under Det_GMPE "
-					+ "and in row 3 under Prob.", "");
+			String det = csTerms(o).get(1);
+			String gmpe = asce7_16 ? "MCER_GMPE = "+g(p.gmpe)+" (the tool's GMPE grid)"
+					: "MCER_GMPE = "+GMPE_TERMS.get(p.gmpeTerm.ordinal())+" "+g(p.gmpe);
+			return List.of("Example, "+loc+", T = "+tStr(t)+" s, option "+o+": Prob_CS "+g(p.probCS)+" is above "+det+" "
+					+ g(o == 3 ? p.detCS : p.detGMPE)+", so MCER_CS is capped at "
+					+ (asce7_16 ? g(p.cs3Formula)+" (the tool's MCER grid gives "+g(p.cs[o])+")" : g(p.cs[o]))+". "+gmpe+". "
+					+ g(p.cs[o])+" > "+g(p.gmpe)+", so CS raised: Final = "+g(p.cs[o])+"<sup>"+(float)w+"</sup> × "
+					+ g(p.gmpe)+"<sup>"+(float)(1-w)+"</sup> = "+g(p.fin[o])+". It is counted in row 1 under "+det
+					+ (asce7_16 ? "." : " and in row 3 under "+GMPE_TERMS.get(p.gmpeTerm.ordinal()).replace("_GMPE", "")+"."),
+					"");
 		}
 		return List.of();
 	}
@@ -856,7 +1177,7 @@ public class UGMS_GridReport {
 		lines.add("```");
 		lines.add("");
 		lines.add("The report is written to `report/` in the output directory as `index.html` and `"
-				+ PDF_NAME+"`.");
+				+ pdfName()+"`.");
 		lines.add("");
 		return lines;
 	}
@@ -876,11 +1197,19 @@ public class UGMS_GridReport {
 
 	/**
 	 * One statistics row: the coordinates matching inRow, split by term. The deterministic term goes in the Det_CS
-	 * column when detIsCS, else Det_GMPE; probOnly marks option 2, whose CyberShake side has only Prob_CS.
+	 * column when detIsCS, else Det_GMPE; probOnly marks option 2, whose CyberShake side has only Prob_CS. A null term
+	 * gives the total only.
 	 */
 	private static void addRow(TableBuilder table, String panel, String quantity, List<Point> pts,
 			Predicate<Point> inRow, Function<Point, Term> term, boolean detIsCS, boolean probOnly, double medianMCER,
 			double[] ratios) {
+		if (term == null) {
+			// no controlling term (ASCE 7-16 GMPE side): total only
+			table.initNewLine().addColumns(panel, quantity, "-", "-", "-", "-", count(pts, inRow),
+					Double.isNaN(medianMCER) ? "" : String.format("%.3f", medianMCER), "", "");
+			table.finalizeLine();
+			return;
+		}
 		String det = count(pts, p -> inRow.test(p) && term.apply(p) == Term.DET);
 		String ll = count(pts, p -> inRow.test(p) && term.apply(p) == Term.DET_LL);
 		table.initNewLine().addColumns(panel, quantity, count(pts, p -> inRow.test(p) && term.apply(p) == Term.PROB),

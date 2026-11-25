@@ -7,20 +7,24 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 import org.opensha.commons.data.xyz.ArbDiscrGeoDataSet;
 import org.opensha.commons.data.xyz.GeoDataSet;
+import org.opensha.commons.data.xyz.GriddedGeoDataSet;
 import org.opensha.commons.exceptions.GMT_MapException;
 import org.opensha.commons.geo.Location;
 import org.opensha.commons.geo.Region;
 import org.opensha.commons.mapping.gmt.GMT_Map;
 import org.opensha.commons.mapping.gmt.GMT_MapGenerator;
+import org.opensha.commons.mapping.gmt.GMT_RenderArguments;
 import org.opensha.commons.mapping.gmt.SecureMapGenerator;
 import org.opensha.commons.mapping.gmt.elements.GMT_CPT_Files;
 import org.opensha.commons.mapping.gmt.elements.PSXYSymbol;
 import org.opensha.commons.mapping.gmt.elements.TopographicSlopeFile;
 import org.opensha.commons.util.RunScript;
+import org.opensha.commons.util.ServletWorkLimits;
 import org.opensha.commons.util.XYZClosestPointFinder;
 import org.opensha.commons.util.DataUtils.MinMaxAveTracker;
 import org.opensha.commons.util.cpt.CPT;
@@ -33,6 +37,7 @@ import com.google.common.io.Files;
 
 public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 	
+	private static final double PLOT_WIDTH = 6.5;
 	public static int[] dpis = {72, 150, 300};
 	
 	public static GeoDataSet getDiffs(GeoDataSet baseMap, GeoDataSet scatterData, boolean ratio, boolean isLog) {
@@ -63,6 +68,81 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 		return diffs;
 	}
 	
+	@Override
+	public void validateRemoteWork(GMT_Map map) throws GMT_MapException {
+		if (!(map instanceof InterpDiffMap))
+			throw new GMT_MapException("CyberShake requires an interpolation map");
+		InterpDiffMap interpolationMap = (InterpDiffMap) map;
+		InterpDiffMapType[] types = interpolationMap.getMapTypes();
+		EnumSet<InterpDiffMapType> selected = EnumSet.allOf(InterpDiffMapType.class);
+		if (types != null) {
+			if (types.length > selected.size())
+				throw new GMT_MapException("Too many CyberShake map types");
+			selected.clear();
+			for (InterpDiffMapType type : types)
+				if (type == null || !selected.add(type))
+					throw new GMT_MapException("CyberShake map types must be distinct and non-null");
+		}
+
+		GeoDataSet baseMap = map.getGriddedData();
+		GeoDataSet scatter = interpolationMap.getScatter();
+		long basePoints = baseMap == null ? 0 : baseMap.size();
+		long scatterPoints = scatter == null ? 0 : scatter.size();
+		if (basePoints + scatterPoints > ServletWorkLimits.MAP_POINTS)
+			throw new GMT_MapException("CyberShake input data exceeds the limit of "
+					+ ServletWorkLimits.MAP_POINTS + " points");
+
+		Region region = map.getRegion();
+		long gridCells = GMT_RenderArguments.estimateGridCells(region, map.getGriddedDataInc(), "CyberShake map");
+		TopographicSlopeFile topo = map.getTopoResolution();
+		if (topo != null)
+			gridCells += GMT_RenderArguments.estimateGridCells(region, topo.resolution() / 3600d, "Topographic");
+		gridCells *= Math.max(1, selected.size());
+		GMT_InterpolationSettings settings = map.getInterpSettings();
+		if (settings == null)
+			throw new GMT_MapException("Missing CyberShake interpolation settings");
+		if (!selected.isEmpty() && !selected.equals(EnumSet.of(InterpDiffMapType.BASEMAP))) {
+			if (scatter == null)
+				throw new GMT_MapException("Missing CyberShake scatter data");
+			int passes = baseMap != null && selected.contains(InterpDiffMapType.RATIO)
+					&& !settings.isInterpolateOnly() ? 2 : 1;
+			validateClosestPointWork(baseMap, scatter, passes);
+			gridCells += passes * GMT_RenderArguments.estimateGridCells(
+					region, settings.getInterpSpacing(), "CyberShake interpolation");
+		}
+		GMT_RenderArguments.validateGridWork(gridCells);
+		if (!settings.isInterpolateOnly() && !selected.isEmpty()) {
+			double middleLatitude = (region.getMinLat() + region.getMaxLat()) / 2;
+			double aspect = (region.getMaxLat() - region.getMinLat()) / (region.getMaxLon() - region.getMinLon());
+			double stretch = Math.cos(Math.toRadians(middleLatitude));
+			double plotHeight = PLOT_WIDTH * aspect / stretch;
+			for (int dpi : dpis)
+				GMT_RenderArguments.validateImageSize(8.5, Math.max(11, plotHeight + 2.5), dpi);
+		}
+	}
+
+	private static void validateClosestPointWork(GeoDataSet baseMap, GeoDataSet scatter, int passes)
+			throws GMT_MapException {
+		if (baseMap == null || baseMap.size() == 0)
+			return;
+		int fullScansAllowed = ServletWorkLimits.CYBERSHAKE_COMPARISONS / passes / baseMap.size();
+		if (scatter.size() <= fullScansAllowed)
+			return;
+
+		// Match the closest-point finder: an indexed hit bypasses the full scan of the base map.
+		if (baseMap instanceof GriddedGeoDataSet) {
+			int fullScans = 0;
+			for (int i = 0; i < scatter.size(); i++) {
+				if (baseMap.indexOf(scatter.getLocation(i)) < 0 && ++fullScans > fullScansAllowed)
+					break;
+			}
+			if (fullScans <= fullScansAllowed)
+				return;
+		}
+		throw new GMT_MapException("CyberShake interpolation exceeds the limit of "
+				+ ServletWorkLimits.CYBERSHAKE_COMPARISONS + " estimated point comparisons");
+	}
+
 	public ArrayList<String> getGMT_ScriptLines(GMT_Map map, String dir) throws GMT_MapException {
 		if (map instanceof InterpDiffMap)
 			return getGMT_ScriptLines((InterpDiffMap)map, dir);
@@ -177,7 +257,7 @@ public class CyberShake_GMT_MapGenerator implements SecureMapGenerator {
 		String regionVals = "-R" + (float)minLon + "/" + (float)maxLon + "/" + (float)minLat + "/" + (float)maxLat;
 		gmtCommandLines.add("REGION=\""+regionVals+"\"");
 		String region = " $REGION ";
-		double plotWdth = 6.5;
+		double plotWdth = PLOT_WIDTH;
 		String proj = " $PROJ ";
 		gmtCommandLines.add("PROJ=\"-JM"+plotWdth+"i\"");
 		gmtCommandLines.add("## Plot Script ##");

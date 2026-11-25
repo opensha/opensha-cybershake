@@ -2,7 +2,6 @@ package org.opensha.sha.cybershake.maps.servlet;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 
 import javax.servlet.ServletException;
@@ -12,8 +11,13 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.opensha.commons.mapping.servlet.GMT_MapGeneratorServlet;
 import org.opensha.commons.util.ServerPrefUtils;
+import org.opensha.commons.util.ServletObjectInput;
+import org.opensha.commons.util.ServletObjectInput.Policy;
+import org.opensha.commons.util.ServletRequestPolicies;
+import org.opensha.sha.cybershake.maps.CustomGriddedRegion;
 import org.opensha.sha.cybershake.maps.CyberShake_GMT_MapGenerator;
 import org.opensha.sha.cybershake.maps.InterpDiffMap;
+import org.opensha.sha.cybershake.maps.InterpDiffMap.InterpDiffMapType;
 
 import com.google.common.base.Preconditions;
 
@@ -50,6 +54,9 @@ extends HttpServlet {
 	
 	private static final File GMT_DATA_DIR = GMT_MapGeneratorServlet.GMT_DATA_DIR;
 	
+	private static final Policy REQUEST_POLICY = ServletRequestPolicies.cyberShake(
+			InterpDiffMap.class, InterpDiffMapType.class, InterpDiffMapType[].class, CustomGriddedRegion.class);
+
 	public static final String SERVLET_URL = ServerPrefUtils.SERVER_PREFS.getServletBaseURL()
 					+ "CS_InterpDiffMapServlet";
 	
@@ -70,27 +77,18 @@ extends HttpServlet {
 				GMT_DATA_DIR.mkdir();
 			Preconditions.checkState(GMT_DATA_DIR.exists());
 
-			// get an input stream from the applet
-			System.out.println("Initializing input from application");
-			ObjectInputStream inputFromApplet = new ObjectInputStream(request.
-					getInputStream());
+			String dirName;
+			InterpDiffMap map;
+			String metadata;
+			String metadataFileName;
+			// Filter client-supplied map and interpolation data here, before handing it to the shared renderer.
+			try (ServletObjectInput input = ServletObjectInput.open(request, REQUEST_POLICY)) {
+				dirName = (String) input.readObject();
+				map = (InterpDiffMap) input.readObject();
+				metadata = (String) input.readObject();
+				metadataFileName = (String) input.readObject();
+			}
 
-			//receiving the name of the input directory
-			System.out.println("Receiving dir name");
-			String dirName = (String) inputFromApplet.readObject();
-
-			//gets the object for the GMT_MapGenerator script
-			System.out.println("Receiving map");
-			InterpDiffMap map = (InterpDiffMap)inputFromApplet.readObject();
-
-			//Metadata content: Map Info
-			System.out.println("Receiving metadata");
-			String metadata = (String) inputFromApplet.readObject();
-
-			//Name of the Metadata file
-			System.out.println("Receiving metadata file name");
-			String metadataFileName = (String) inputFromApplet.readObject();
-			
 			System.out.println("Generating map");
 			System.out.flush();
 			String mapImagePath = GMT_MapGeneratorServlet.createMap(csGMT, map, dirName, metadata, metadataFileName);
